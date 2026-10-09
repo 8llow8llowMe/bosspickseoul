@@ -62,7 +62,7 @@ import {
   getCommunityPopularRailPosts,
   getCommunityRailAnalysisLink,
   getCommunityRailAskTitle,
-  getCommunityRailPopularTitle,
+  getCommunityRailPostsSection,
   getCommunityRailTarget,
 } from '@/lib/community/list-rail'
 import {
@@ -948,6 +948,16 @@ export default function CommunityListPage() {
     boardTargetName: boardResponseName,
     guest: hasHydrated && !viewer.authenticated,
   })
+  /*
+    레일 「질문하기」(#590) — 머리 「글쓰기」와 같은 행동이 두 곳에 있지 않게 말머리 「질문」을 골라 둔 글쓰기로 연다.
+    대상 프리필·로그인 감싸기는 글쓰기 링크와 같다.
+  */
+  const askHref = createCommunityListWriteHref({
+    state,
+    boardTargetName: boardResponseName,
+    guest: hasHydrated && !viewer.authenticated,
+    category: 'QUESTION',
+  })
   const locationValue: CommunityLocationValue =
     hasTarget && !locationDisabled
       ? {
@@ -965,17 +975,22 @@ export default function CommunityListPage() {
     : null
 
   // 레일 글은 보던 목록의 맥락으로 연다 — 상세의 「← 목록」 이 이 목록으로 돌아온다(mock 보존).
-  const popularPosts = getCommunityPopularRailPosts(popularQuery.data).map(
-    post => ({
-      postId: post.postId,
-      title: post.title,
-      likeCount: post.likeCount,
-      href: createCommunityPostHref(post.postId, contextKey, state.mock),
-      onNavigate: () => {
-        saveCommunityListScrollFromViewport(contextKey)
-      },
-    }),
+  const popularSource = getCommunityPopularRailPosts(popularQuery.data)
+  // 반응이 모두 임계값 미만이면 같은 응답을 「이번 주 새 글」로 바꿔 부른다(#590, list-rail).
+  const popularSection = getCommunityRailPostsSection(
+    popularSource,
+    railBoardName,
   )
+  const popularPosts = popularSource.map(post => ({
+    postId: post.postId,
+    title: post.title,
+    likeCount: post.likeCount,
+    createdAt: post.createdAt,
+    href: createCommunityPostHref(post.postId, contextKey, state.mock),
+    onNavigate: () => {
+      saveCommunityListScrollFromViewport(contextKey)
+    },
+  }))
 
   const replaceAction = (action: CommunityListUrlAction) => {
     router.replace(createCommunityListActionHref(pathname, state, action), {
@@ -1090,14 +1105,9 @@ export default function CommunityListPage() {
             analysis={getCommunityRailAnalysisLink(state, railBoardName)}
             askTitle={getCommunityRailAskTitle(railBoardName)}
             popular={
-              popularPosts.length > 0
-                ? {
-                    title: getCommunityRailPopularTitle(railBoardName),
-                    posts: popularPosts,
-                  }
-                : null
+              popularSection ? { ...popularSection, posts: popularPosts } : null
             }
-            writeHref={writeHref}
+            askHref={askHref}
           />
         ) : null
       }

@@ -10,6 +10,10 @@ import {
   parseCommunityTargetType,
   type CommunityListState,
 } from './community-state'
+import {
+  parseCommunityPostCategory,
+  type CommunityPostCategoryCode,
+} from './post-category'
 
 /** 코드는 숫자만. 행정동 8자리·상권 7자리·자치구 5자리가 섞여 있어 길이는 느슨하게 둔다. */
 const PREFILL_CODE_PATTERN = /^\d{4,12}$/
@@ -54,6 +58,16 @@ export const parseCommunityEditorPrefill = (
 }
 
 /**
+ * 글쓰기 말머리 프리필(#590). 목록 레일의 「질문하기」가 `?category=QUESTION` 으로 글쓰기를 연다. 아는 말머리
+ * 값(대문자 정확 일치)만 받고 그 밖은 버린다 — 손으로 고친 주소가 `400 COMMUNITY_017` 이 되지 않게.
+ * 새 글에만 쓴다(수정은 글의 지금 말머리로 시작한다).
+ */
+export const parseCommunityEditorCategoryPrefill = (
+  params: URLSearchParams,
+): CommunityPostCategoryCode | null =>
+  parseCommunityPostCategory(params.get('category'))
+
+/**
  * 새 글의 시작 지역. **비교 초안이 이긴다** — 초안의 대상은 행정동으로 고정이고(community.md
  * §S4 「대상 규약」), 사용자는 그 비교로 글을 쓰려고 왔다.
  */
@@ -69,6 +83,7 @@ export const resolveCommunityCreateLocation = (
 export const createCommunityWriteHref = (
   target: CommunityLocationValue | null | undefined,
   mock: boolean,
+  category: CommunityPostCategoryCode | null = null,
 ) => {
   const params = new URLSearchParams()
 
@@ -80,6 +95,10 @@ export const createCommunityWriteHref = (
     if (targetName) {
       params.set('targetName', targetName)
     }
+  }
+
+  if (category) {
+    params.set('category', category)
   }
 
   if (mock) {
@@ -112,10 +131,13 @@ export const createCommunityListWriteHref = ({
   state,
   boardTargetName,
   guest,
+  category = null,
 }: {
   state: CommunityListState
   boardTargetName: string | undefined
   guest: boolean
+  /** 말머리를 미리 고른 채 연다(#590 — 레일 「질문하기」는 QUESTION). */
+  category?: CommunityPostCategoryCode | null
 }) => {
   const scoped =
     Boolean(state.targetType && state.targetCode) &&
@@ -130,6 +152,7 @@ export const createCommunityListWriteHref = ({
         }
       : null,
     state.mock,
+    category,
   )
 
   return !state.mock && guest ? getCommunityLoginHref(path) : path

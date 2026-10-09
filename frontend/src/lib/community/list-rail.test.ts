@@ -11,8 +11,11 @@ import {
   createCommunityPopularParams,
   getCommunityPopularRailPosts,
   getCommunityRailAnalysisLink,
+  COMMUNITY_POPULAR_MIN_REACTIONS,
   getCommunityRailAskTitle,
   getCommunityRailPopularTitle,
+  getCommunityRailPostsSection,
+  hasCommunityPopularReactions,
 } from './list-rail'
 
 /*
@@ -192,5 +195,35 @@ describe('getCommunityRailAnalysisLink', () => {
     expect(
       getCommunityRailAnalysisLink({ ...districtState, keyword: '점심' }, null),
     ).toEqual({ label: '상권 분석에서 찾아보기', href: '/analysis' })
+  })
+})
+
+describe('getCommunityRailPostsSection — 반응 없는 인기 글 대체(#590)', () => {
+  const post = (likeCount: number, commentCount: number) => ({
+    likeCount,
+    commentCount,
+  })
+
+  it('반응(좋아요 + 댓글)이 임계값 이상인 글이 하나라도 있으면 인기 글이다', () => {
+    expect(COMMUNITY_POPULAR_MIN_REACTIONS).toBe(1)
+    expect(hasCommunityPopularReactions([post(0, 0), post(0, 1)])).toBe(true)
+    expect(getCommunityRailPostsSection([post(1, 0)], '성동구')).toEqual({
+      kind: 'popular',
+      title: '성동구 이번 주 인기 글',
+    })
+  })
+
+  it('모두 반응이 없으면 같은 글을 「이번 주 새 글」로 바꿔 부른다', () => {
+    expect(
+      getCommunityRailPostsSection([post(0, 0), post(0, 0)], null),
+    ).toEqual({ kind: 'recent', title: '이번 주 새 글' })
+    expect(getCommunityRailPostsSection([post(0, 0)], '성동구')).toEqual({
+      kind: 'recent',
+      title: '성동구 이번 주 새 글',
+    })
+  })
+
+  it('글이 없으면 묶음을 숨긴다(null)', () => {
+    expect(getCommunityRailPostsSection([], '성동구')).toBeNull()
   })
 })

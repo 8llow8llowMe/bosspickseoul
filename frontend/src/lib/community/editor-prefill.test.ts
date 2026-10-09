@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createCommunityListWriteHref,
   createCommunityWriteHref,
+  parseCommunityEditorCategoryPrefill,
   parseCommunityEditorPrefill,
   resolveCommunityCreateLocation,
   toCommunityLocationValue,
@@ -312,6 +313,64 @@ describe('createCommunityListWriteHref — 목록의 글쓰기 링크', () => {
       }),
     ).toBe(
       '/community/register?targetType=DISTRICT&targetCode=11200&targetName=%EC%84%B1%EB%8F%99%EA%B5%AC&mock=1',
+    )
+  })
+})
+
+describe('말머리 프리필 — 레일 「질문하기」(#590)', () => {
+  it('아는 말머리만 받고, 소문자·모르는 값·없음은 말머리 없음이다', () => {
+    expect(
+      parseCommunityEditorCategoryPrefill(params('category=QUESTION')),
+    ).toBe('QUESTION')
+    expect(
+      parseCommunityEditorCategoryPrefill(params('category=question')),
+    ).toBeNull()
+    expect(
+      parseCommunityEditorCategoryPrefill(params('category=YEAR')),
+    ).toBeNull()
+    expect(parseCommunityEditorCategoryPrefill(params(''))).toBeNull()
+  })
+
+  it('목록 링크에 말머리를 대상 뒤 · mock 앞에 싣고, 비로그인이면 그 주소째 로그인으로 감싼다', () => {
+    const state = {
+      view: 'latest' as const,
+      keyword: '',
+      targetType: 'DISTRICT' as const,
+      targetCode: '11200',
+      period: 'WEEK' as const,
+      mock: true,
+    }
+
+    expect(
+      createCommunityListWriteHref({
+        state,
+        boardTargetName: undefined,
+        guest: false,
+        category: 'QUESTION',
+      }),
+    ).toBe(
+      '/community/register?targetType=DISTRICT&targetCode=11200&category=QUESTION&mock=1',
+    )
+    expect(
+      createCommunityListWriteHref({
+        state: {
+          ...state,
+          mock: false,
+          targetType: undefined,
+          targetCode: undefined,
+        },
+        boardTargetName: undefined,
+        guest: true,
+        category: 'QUESTION',
+      }),
+    ).toBe(
+      `/login?redirect=${encodeURIComponent('/community/register?category=QUESTION')}`,
+    )
+  })
+
+  it('말머리를 주지 않으면 지금 글쓰기 링크와 같다', () => {
+    expect(createCommunityWriteHref(null, false, null)).toBe(
+      '/community/register',
     )
   })
 })

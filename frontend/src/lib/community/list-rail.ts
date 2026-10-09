@@ -60,6 +60,41 @@ export const getCommunityPopularRailPosts = (
 export const getCommunityRailPopularTitle = (boardName: string | null) =>
   boardName ? `${boardName} 이번 주 인기 글` : '이번 주 인기 글'
 
+/*
+  반응 없는 인기 글 대체(#590). 이번 주 인기 글이 모두 반응(좋아요 + 댓글)이 임계값 미만이면 「인기」라는 제목이
+  활동 없는 게시판처럼 보인다. 그때는 같은 응답을 「이번 주 새 글」로 바꿔 부른다 — 인기순은 좋아요 수가 같으면
+  글 id 내림차순이라(BE CommunityPostCustomRepositoryImpl: likeCount desc, id desc) 모두 0 이면 곧 이번 주
+  최신 글 순서다. 요청을 더 보내지 않는다. 「최근 댓글이 달린 글」은 그 정렬을 주는 API 가 없어 쓰지 않는다.
+*/
+export const COMMUNITY_POPULAR_MIN_REACTIONS = 1
+
+export type CommunityRailPostsKind = 'popular' | 'recent'
+
+export const hasCommunityPopularReactions = (
+  posts: ReadonlyArray<{ likeCount: number; commentCount: number }>,
+) =>
+  posts.some(
+    post =>
+      post.likeCount + post.commentCount >= COMMUNITY_POPULAR_MIN_REACTIONS,
+  )
+
+export const getCommunityRailRecentTitle = (boardName: string | null) =>
+  boardName ? `${boardName} 이번 주 새 글` : '이번 주 새 글'
+
+/** 레일 글 묶음의 종류·제목. 글이 없으면 null(묶음을 숨긴다). */
+export const getCommunityRailPostsSection = (
+  posts: ReadonlyArray<{ likeCount: number; commentCount: number }>,
+  boardName: string | null,
+): { kind: CommunityRailPostsKind; title: string } | null => {
+  if (posts.length === 0) {
+    return null
+  }
+
+  return hasCommunityPopularReactions(posts)
+    ? { kind: 'popular', title: getCommunityRailPopularTitle(boardName) }
+    : { kind: 'recent', title: getCommunityRailRecentTitle(boardName) }
+}
+
 export const getCommunityRailAskTitle = (boardName: string | null) =>
   boardName ? `${boardName}에 대해 물어보세요` : '사장님들께 물어보세요'
 
