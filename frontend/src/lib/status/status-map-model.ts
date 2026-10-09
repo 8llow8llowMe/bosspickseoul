@@ -54,6 +54,42 @@ export function createStatusMapLabels(
   })
 }
 
+export const STATUS_MAP_STEP_COUNT = 5
+
+/**
+ * 지도 단계 색. 현재 지표 값으로 구를 **5분위**(같은 개수씩 다섯 묶음)로 나눈다. 1 이 가장 많다.
+ *
+ * - 구간 폭을 값으로 똑같이 자르지 않는다. 매출은 강남구 하나가 다른 구의 몇 배라, 등간격이면 강남구만
+ *   진하고 나머지 24개 구가 가장 옅은 칸에 몰린다. 분위는 25개 구를 다섯 칸에 고르게 펼친다.
+ * - 단계는 **값으로** 정한다 — 나보다 값이 큰 구의 수(`higher`)가 n 의 몇 분위인지다. 그래서 같은 값은
+ *   늘 같은 단계이고, 응답 `rank` 의 동점(1, 2, 2, 4)과도 맞는다. 25개면 1~5위가 1단계, 21~25위가 5단계다.
+ * - 값이 유한수가 아닌 항목은 단계가 없다(회색). 같은 구가 두 번 오면 앞 항목만 쓴다.
+ */
+export function resolveStatusMapValueSteps(
+  items: readonly StatusRankedItem[],
+): Map<string, number> {
+  const valuesByDistrictCode = new Map<string, number>()
+
+  for (const item of items) {
+    if (!Number.isFinite(item.value)) continue
+    if (valuesByDistrictCode.has(item.districtCode)) continue
+    valuesByDistrictCode.set(item.districtCode, item.value)
+  }
+
+  const values = [...valuesByDistrictCode.values()]
+  const steps = new Map<string, number>()
+
+  for (const [districtCode, value] of valuesByDistrictCode) {
+    const higher = values.filter(other => other > value).length
+    steps.set(
+      districtCode,
+      Math.floor((higher * STATUS_MAP_STEP_COUNT) / values.length) + 1,
+    )
+  }
+
+  return steps
+}
+
 export function findSelectedStatusMapFeature(
   features: readonly StatusMapFeature[],
   districtCode: string | null,

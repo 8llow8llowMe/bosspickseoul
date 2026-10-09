@@ -2,7 +2,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
-import StatusMap, { getStatusMapRankStep } from './status-map'
+import StatusMap from './status-map'
+import { SEOUL_STATUS_FEATURES } from '@/data/seoul-status-map'
 import type { StatusRankedItem } from '@/types/status'
 
 const items: StatusRankedItem[] = [
@@ -21,6 +22,17 @@ const items: StatusRankedItem[] = [
     changeRate: 5,
   },
 ]
+
+/* 25개 구 전체 순위. 지도 데이터 순서대로 값을 하나씩 낮춰 1~25위를 매긴다. */
+const fullItems: StatusRankedItem[] = SEOUL_STATUS_FEATURES.map(
+  (feature, index) => ({
+    rank: index + 1,
+    districtCode: feature.districtCode,
+    districtName: feature.districtCode,
+    value: (25 - index) * 100_000_000,
+    changeRate: index === 13 ? null : -2.1,
+  }),
+)
 
 const renderMap = (
   props: Partial<React.ComponentProps<typeof StatusMap>> = {},
@@ -90,13 +102,40 @@ describe('StatusMap', () => {
     expect(markup).not.toContain('<button aria-pressed')
   })
 
-  it('폴리곤 접근성 이름에 지표 기준 순위와 값을, 순위 밖이면 그 사실을 적는다', () => {
+  it('폴리곤 접근성 이름에 지표 기준 순위와 값을, 순위에 없으면 그 사실을 적는다', () => {
     const markup = renderMap()
 
     expect(markup).toContain('aria-label="강남구, 유동인구 1위 · 100명 · +10%"')
     expect(markup).toContain('aria-label="종로구, 유동인구 2위 · 90명 · +5%"')
-    expect(markup).toContain('aria-label="서초구, 유동인구 상위 10위 밖"')
+    expect(markup).toContain('aria-label="서초구, 유동인구 데이터 없음"')
     expect(markup.match(/data-status-rank=/g)).toHaveLength(2)
+  })
+
+  it('Top10 밖 구도 순위·값·변화율을 적고, 변화율 null 은 결측으로 적는다', () => {
+    const markup = renderMap({ items: fullItems, metric: 'sales' })
+    const fourteenth = fullItems[13]
+    const fifteenth = fullItems[14]
+
+    expect(markup).toContain(
+      `data-status-district-path="${fifteenth.districtCode}"`,
+    )
+    expect(markup).toMatch(
+      new RegExp(
+        `aria-label="[^"]+, 매출 15위 · 11억원 · -2\\.1%"[^>]*data-status-district-path="${fifteenth.districtCode}"`,
+      ),
+    )
+    expect(markup).toMatch(
+      new RegExp(
+        `aria-label="[^"]+, 매출 14위 · 12억원 · 변화율 데이터 없음"[^>]*data-status-district-path="${fourteenth.districtCode}"`,
+      ),
+    )
+    expect(markup).not.toContain('10위 밖')
+  })
+
+  it('순위 점은 Top10 에만 찍는다', () => {
+    const markup = renderMap({ items: fullItems })
+
+    expect(markup.match(/data-status-rank=/g)).toHaveLength(10)
   })
 
   it('선택한 자치구 폴리곤을 한 번만 강조한다', () => {
@@ -115,29 +154,28 @@ describe('StatusMap', () => {
     expect(markup).toContain('data-selected-district-code="11650"')
   })
 
-  it('Top10 폴리곤을 순위 두 칸씩 다섯 단계로 칠하고 순위 밖은 단계가 없다', () => {
+  it('전체 순위면 25개 구를 모두 다섯 단계 중 하나로 칠한다', () => {
+    const markup = renderMap({ items: fullItems })
+    const steps = [...markup.matchAll(/data-value-step="([1-5])"/g)].map(
+      match => match[1],
+    )
+
+    expect(steps).toHaveLength(25)
+    expect(new Set(steps)).toEqual(new Set(['1', '2', '3', '4', '5']))
+    // 모든 구에 값이 있으면 범례에 「데이터 없음」 칸을 두지 않는다.
+    expect(markup).not.toContain('<span>데이터 없음</span>')
+  })
+
+  it('순위에 없는 구는 단계가 없고 범례에 「데이터 없음」 칸이 뜬다', () => {
     const markup = renderMap()
 
     expect(markup).toMatch(
-      /data-rank-step="1"[^>]*data-status-district-path="11680"/,
-    )
-    expect(markup).toMatch(
-      /data-rank-step="1"[^>]*data-status-district-path="11110"/,
+      /data-value-step="1"[^>]*data-status-district-path="11680"/,
     )
     expect(markup).not.toMatch(
-      /data-rank-step="[0-9]"[^>]*data-status-district-path="11650"/,
+      /data-value-step="[0-9]"[^>]*data-status-district-path="11650"/,
     )
-  })
-
-  it.each([
-    [1, 1],
-    [2, 1],
-    [3, 2],
-    [10, 5],
-    [11, null],
-    [null, null],
-  ])('순위 %s 는 단계 %s', (rank, step) => {
-    expect(getStatusMapRankStep(rank)).toBe(step)
+    expect(markup).toContain('<span>데이터 없음</span>')
   })
 
   it('순위 데이터가 있을 때만 범례를 그린다', () => {
