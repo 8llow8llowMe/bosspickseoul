@@ -1101,3 +1101,59 @@ describe('styled 컴포넌트를 정의하는 파일은 클라이언트 경계�
     expect(findOffenders(files)).toEqual([])
   })
 })
+
+/*
+ * iOS Safari 는 글꼴이 16px 미만인 입력칸에 포커스가 가면 화면을 확대한다(#558).
+ * 줌을 막는 maximum-scale 은 접근성 문제라 금지하고, 글꼴을 16px(Body Large)로 올린다.
+ */
+describe('모바일 폼 컨트롤 16px (#558)', () => {
+  const css = squeeze(renderGlobalCss())
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+  )
+  const blankComments = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\/|(?<!:)\/\/[^\n]*/g, match =>
+      match.replace(/[^\n]/g, ' '),
+    )
+
+  it('1023px 이하에서 input·select·textarea 글꼴이 16px 이다', () => {
+    expect(css).toContain(
+      '@media(max-width:1023px){input,select,textarea{font-size:16px;}}',
+    )
+  })
+
+  it('!important 를 쓰지 않는다 — 16px 를 넘는 입력(커뮤니티 제목 20px)이 줄면 안 된다', () => {
+    expect(css).not.toContain('font-size:16px!important')
+  })
+
+  it('컨트롤 높이는 건드리지 않는다', () => {
+    const block = css.slice(
+      css.indexOf('@media(max-width:1023px){input,select'),
+    )
+
+    expect(block.slice(0, block.indexOf('}}') + 2)).not.toContain('height')
+  })
+
+  it('소스 어디에도 maximum-scale · user-scalable 이 없다', () => {
+    const offenders: string[] = []
+
+    for (const file of [
+      ...collectFiles(projectRoot, isSourceFile),
+      ...collectFiles(path.join(projectRoot, '..', 'app'), isSourceFile),
+    ]) {
+      const raw = readIfPresent(file)
+
+      if (raw === null) continue
+      if (
+        /maximum-scale|maximumScale|user-scalable|userScalable/i.test(
+          blankComments(raw),
+        )
+      ) {
+        offenders.push(path.relative(projectRoot, file))
+      }
+    }
+
+    expect(offenders).toEqual([])
+  })
+})

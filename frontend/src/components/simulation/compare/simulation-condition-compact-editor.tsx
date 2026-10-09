@@ -128,6 +128,11 @@ const Select = styled.select`
   cursor: pointer;
   text-overflow: ellipsis;
 
+  /* iOS 포커스 자동 확대 방지(#558) — 높이는 min-height 그대로다. */
+  @media ${SIMULATION_MEDIA.belowDesktop} {
+    font-size: 16px;
+  }
+
   &:hover {
     border-color: var(--color-primary-600);
   }
