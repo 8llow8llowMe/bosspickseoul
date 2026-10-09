@@ -22,11 +22,11 @@
  * const view = await act(async () => render(createElement(RecommendMap, props)))
  * ```
  *
- * 한계: 실제 렌더링·타일·투영이 없다. `setBounds` 는 기록만 하고 중심·레벨을 바꾸지
+ * 한계: 실제 렌더링·타일이 없고 투영은 서울 축척 근사다(`getProjection`). `setBounds` 는 기록만 하고 중심·레벨을 바꾸지
  * 않으며, `idle` 은 SDK 가 스스로 내지 않는다 — `trigger(map, 'idle')` 로 직접 낸다.
  */
 
-type KakaoEventType = 'click' | 'idle' | 'mouseover' | 'mouseout'
+type KakaoEventType = KakaoMapEventType
 type Handler = () => void
 
 export type FakePoint = { lat: number; lng: number }
@@ -129,6 +129,9 @@ export type FakeKakaoMaps = {
 
 const DEFAULT_LEVEL = 3
 const DEFAULT_VIEWPORT_HALF_SPAN = 0.02
+const FAKE_PROJECTION_BASE_LEVEL = 3
+const FAKE_PX_PER_LNG = 89_000
+const FAKE_PX_PER_LAT = 111_000
 
 export const createFakeKakaoMaps = (): FakeKakaoMaps => {
   const listeners = new Map<object, Map<KakaoEventType, Set<Handler>>>()
@@ -190,6 +193,23 @@ export const createFakeKakaoMaps = (): FakeKakaoMaps => {
 
     getCenter() {
       return new FakeLatLng(this.center.lat, this.center.lng)
+    }
+
+    /**
+     * 실제 SDK 를 서울(37.55°N)에서 잰 축척을 흉내 낸다 — level 3 에서 경도 0.001° ≈ 89px,
+     * 위도 0.001° ≈ 111px, 레벨이 하나 오를 때마다 절반. 원점은 지도 중심이다(라벨 충돌
+     * 판정은 상대 거리만 쓰므로 컨테이너 크기는 흉내 내지 않는다).
+     */
+    getProjection() {
+      return {
+        containerPointFromCoords: (position: KakaoMapLatLng) => {
+          const scale = 2 ** (FAKE_PROJECTION_BASE_LEVEL - this.level)
+          return {
+            x: (position.getLng() - this.center.lng) * FAKE_PX_PER_LNG * scale,
+            y: (this.center.lat - position.getLat()) * FAKE_PX_PER_LAT * scale,
+          }
+        },
+      }
     }
 
     getLevel() {

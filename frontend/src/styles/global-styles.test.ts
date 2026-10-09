@@ -385,6 +385,32 @@ describe('흰 글자를 얹는 파란 채움은 fill-primary-text 다', () => {
  * 1405 / status 1420 으로 어긋난 원인이 이것이다 — 헤더 규칙이 아니라 스크롤바다.
  * `scrollbar-gutter: stable` 은 스크롤바 자리를 항상 예약해 그 이동을 없앤다.
  */
+/*
+ * 지도 상권 라벨이 카카오 기본 지도의 상점·역 이름(타일에 구워진 흰 후광 글자)에
+ * 묻히지 않아야 한다(#602). 회색 테두리·반투명 바탕으로 돌아가면 다시 묻힌다.
+ */
+describe('지도 영역 라벨은 기본 지도 이름보다 한 단계 떠 있다', () => {
+  const labelBlock = () => {
+    const css = squeeze(renderGlobalCss())
+    const start = css.indexOf('[data-kakao-map].area-map-label{')
+    expect(start).toBeGreaterThanOrEqual(0)
+    return css.slice(start, css.indexOf('}', start))
+  }
+
+  it('폴리곤과 같은 파랑 테두리·불투명 바탕·level-3 그림자다', () => {
+    const block = labelBlock()
+    expect(block).toContain('border:1pxsolidvar(--color-primary-600)')
+    expect(block).toContain('background:var(--color-surface)')
+    expect(block).toContain('box-shadow:var(--shadow-level-3)')
+  })
+
+  it('반투명 바탕·회색 테두리로 돌아가지 않는다', () => {
+    const block = labelBlock()
+    expect(block).not.toContain('rgba(255,255,255')
+    expect(block).not.toContain('--color-border-300')
+  })
+})
+
 describe('스크롤바 자리 예약 (페이지 간 가로 밀림 방지)', () => {
   it('html 이 스크롤바 자리를 항상 예약한다', () => {
     expect(squeeze(renderGlobalCss())).toContain('scrollbar-gutter:stable')

@@ -10,8 +10,19 @@ declare global {
     getNorthEast(): KakaoMapLatLng
   }
 
+  type KakaoMapPoint = {
+    x: number
+    y: number
+  }
+
+  type KakaoMapProjection = {
+    /** 지도 컨테이너 왼쪽 위 기준 화면 좌표(px). 라벨 충돌 판정에 쓴다. */
+    containerPointFromCoords(position: KakaoMapLatLng): KakaoMapPoint
+  }
+
   type KakaoMapInstance = {
     getBounds(): KakaoMapLatLngBounds
+    getProjection(): KakaoMapProjection
     getCenter(): KakaoMapLatLng
     getLevel(): number
     setLevel(level: number): void
@@ -48,6 +59,10 @@ declare global {
     setZIndex(zIndex: number): void
   }
 
+  /** `zoom_changed` 는 레벨이 바뀌는 즉시(애니메이션 전) 온다. 투영도 그때 이미 새 레벨이다. */
+  type KakaoMapEventType =
+    'click' | 'idle' | 'mouseover' | 'mouseout' | 'zoom_changed'
+
   type KakaoMapsNamespace = {
     load(callback: () => void): void
     Map: new (
@@ -81,12 +96,12 @@ declare global {
     event: {
       addListener(
         target: object,
-        type: 'click' | 'idle' | 'mouseover' | 'mouseout',
+        type: KakaoMapEventType,
         handler: () => void,
       ): void
       removeListener(
         target: object,
-        type: 'click' | 'idle' | 'mouseover' | 'mouseout',
+        type: KakaoMapEventType,
         handler: () => void,
       ): void
       preventMap(): void
