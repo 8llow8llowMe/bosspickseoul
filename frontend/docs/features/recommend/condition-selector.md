@@ -202,14 +202,17 @@ export type OptionPickerProps = {
 
 - 각 조각은 `<button type="button">`. 누르면 그 단계의 선택 뷰로 전환한다(R-2).
 - 값이 있으면 지역/업종 이름, 없으면 `자치구 선택` 같은 플레이스홀더. 플레이스홀더는
-  `--color-placeholder`(grey400), 확정값은 `--color-text-900` — `DESIGN.md` §Inputs 의
-  플레이스홀더 규칙을 그대로 따른다.
+  `--color-text-800`(grey800) + `--color-border-300` 테두리다. grey400 글자는 grey100 면 위
+  1.82:1 이라 쓰지 않는다(#585). 아직 비어 있고 지금 누를 수 있는 **첫 칩**(다음 자리)은
+  `--color-primary-700` 테두리를 한 겹 더 두른다. `--color-placeholder` 와 opacity 0.6 은
+  **잠긴(disabled) 칩에만** 남는다.
 - 상위 조건이 비어 선택할 수 없는 조각은 `disabled` 이고, 사유는 조건 바 아래 헬퍼 한 줄로
-  남긴다(현행 `자치구를 먼저 선택해 주세요.` 문구 유지).
+  남긴다. 칩 자체에도 `title` 과 `aria-describedby`(화면 밖 문장 「자치구를 먼저 골라 주세요」)로
+  사유를 연결한다.
 - 세 조각이 `flex: 1 1 0` 로 **폭을 나눠 갖는다.** 내용 폭만 차지하면 왼쪽에 몰리고 오른쪽이
   빈다.
 - 조각은 **회색 채움 면**(surface-muted)을 갖고 바탕은 비운다. 둘 다 회색이면 조각이 배경에
-  묻혀 누를 수 있는 자리인지 알 수 없다. 고른 조각은 `primary-100` 면 + `primary-700` 글자다.
+  묻혀 누를 수 있는 자리인지 알 수 없다. 고른 조각은 `primary-100` 면 + `--color-text-primary-on-light` 글자다.
 - 이름이 길면 **두 줄로 간다.** 말줄임하지 않는다 — 잘라내면 어느 지역인지 알 수 없다.
   조각들은 `align-items: stretch` 로 같은 높이를 유지한다.
 
