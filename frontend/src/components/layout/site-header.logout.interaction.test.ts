@@ -27,6 +27,11 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
+// 로그인 상태라 헤더 알림 종이 안 읽은 수를 부른다 — 이 테스트의 관심사가 아니라 막아 둔다.
+vi.mock('@/hooks/use-community-notification-unread-count', () => ({
+  useCommunityNotificationUnreadCount: () => null,
+}))
+
 const member = {
   memberId: '7',
   email: 'a@test.local',

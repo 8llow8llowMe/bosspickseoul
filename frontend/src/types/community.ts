@@ -368,6 +368,87 @@ export type CommunityComparisonDraft = {
   analysisSnapshotKey?: string | null
 }
 
+/**
+ * 커뮤니티 알림 종류 code(#535·#536, 설계 `backend/docs/services/community-notification-design.md` §5-1).
+ * 응답의 종류는 `CommunityMetadata` 라 code 가 `string` 이다 — BE 가 값을 더해도 화면이 죽지 않게 받고,
+ * 문구 분기는 알려진 두 값만 쓴다(`lib/community/notifications.ts`).
+ */
+export type CommunityNotificationTypeCode =
+  'COMMENT_ON_POST' | 'REPLY_ON_COMMENT'
+
+/**
+ * 알림 목록 항목(설계 §7-1). 수신자별 **묶음 행**이다 — 같은 글(답글이면 같은 부모 댓글)에 안 읽은 채
+ * 쌓인 댓글이 한 행으로 모이고, `eventCount` 는 그 **댓글 수**다(사람 수가 아니다).
+ *
+ * 메시지 본문은 내려오지 않는다. 화면이 `notificationType` · `actorNickname` · `eventCount` · `postTitle`
+ * 로 조립한다(`formatCommunityNotificationMessage`).
+ */
+export type CommunityNotificationItem = {
+  notificationId: CommunityId
+  notificationType: CommunityMetadata
+  postId: CommunityId
+  /** 게시글이 ACTIVE 가 아니면 null(조회 시점 강등, 설계 §10). */
+  postTitle: string | null
+  /** 게시글이 ACTIVE 인가. false 면 「삭제된 글」로 적고 이동을 막는다. */
+  targetAvailable: boolean
+  /** 마지막으로 알림을 만든 댓글. 댓글 앵커(`#comment-{id}`)에 쓴다. */
+  commentId: CommunityId | null
+  /** 그 댓글 미리보기(최대 100자). 댓글이 지워졌으면 null. */
+  commentPreview: string | null
+  actorMemberId: CommunityId | null
+  /**
+   * 마지막 행위자 닉네임. 작성자 표시와 같은 계약이다 — 탈퇴 회원은 `"탈퇴회원"`, 회원 서비스 장애면 null.
+   * null 은 대체 문구로 적는다(`COMMUNITY_WRITER_FALLBACK`).
+   */
+  actorNickname: string | null
+  actorProfileImageUrl: string | null
+  /** 묶인 댓글 수. */
+  eventCount: number
+  read: boolean
+  /** 마지막 이벤트 시각(ISO-8601, 시간대 없음). 정렬·다음 쪽 커서의 앞 키다. 받은 문자열을 그대로 되돌려 보낸다. */
+  lastEventAt: string
+  createdAt: string
+}
+
+export type CommunityNotificationListBody = {
+  /** `SliceResponse<CommunityNotificationItem>` — 게시글 목록 `posts` 와 같은 모양. */
+  notifications: CommunityPostSlice<CommunityNotificationItem>
+}
+
+/**
+ * 알림 목록 요청(설계 §7). 첫 쪽은 `lastNotificationId: '0'` 이고 `lastEventAt` 을 싣지 않는다.
+ * 다음 쪽은 **마지막 항목의 `lastEventAt` + `notificationId` 를 그대로** 보낸다 — `lastNotificationId` 가
+ * 0 이 아니면 `lastEventAt` 이 필수다(빠지면 400).
+ */
+export type CommunityNotificationListParams = {
+  unreadOnly: boolean
+  lastNotificationId: CommunityId
+  lastEventAt?: string
+  size: number
+}
+
+export type CommunityNotificationUnreadCountBody = {
+  unreadCount: number
+}
+
+export type CommunityNotificationReadBody = {
+  notificationId: CommunityId
+  read: boolean
+}
+
+export type CommunityNotificationReadAllBody = {
+  updatedCount: number
+}
+
+export type CommunityNotificationListResponse =
+  ApiResponse<CommunityNotificationListBody>
+export type CommunityNotificationUnreadCountResponse =
+  ApiResponse<CommunityNotificationUnreadCountBody>
+export type CommunityNotificationReadResponse =
+  ApiResponse<CommunityNotificationReadBody>
+export type CommunityNotificationReadAllResponse =
+  ApiResponse<CommunityNotificationReadAllBody>
+
 export type CommunityPostListResponse = ApiResponse<CommunityPostListBody>
 export type CommunityLikedPostsResponse = ApiResponse<CommunityLikedPostsBody>
 export type CommunityPostDetailResponse = ApiResponse<CommunityPostDetail>

@@ -119,6 +119,26 @@ const readUploadedFiles = (request: Request): File[] => {
   )
 }
 
+/**
+ * 커뮤니티 알림(#535). 로그인한 목 회원이면 헤더 종이 안 읽은 수를 부른다 — 고정 응답이 없으면
+ * 모든 커뮤니티 e2e 가 `unhandled` 로 깨진다.
+ */
+const E2E_NOTIFICATION_UNREAD_COUNT = 3
+
+const handleNotifications = (
+  request: Request,
+  segments: string[],
+): unknown | undefined => {
+  if (
+    request.method() === 'GET' &&
+    segments.length === 1 &&
+    segments[0] === 'unread-count'
+  ) {
+    return ok({ unreadCount: E2E_NOTIFICATION_UNREAD_COUNT })
+  }
+  return undefined
+}
+
 const handleCommunity = async (
   source: ReturnType<typeof createCommunityMockSource>,
   request: Request,
@@ -128,6 +148,9 @@ const handleCommunity = async (
   const method = request.method()
   const [head, postId, child, commentId, grandChild] = segments
 
+  if (head === 'notifications') {
+    return handleNotifications(request, segments.slice(1))
+  }
   if (head === 'reports' && segments.length === 1 && method === 'POST') {
     return source.createReport(readBody<CommunityReportCreateRequest>(request))
   }

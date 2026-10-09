@@ -28,6 +28,8 @@ import { clearMemberInfoQuery } from '@/lib/member-info-query'
 import { clearMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
 import BrandLockup from '@/components/brand/brand-lockup'
+import CommunityNotificationBell from '@/components/layout/community-notification-bell'
+import { communityNotificationKeys } from '@/lib/community/notifications'
 import { shellWidth } from '@/styles/layout'
 
 const Header = styled.header<{ $isScrolled: boolean }>`
@@ -445,6 +447,8 @@ export default function SiteHeader() {
         void clearMemberBookmarksQuery(queryClient, loggedOutMemberId)
         void clearMemberInfoQuery(queryClient, loggedOutMemberId)
       }
+      // 알림 수·목록은 회원 키라 다음 사람에게 보이지 않지만, 폴링 중인 쿼리를 남기지 않는다.
+      queryClient.removeQueries({ queryKey: communityNotificationKeys.all })
       // 글쓰기 임시 저장본은 브라우저에 남는다 — 공용 기기의 다음 사람에게 넘기지 않는다.
       // storage 실패는 함수 안에서 삼킨다(try/catch).
       clearCommunityStoredDrafts(getBrowserLocalStorage)
@@ -569,6 +573,21 @@ export default function SiteHeader() {
           ))}
         </Nav>
         <Actions>
+          {/*
+            알림 종(#535)은 로그인 확인이 끝난 회원에게만 그린다. 확인 전·비로그인에는 자리도 없다 —
+            누를 것이 없으니 확인 전에 로그인으로 쫓겨나지 않는다(CM-003 기준). 모바일에서는 메뉴 토글
+            왼쪽, 넓은 화면에서는 아바타 왼쪽이다.
+          */}
+          {hasHydrated && isLoggedIn && memberInfo ? (
+            <CommunityNotificationBell
+              memberId={String(memberInfo.memberId)}
+              pathname={pathname}
+              onNavigate={() => {
+                setIsMobileOpen(false)
+                setIsDropdownOpen(false)
+              }}
+            />
+          ) : null}
           <MobileToggle
             aria-expanded={isMobileOpen}
             aria-label={isMobileOpen ? '메뉴 닫기' : '메뉴 열기'}
