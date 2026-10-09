@@ -982,3 +982,122 @@ describe('테두리로 포커스를 말하는 입력칸은 전역 링을 끈다'
     expect(offenders).toEqual([])
   })
 })
+
+/*
+ * styled-components 6 은 서버 컴포넌트에서 렌더되면 레지스트리(ServerStyleSheet)를 거치지 않고
+ * 요소 옆에 인라인 `<style data-styled>` 를 직접 낸다. 그 태그를 한 요청에 한 번만 내려고
+ * `React.cache` 로 「이미 낸 클래스」 집합을 공유한다. 그래서 **화면에 붙지 않는 서버 트리**
+ * (#555 의 루트 `not-found.tsx` 가 레이아웃마다 미리 렌더되는 경계 등)가 같은 컴포넌트를 먼저 렌더하면
+ * 실제 화면 쪽은 「이미 냈다」며 건너뛰고, 클래스만 붙고 CSS 가 없는 요소가 남는다
+ * (2026-10-10 푸터 실측: 패딩 0px · 링크 세로 쌓임).
+ * 클라이언트 컴포넌트는 SSR 에서 레지스트리가 실제로 그려진 트리만 모아 `<head>` 에 넣으므로
+ * 이 문제가 없다. 그래서 **styled 컴포넌트를 정의하는 파일은 'use client' 로 시작한다.**
+ * `css`·`keyframes` 조각만 내보내는 헬퍼(styles/layout.ts 등)는 렌더하지 않으므로 대상이 아니다 —
+ * 그 파일에 'use client' 를 달면 서버에서 가져갈 때 값 대신 클라이언트 참조가 와서 오히려 깨진다.
+ */
+describe('styled 컴포넌트를 정의하는 파일은 클라이언트 경계다', () => {
+  const frontendRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+    '..',
+  )
+
+  /** 주석을 지운다. 템플릿 안 `url(https://…)` 의 `//` 는 주석이 아니다. */
+  const stripComments = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\/|(?<!:)\/\/[^\n]*/g, '')
+
+  const importsStyledComponents = (source: string): boolean =>
+    /\bfrom\s+['"]styled-components['"]/.test(source)
+
+  /** 렌더되는 스타일을 만드는 API — `styled.x`·`styled(X)`·`createGlobalStyle`. */
+  const definesStyledComponent = (source: string): boolean =>
+    /\bstyled\s*(?:\.\s*\w+|\()|\bcreateGlobalStyle\b/.test(source)
+
+  /** 지시어는 파일의 첫 문장이어야 효력이 있다 — 주석을 지운 뒤 첫 토큰을 본다. */
+  const startsWithUseClient = (source: string): boolean =>
+    /^\s*(['"])use client\1/.test(source)
+
+  const findOffenders = (files: { name: string; source: string }[]) =>
+    files
+      .filter(({ source: raw }) => {
+        const source = stripComments(raw)
+        return (
+          importsStyledComponents(source) &&
+          definesStyledComponent(source) &&
+          !startsWithUseClient(source)
+        )
+      })
+      .map(({ name }) => name)
+
+  it('판정 — 지시어 없이 styled 를 정의하는 파일만 건다', () => {
+    const offenders = findOffenders([
+      {
+        name: 'server.tsx',
+        source:
+          "import styled from 'styled-components'\nconst A = styled.footer`\n  padding: 24px;\n`",
+      },
+      {
+        name: 'wrapped.tsx',
+        source:
+          "import styled from 'styled-components'\nimport Link from 'next/link'\nconst B = styled(Link)`\n  color: red;\n`",
+      },
+      {
+        name: 'global.ts',
+        source:
+          "import { createGlobalStyle } from 'styled-components'\nconst G = createGlobalStyle`\n  html { margin: 0; }\n`",
+      },
+      {
+        name: 'comment-first.tsx',
+        source:
+          "/* 설명 */\n// 한 줄\n'use client'\n\nimport styled from 'styled-components'\nconst C = styled.div``",
+      },
+      {
+        name: 'double-quote.tsx',
+        source:
+          '"use client"\nimport styled from "styled-components"\nconst D = styled.div``',
+      },
+      {
+        name: 'helper.ts',
+        source:
+          "import { css } from 'styled-components'\nexport const shellWidth = css`\n  width: 1px;\n`",
+      },
+      {
+        name: 'late-directive.tsx',
+        source:
+          "import styled from 'styled-components'\n'use client'\nconst E = styled.div``",
+      },
+      {
+        name: 'commented-directive.tsx',
+        source:
+          "// 'use client'\nimport styled from 'styled-components'\nconst F = styled.div``",
+      },
+      {
+        name: 'no-styled.tsx',
+        source: "import { css } from '@/x'\nconst styledName = 1",
+      },
+    ])
+
+    expect(offenders).toEqual([
+      'server.tsx',
+      'wrapped.tsx',
+      'global.ts',
+      'late-directive.tsx',
+      'commented-directive.tsx',
+    ])
+  })
+
+  it('src·app 어디에도 지시어 없이 styled 를 정의하는 파일이 없다', () => {
+    const files = ['src', 'app'].flatMap(dir =>
+      collectFiles(path.join(frontendRoot, dir), isSourceFile).flatMap(file => {
+        const source = readIfPresent(file)
+
+        return source === null
+          ? []
+          : [{ name: path.relative(frontendRoot, file), source }]
+      }),
+    )
+
+    expect(files.length).toBeGreaterThan(100)
+    expect(findOffenders(files)).toEqual([])
+  })
+})

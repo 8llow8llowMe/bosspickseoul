@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import styled from 'styled-components'
 import BrandLockup from '@/components/brand/brand-lockup'

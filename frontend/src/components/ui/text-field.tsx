@@ -1,3 +1,5 @@
+'use client'
+
 import { X } from 'lucide-react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import { forwardRef } from 'react'
