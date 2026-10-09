@@ -14,6 +14,7 @@ import {
 
 import { computeNiceYScale } from '@/lib/analysis/chart-scale'
 import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
+import { ChartDataTable } from './chart-data-table'
 import {
   CHART_COLORS,
   ChartTooltipContent,
@@ -341,6 +342,15 @@ export default function HorizontalBarChart({
           </Bar>
         </ReBarChart>
       </ResponsiveContainer>
+      <ChartDataTable
+        caption={ariaLabel}
+        categoryHeader="구분"
+        categories={items.map(item => item.label)}
+        series={[{ name: '값', values: items.map(item => item.value) }]}
+        notes={items.map(item => item.subLabel)}
+        unit={unit}
+        valueFormatter={valueFormatter}
+      />
     </Bounded>
   )
 }

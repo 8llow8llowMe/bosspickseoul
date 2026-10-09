@@ -13,6 +13,7 @@ import {
 
 import { computeNiceYScale } from '@/lib/analysis/chart-scale'
 import type { TrendPoint } from '@/lib/analysis/chart-data'
+import { ChartDataTable } from './chart-data-table'
 import {
   AxisUnitCaption,
   CHART_COLORS,
@@ -124,6 +125,14 @@ export default function LineChart({
           </ReLineChart>
         </ResponsiveContainer>
       </div>
+      <ChartDataTable
+        caption={ariaLabel}
+        categoryHeader="기간"
+        categories={points.map(point => point.periodLabel)}
+        series={[{ name: '값', values: points.map(point => point.value) }]}
+        unit={unit}
+        valueFormatter={valueFormatter}
+      />
     </Wrap>
   )
 }

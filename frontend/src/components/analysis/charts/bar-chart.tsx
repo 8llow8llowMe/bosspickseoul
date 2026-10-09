@@ -14,6 +14,7 @@ import {
 
 import { computeNiceYScale } from '@/lib/analysis/chart-scale'
 import type { AnalysisMetricRow } from '@/lib/analysis/presentation'
+import { ChartDataTable } from './chart-data-table'
 import {
   AxisUnitCaption,
   CHART_COLORS,
@@ -136,88 +137,103 @@ export default function BarChart({
   const unitCaption = unitCaptionOverride ?? formatAxisUnitCaption(unit)
 
   return (
-    <div role="img" aria-label={ariaLabel}>
-      {unitCaption ? <AxisUnitCaption>{unitCaption}</AxisUnitCaption> : null}
-      <ResponsiveContainer
-        width="100%"
-        height={height}
-        initialDimension={{ width: 300, height }}
-      >
-        <ReBarChart
-          data={toBarChartData(cells)}
-          margin={{ top: highlightMax ? 20 : 8, right: 16, bottom: 4, left: 8 }}
+    <>
+      <div role="img" aria-label={ariaLabel}>
+        {unitCaption ? <AxisUnitCaption>{unitCaption}</AxisUnitCaption> : null}
+        <ResponsiveContainer
+          width="100%"
+          height={height}
+          initialDimension={{ width: 300, height }}
         >
-          <XAxis
-            dataKey="label"
-            interval={0}
-            height={categoryAxisHeight(cells.map(cell => cell.label))}
-            tick={<CategoryTick />}
-            tickLine={false}
-            axisLine={{ stroke: CHART_COLORS.grid }}
-          />
-          <YAxis
-            width={44}
-            tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            domain={yScale.domain}
-            ticks={yScale.ticks}
-            allowDataOverflow
-            tickFormatter={formatTick}
-          />
-          <Tooltip
-            content={
-              <ChartTooltipContent
-                unit={unit}
-                valueFormatter={valueFormatter}
-              />
-            }
-            cursor={{ fill: 'var(--color-primary-100)' }}
-          />
-          <Bar
-            dataKey="value"
-            name="값"
-            radius={[4, 4, 0, 0]}
-            maxBarSize={maxBarSize}
-            isAnimationActive={false}
+          <ReBarChart
+            data={toBarChartData(cells)}
+            margin={{
+              top: highlightMax ? 20 : 8,
+              right: 16,
+              bottom: 4,
+              left: 8,
+            }}
           >
-            {cells.map(cell => (
-              <Cell
-                key={cell.label}
-                fill={
-                  cell.emphasis
-                    ? CHART_COLORS.seriesPrimary
-                    : CHART_COLORS.seriesSecondary
-                }
-              />
-            ))}
-            {highlightMax ? (
-              <LabelList
-                dataKey="labelValue"
-                position="top"
-                offset={6}
-                content={props => {
-                  const { x, y, width, value } = props
-                  if (typeof value !== 'number') return null
-                  return (
-                    <text
-                      x={Number(x) + Number(width) / 2}
-                      y={Number(y) - 6}
-                      fill="var(--color-text-900)"
-                      fontSize={12}
-                      fontWeight={700}
-                      textAnchor="middle"
-                      style={{ fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {formatValue(value)}
-                    </text>
-                  )
-                }}
-              />
-            ) : null}
-          </Bar>
-        </ReBarChart>
-      </ResponsiveContainer>
-    </div>
+            <XAxis
+              dataKey="label"
+              interval={0}
+              height={categoryAxisHeight(cells.map(cell => cell.label))}
+              tick={<CategoryTick />}
+              tickLine={false}
+              axisLine={{ stroke: CHART_COLORS.grid }}
+            />
+            <YAxis
+              width={44}
+              tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+              domain={yScale.domain}
+              ticks={yScale.ticks}
+              allowDataOverflow
+              tickFormatter={formatTick}
+            />
+            <Tooltip
+              content={
+                <ChartTooltipContent
+                  unit={unit}
+                  valueFormatter={valueFormatter}
+                />
+              }
+              cursor={{ fill: 'var(--color-primary-100)' }}
+            />
+            <Bar
+              dataKey="value"
+              name="값"
+              radius={[4, 4, 0, 0]}
+              maxBarSize={maxBarSize}
+              isAnimationActive={false}
+            >
+              {cells.map(cell => (
+                <Cell
+                  key={cell.label}
+                  fill={
+                    cell.emphasis
+                      ? CHART_COLORS.seriesPrimary
+                      : CHART_COLORS.seriesSecondary
+                  }
+                />
+              ))}
+              {highlightMax ? (
+                <LabelList
+                  dataKey="labelValue"
+                  position="top"
+                  offset={6}
+                  content={props => {
+                    const { x, y, width, value } = props
+                    if (typeof value !== 'number') return null
+                    return (
+                      <text
+                        x={Number(x) + Number(width) / 2}
+                        y={Number(y) - 6}
+                        fill="var(--color-text-900)"
+                        fontSize={12}
+                        fontWeight={700}
+                        textAnchor="middle"
+                        style={{ fontVariantNumeric: 'tabular-nums' }}
+                      >
+                        {formatValue(value)}
+                      </text>
+                    )
+                  }}
+                />
+              ) : null}
+            </Bar>
+          </ReBarChart>
+        </ResponsiveContainer>
+      </div>
+      <ChartDataTable
+        caption={ariaLabel}
+        categoryHeader="구분"
+        categories={cells.map(cell => cell.label)}
+        series={[{ name: '값', values: cells.map(cell => cell.value) }]}
+        unit={unit}
+        valueFormatter={valueFormatter}
+      />
+    </>
   )
 }

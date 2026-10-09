@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 
 import { toDonutSlices, type GenderSegment } from '@/lib/analysis/chart-data'
+import { ChartDataTable } from './chart-data-table'
 import { CHART_COLORS, formatChartValue, TooltipBox } from './chart-theme'
 
 /* 비중 계산은 recharts 를 모르는 lib 에 있다 — 도넛을 그리지 않는 화면(입력 결과 카드)이 이 모듈을
@@ -65,6 +66,11 @@ export type DonutChartProps = {
   colors?: readonly string[]
   /** 아래 범례를 그릴지. 호출부가 색 점이 붙은 행 목록을 따로 두면 끈다(같은 정보 두 번). */
   legend?: boolean
+  /**
+   * 값을 숨긴 표로도 실을지. 호출부가 같은 값을 이미 보이는 글로 싣는 도넛(비용 구성)은 끈다
+   * — 보조기기가 같은 값을 두 번 읽는다.
+   */
+  dataTable?: boolean
 }
 
 type DonutSlice = { label: string; value: number; percent: number }
@@ -111,6 +117,7 @@ export default function DonutChart({
   valueFormatter,
   colors,
   legend = true,
+  dataTable = true,
 }: DonutChartProps) {
   const slices = toDonutSlices(segments)
   const hasData = slices.some(slice => slice.value > 0)
@@ -120,46 +127,78 @@ export default function DonutChart({
     colors?.[index] ?? SLICE_COLORS[index % SLICE_COLORS.length]
 
   return (
-    <div role="img" aria-label={ariaLabel}>
-      <ResponsiveContainer
-        width="100%"
-        height={180}
-        initialDimension={{ width: 300, height: 180 }}
-      >
-        <RePieChart>
-          <Tooltip
-            content={
-              <DonutTooltipContent
-                unit={unit}
-                valueFormatter={valueFormatter}
-              />
-            }
-          />
-          <Pie
-            data={slices}
-            dataKey="value"
-            nameKey="label"
-            innerRadius="58%"
-            outerRadius="82%"
-            stroke="none"
-            isAnimationActive={false}
-          >
+    <>
+      <div role="img" aria-label={ariaLabel}>
+        <ResponsiveContainer
+          width="100%"
+          height={180}
+          initialDimension={{ width: 300, height: 180 }}
+        >
+          <RePieChart>
+            <Tooltip
+              content={
+                <DonutTooltipContent
+                  unit={unit}
+                  valueFormatter={valueFormatter}
+                />
+              }
+            />
+            <Pie
+              data={slices}
+              dataKey="value"
+              nameKey="label"
+              innerRadius="58%"
+              outerRadius="82%"
+              stroke="none"
+              isAnimationActive={false}
+            >
+              {slices.map((slice, index) => (
+                <Cell key={slice.label} fill={colorAt(index)} />
+              ))}
+            </Pie>
+          </RePieChart>
+        </ResponsiveContainer>
+        {legend ? (
+          <Legend>
             {slices.map((slice, index) => (
-              <Cell key={slice.label} fill={colorAt(index)} />
+              <li key={slice.label}>
+                <i style={{ background: colorAt(index) }} />
+                {slice.label} {slice.percent}%
+              </li>
             ))}
-          </Pie>
-        </RePieChart>
-      </ResponsiveContainer>
-      {legend ? (
-        <Legend>
-          {slices.map((slice, index) => (
-            <li key={slice.label}>
-              <i style={{ background: colorAt(index) }} />
-              {slice.label} {slice.percent}%
-            </li>
-          ))}
-        </Legend>
+          </Legend>
+        ) : null}
+      </div>
+      {dataTable ? (
+        <ChartDataTable
+          caption={ariaLabel}
+          categoryHeader="구분"
+          categories={slices.map(slice => slice.label)}
+          series={
+            unit === '%'
+              ? [
+                  {
+                    name: '비율',
+                    values: slices.map(slice => slice.percent),
+                    unit: '%',
+                  },
+                ]
+              : [
+                  {
+                    name: '값',
+                    values: slices.map(slice => slice.value),
+                    unit,
+                    valueFormatter,
+                  },
+                  {
+                    name: '비율',
+                    values: slices.map(slice => slice.percent),
+                    unit: '%',
+                  },
+                ]
+          }
+        />
       ) : null}
-    </div>
+    </>
   )
 }

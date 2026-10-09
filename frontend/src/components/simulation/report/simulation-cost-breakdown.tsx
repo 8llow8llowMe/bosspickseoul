@@ -178,6 +178,7 @@ export default function SimulationCostBreakdown({
           segments={rows.map(row => ({ label: row.label, value: row.amount }))}
           colors={rows.map(row => COST_COLORS[row.key])}
           legend={false}
+          dataTable={false}
           ariaLabel="비용 구성 비율"
           valueFormatter={formatLargeWon}
         />
