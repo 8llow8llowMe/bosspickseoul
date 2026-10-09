@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 
 import type { PyramidRow } from '@/lib/analysis/chart-data'
+import { ChartDataTable } from './chart-data-table'
 import {
   CHART_COLORS,
   ChartTooltipContent,
@@ -79,74 +80,86 @@ export default function PopulationPyramid({
   if (!hasData) return <Empty>데이터 없음</Empty>
 
   return (
-    <div role="img" aria-label="연령·성별 인구 피라미드">
-      <ResponsiveContainer
-        width="100%"
-        height={height}
-        initialDimension={{ width: 300, height }}
-      >
-        <ReBarChart
-          data={data}
-          layout="vertical"
-          stackOffset="sign"
-          margin={{ top: 4, right: 12, bottom: 4, left: 12 }}
+    <>
+      <div role="img" aria-label="연령·성별 인구 피라미드">
+        <ResponsiveContainer
+          width="100%"
+          height={height}
+          initialDimension={{ width: 300, height }}
         >
-          <XAxis
-            type="number"
-            tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
-            tickLine={false}
-            axisLine={{ stroke: CHART_COLORS.grid }}
-            tickFormatter={value => formatChartValue(Math.abs(value), unit)}
-          />
-          <YAxis
-            type="category"
-            dataKey="ageLabel"
-            width={44}
-            tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <Tooltip
-            cursor={{ fill: 'var(--color-primary-100)' }}
-            content={({ active, payload, label }) => (
-              <ChartTooltipContent
-                active={active}
-                label={typeof label === 'string' ? label : undefined}
-                unit={unit}
-                payload={(payload ?? []).map(entry => ({
-                  name: entry.name as string | undefined,
-                  value:
-                    typeof entry.value === 'number'
-                      ? Math.abs(entry.value)
-                      : (entry.value as number | undefined),
-                }))}
-              />
-            )}
-          />
-          <Bar
-            dataKey="maleValue"
-            name="남성"
-            fill={CHART_COLORS.male}
-            radius={[0, 4, 4, 0]}
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="femaleValue"
-            name="여성"
-            fill={CHART_COLORS.female}
-            radius={[0, 4, 4, 0]}
-            isAnimationActive={false}
-          />
-        </ReBarChart>
-      </ResponsiveContainer>
-      <Legend>
-        <li>
-          <i style={{ background: CHART_COLORS.male }} /> 남성
-        </li>
-        <li>
-          <i style={{ background: CHART_COLORS.female }} /> 여성
-        </li>
-      </Legend>
-    </div>
+          <ReBarChart
+            data={data}
+            layout="vertical"
+            stackOffset="sign"
+            margin={{ top: 4, right: 12, bottom: 4, left: 12 }}
+          >
+            <XAxis
+              type="number"
+              tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
+              tickLine={false}
+              axisLine={{ stroke: CHART_COLORS.grid }}
+              tickFormatter={value => formatChartValue(Math.abs(value), unit)}
+            />
+            <YAxis
+              type="category"
+              dataKey="ageLabel"
+              width={44}
+              tick={{ fill: CHART_COLORS.axis, fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              cursor={{ fill: 'var(--color-primary-100)' }}
+              content={({ active, payload, label }) => (
+                <ChartTooltipContent
+                  active={active}
+                  label={typeof label === 'string' ? label : undefined}
+                  unit={unit}
+                  payload={(payload ?? []).map(entry => ({
+                    name: entry.name as string | undefined,
+                    value:
+                      typeof entry.value === 'number'
+                        ? Math.abs(entry.value)
+                        : (entry.value as number | undefined),
+                  }))}
+                />
+              )}
+            />
+            <Bar
+              dataKey="maleValue"
+              name="남성"
+              fill={CHART_COLORS.male}
+              radius={[0, 4, 4, 0]}
+              isAnimationActive={false}
+            />
+            <Bar
+              dataKey="femaleValue"
+              name="여성"
+              fill={CHART_COLORS.female}
+              radius={[0, 4, 4, 0]}
+              isAnimationActive={false}
+            />
+          </ReBarChart>
+        </ResponsiveContainer>
+        <Legend>
+          <li>
+            <i style={{ background: CHART_COLORS.male }} /> 남성
+          </li>
+          <li>
+            <i style={{ background: CHART_COLORS.female }} /> 여성
+          </li>
+        </Legend>
+      </div>
+      <ChartDataTable
+        caption="연령·성별 인구 피라미드"
+        categoryHeader="연령"
+        categories={rows.map(row => row.ageLabel)}
+        series={[
+          { name: '남성', values: rows.map(row => row.male) },
+          { name: '여성', values: rows.map(row => row.female) },
+        ]}
+        unit={unit}
+      />
+    </>
   )
 }
