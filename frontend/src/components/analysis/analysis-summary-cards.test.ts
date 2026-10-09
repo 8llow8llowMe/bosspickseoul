@@ -36,15 +36,41 @@ describe('AnalysisSummaryCards', () => {
   it('값과 맥락 문구를 함께 보여 준다', () => {
     const html = render([
       {
-        label: '월 매출',
-        value: 1_793_934_939,
+        label: '점포당 월 매출',
+        value: 44_665_600,
         unit: '원',
-        context: { text: '역삼1동 전체의 4.3%', ratio: 0.043 },
+        context: { text: '커피-음료 전체 26억 3527만원' },
       },
     ])
 
-    expect(html).toContain('월 매출')
-    expect(html).toContain('역삼1동 전체의 4.3%')
+    expect(html).toContain('점포당 월 매출')
+    expect(html).toContain('4466만원')
+    // 합계는 분모(업종 전체)를 밝혀 캡션으로 남는다(#561).
+    expect(html).toContain('커피-음료 전체 26억 3527만원')
+  })
+
+  /* #561 — 점포 수 0 은 결측이 아니라 사실이다. 「데이터 없음」과 다르게 적는다. */
+  it('값이 없고 emptyText 가 있으면 그 말을 적는다', () => {
+    const html = render([
+      {
+        label: '점포당 월 매출',
+        value: null,
+        unit: '원',
+        emptyText: '점포 없음',
+      },
+    ])
+
+    expect(html).toContain('점포 없음')
+    expect(html).not.toContain('데이터 없음')
+  })
+
+  it('값이 있으면 emptyText 를 쓰지 않는다 — 0 원도 값이다', () => {
+    const html = render([
+      { label: '점포당 월 매출', value: 0, unit: '원', emptyText: '점포 없음' },
+    ])
+
+    expect(html).toContain('0원')
+    expect(html).not.toContain('점포 없음')
   })
 
   /*
@@ -88,7 +114,7 @@ describe('AnalysisSummaryCards 배치 (#482)', () => {
       renderToStaticMarkup(
         sheet.collectStyles(
           createElement(AnalysisSummaryCards, {
-            cards: [{ label: '월 매출', value: 1, unit: '원' }],
+            cards: [{ label: '점포당 월 매출', value: 1, unit: '원' }],
           }),
         ),
       )

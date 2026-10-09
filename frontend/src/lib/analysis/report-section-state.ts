@@ -1,4 +1,8 @@
 import { formatAnalysisValue } from '@/lib/analysis/presentation'
+import {
+  describeSalesPerStoreEmpty,
+  resolveMonthlySalesPerStore,
+} from '@/lib/analysis/summary-sales'
 import type { SalesGrowth } from '@/lib/analysis/commercial-chart-selectors'
 import type { AiReportState } from '@/hooks/use-ai-report'
 import type { CommercialProfile } from '@/types/recommend'
@@ -47,13 +51,26 @@ export const resolveMetricCards = ({
 }): MetricCardModel[] => {
   const km = profile?.keyMetrics ?? null
   const g = formatGrowth(growth)
+  /*
+    `totalSalesAmount` 는 상권 안 이 업종 **전체 합계**라 「월 매출」로 적으면 한 가게 매출로
+    읽힌다(#561). 상권분석 결과 요약과 같은 함수로 점포당 값을 내고, 점포 0 표기도 같다.
+  */
+  const salesPerStore = resolveMonthlySalesPerStore({
+    monthlySales: km?.totalSalesAmount,
+    storeCount: km?.similarStoreCount,
+  })
+  const salesPerStoreDisplay =
+    salesPerStore !== null
+      ? formatAnalysisValue(salesPerStore, '원')
+      : (describeSalesPerStoreEmpty(
+          km?.similarStoreCount,
+          km?.totalSalesAmount,
+        ) ?? formatAnalysisValue(null, '원'))
   return [
     {
-      label: '월 매출',
+      label: '점포당 월 매출',
       loading: profileLoading,
-      display: profileLoading
-        ? METRIC_PENDING_DISPLAY
-        : formatAnalysisValue(km?.totalSalesAmount, '원'),
+      display: profileLoading ? METRIC_PENDING_DISPLAY : salesPerStoreDisplay,
     },
     {
       label: '유동인구',

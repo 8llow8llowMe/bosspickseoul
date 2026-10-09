@@ -19,7 +19,7 @@ const profile = {
 } as unknown as CommercialProfile
 
 describe('resolveMetricCards', () => {
-  it('4개 카드를 순서대로 만든다(월매출/유동인구/점포수/성장률)', () => {
+  it('4개 카드를 순서대로 만든다(점포당 월매출/유동인구/점포수/성장률)', () => {
     const cards = resolveMetricCards({
       profile,
       profileLoading: false,
@@ -27,7 +27,7 @@ describe('resolveMetricCards', () => {
       growthLoading: false,
     })
     expect(cards.map(c => c.label)).toEqual([
-      '월 매출',
+      '점포당 월 매출',
       '유동인구',
       '점포 수',
       '성장률',
@@ -36,6 +36,52 @@ describe('resolveMetricCards', () => {
     expect(cards[3].tone).toBe('positive')
     expect(cards[0].loading).toBe(false)
   })
+  /* #561 — 합계(3억 4500만원)는 업종 전체다. 상권분석 요약과 같은 규칙으로 점포당 값을 보인다. */
+  it('매출 카드는 합계 ÷ 점포 수(similarStoreCount)의 점포당 값이다', () => {
+    const cards = resolveMetricCards({
+      profile,
+      profileLoading: false,
+      growth: { direction: 'INCREASE', changeRate: 0.182 },
+      growthLoading: false,
+    })
+    // 345,000,000 / 40 = 8,625,000 → 862만원.
+    expect(cards[0].display).toBe('862만원')
+  })
+
+  it('점포 0 은 합계에 따라 「점포 없음」·「점포 수 집계 없음」으로 가른다', () => {
+    const withMetrics = (totalSalesAmount: number | null) =>
+      resolveMetricCards({
+        profile: {
+          ...profile,
+          keyMetrics: {
+            ...profile.keyMetrics,
+            similarStoreCount: 0,
+            totalSalesAmount,
+          },
+        } as unknown as CommercialProfile,
+        profileLoading: false,
+        growth: { direction: null, changeRate: null },
+        growthLoading: false,
+      })[0].display
+
+    expect(withMetrics(0)).toBe('점포 없음')
+    expect(withMetrics(null)).toBe('점포 없음')
+    expect(withMetrics(12_000_000)).toBe('점포 수 집계 없음')
+  })
+
+  it('점포 수가 없으면 데이터 없음이다', () => {
+    const cards = resolveMetricCards({
+      profile: {
+        ...profile,
+        keyMetrics: { ...profile.keyMetrics, similarStoreCount: null },
+      } as unknown as CommercialProfile,
+      profileLoading: false,
+      growth: { direction: null, changeRate: null },
+      growthLoading: false,
+    })
+    expect(cards[0].display).toBe('데이터 없음')
+  })
+
   it('점포 수는 프랜차이즈를 포함한 similarStoreCount 다(totalStoreCount 는 프랜차이즈 제외)', () => {
     const cards = resolveMetricCards({
       profile,
