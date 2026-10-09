@@ -565,11 +565,12 @@ const HeroWindow = forwardRef<HTMLDivElement, HeroWindowProps>(
                 <MapPinned aria-hidden="true" />
                 구별현황 보기
               </SecondaryLink>
+              {/* #597 본 작업 전 임시 문구. 동네를 정한 사람을 전제로 한다. */}
               <EscapeLink
                 href="/recommend"
                 {...trackAttrs('home_hero_cta_click', { cta: 'recommend' })}
               >
-                어디가 좋을지 모르겠다면 상권 추천받기
+                동네를 정했다면 그 안에서 상권 순위 받기
               </EscapeLink>
             </Actions>
           </WindowBodyInner>

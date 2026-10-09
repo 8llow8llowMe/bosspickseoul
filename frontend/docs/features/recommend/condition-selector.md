@@ -418,7 +418,7 @@ D8-1(URL 상태)이 끝난 뒤에 붙였다.
 | 동선                          | 코드                                                                                   | 문구                                                   |
 | ----------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | 주: 추천 결과 → 분석 결과     | `recommend-panel.tsx` `buildAnalysisHref` → `recommend-result-list.tsx` `AnalysisLink` | 「상권 분석 보기」                                     |
-| 보조: 분석 탐색 → 추천        | `analysis-selection-panel.tsx` `RecommendEscape` — 조건이 덜 찼을 때만 보인다          | 「어디가 좋을지 모르겠다면 상권 추천받기」             |
+| 보조: 분석 탐색 → 추천        | `analysis-selection-panel.tsx` `RecommendEscape` — 조건이 덜 찼을 때만 보인다          | 「동네를 정했다면 그 안에서 상권 순위 받기」           |
 | 보조: 분석 보고서 하단 → 추천 | `analysis-result-view.tsx` `RecommendHandoff` — 마지막 섹션(「지역 평균 대비」) 뒤     | 「{행정동}에서 {업종} 하기 좋은 다른 상권도 추천받기」 |
 
 URL 은 세 곳 모두 `recommend-url.ts` 의 `createRecommendHrefFromCodes` 로 만든다. 보고서 하단

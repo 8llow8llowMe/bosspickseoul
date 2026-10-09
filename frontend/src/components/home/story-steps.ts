@@ -79,6 +79,7 @@ export const STORY_STEPS: readonly StoryStep[] = [
     body: '조건에 맞는 상권을 점수순으로 추천받아 후보를 좁혀요.',
     demo: 'recommend',
     outcome: '조건에 맞는 상권만 남긴 후보 목록',
+    // #597 본 작업 전 임시 안내: 추천은 자치구·행정동·업종을 정한 사람 전제다.
     cta: { href: '/recommend', label: '상권 추천받기' },
   },
   {
