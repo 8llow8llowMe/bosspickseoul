@@ -7,6 +7,8 @@ export type EmptyStateProps = {
   action?: ReactNode
   description: ReactNode
   title?: ReactNode
+  /** 제목 요소 레벨. 화면의 주 제목이면 'h1'. 기본은 목록 속 빈 상태용 h3. */
+  titleAs?: 'h1' | 'h2' | 'h3'
 }
 
 const Root = styled.div`
@@ -43,10 +45,11 @@ export default function EmptyState({
   action,
   description,
   title,
+  titleAs = 'h3',
 }: EmptyStateProps) {
   return (
     <Root>
-      {title ? <Title>{title}</Title> : null}
+      {title ? <Title as={titleAs}>{title}</Title> : null}
       <Description>{description}</Description>
       {action ? <Action>{action}</Action> : null}
     </Root>
