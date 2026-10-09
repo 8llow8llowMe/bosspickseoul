@@ -153,7 +153,11 @@ const renderView = (overrides: Partial<ViewProps> = {}) => {
     onDeletePost: vi.fn(),
     onCreateComment: vi.fn(async () => true),
     onDeleteComment: vi.fn(async () => true),
-    onToggleCommentLike: vi.fn(async () => null),
+    onToggleCommentLike: vi.fn(async () => ({
+      ok: true,
+      liked: true,
+      likeCount: 1,
+    })),
     onOpenReport: vi.fn(),
     onCloseReport: vi.fn(),
     onSubmitReport: vi.fn(),
@@ -363,14 +367,16 @@ describe('하단 고정 바 — 본문 반응 바와 같은 핸들러', () => {
     expect(props.onTogglePostLike).not.toHaveBeenCalled()
   })
 
-  it('처리 중에는 바의 좋아요도 aria-busy + 비활성이다', () => {
+  it('처리 중에도 바의 좋아요는 잠그지 않는다 — aria-busy 만 단다(#580, 연타는 페이지가 직렬화)', () => {
     stubMatchMedia(true)
-    renderView({ postLikePending: true })
+    const { props } = renderView({ postLikePending: true })
     scrollOutOfBoth()
 
     const barLike = getBarButton(`게시글 좋아요 ${detail.likeCount}`)
     expect(barLike.getAttribute('aria-busy')).toBe('true')
-    expect(barLike.disabled).toBe(true)
+    expect(barLike.disabled).toBe(false)
+    fireEvent.click(barLike)
+    expect(props.onTogglePostLike).toHaveBeenCalledTimes(1)
   })
 
   it('공유는 반응 바와 진행 중 가드를 함께 쓴다 — 시트가 떠 있는 동안 바에서 또 눌러도 한 번이다', async () => {

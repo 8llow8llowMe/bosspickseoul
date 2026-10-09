@@ -92,7 +92,11 @@ const handlers = {
   onDeletePost: vi.fn(),
   onCreateComment: vi.fn(async () => true),
   onDeleteComment: vi.fn(async () => true),
-  onToggleCommentLike: vi.fn(async () => null),
+  onToggleCommentLike: vi.fn(async () => ({
+    ok: true,
+    liked: true,
+    likeCount: 1,
+  })),
   onOpenReport: vi.fn(),
   onCloseReport: vi.fn(),
   onSubmitReport: vi.fn(),
@@ -291,13 +295,13 @@ describe('CommunityDetailView', () => {
     ).toBeNull()
   })
 
-  it('keeps the like label steady while pending — aria-busy and disabled instead of 처리 중', () => {
+  it('keeps the like label steady while pending — aria-busy without locking the button (#580)', () => {
     const { markup } = renderWithStyles({ postLikePending: true })
 
     expect(markup).not.toContain('처리 중')
-    expect(markup).toMatch(
-      /aria-label="게시글 좋아요 4"[^>]*aria-busy="true"[^>]*disabled=""/,
-    )
+    expect(markup).toMatch(/aria-label="게시글 좋아요 4"[^>]*aria-busy="true"/)
+    // 연타는 페이지가 직렬화한다 — 요청 중에도 누를 수 있다.
+    expect(markup).not.toMatch(/aria-label="게시글 좋아요 4"[^>]*disabled=""/)
     expect(markup).toContain('>좋아요</span>')
   })
 

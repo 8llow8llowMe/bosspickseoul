@@ -69,7 +69,11 @@ const baseProps: ThreadProps = {
   onRequireLogin: vi.fn(),
   onCreateComment: vi.fn(async () => true),
   onDeleteComment: vi.fn(async () => true),
-  onToggleCommentLike: vi.fn(async () => null),
+  onToggleCommentLike: vi.fn(async () => ({
+    ok: true,
+    liked: true,
+    likeCount: 1,
+  })),
   onReport: vi.fn(),
 }
 

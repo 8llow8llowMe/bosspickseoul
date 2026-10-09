@@ -134,6 +134,8 @@ type ExpectedCommentsBody = {
     writerProfileImageUrl?: string | null
     content: string
     likeCount: number
+    /* 내 좋아요 — BE #594 전에는 오지 않는다(#580 이 선택 필드로 받아 둔다). */
+    liked?: boolean | null
     createdAt: string
     updatedAt: string
     replies: Array<{
@@ -145,6 +147,7 @@ type ExpectedCommentsBody = {
       parentCommentId: string
       content: string
       likeCount: number
+      liked?: boolean | null
       createdAt: string
       updatedAt: string
     }>

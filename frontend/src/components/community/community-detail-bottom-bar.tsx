@@ -227,7 +227,8 @@ export default function CommunityDetailBottomBar({
           aria-label={`게시글 좋아요 ${count}`}
           aria-pressed={liked}
           aria-busy={likePending || undefined}
-          disabled={!authReady || likePending}
+          /* 요청 중에도 잠그지 않는다(#580) — 반응 바와 같은 핸들러가 직렬화한다. */
+          disabled={!authReady}
           onClick={onToggleLike}
         >
           <Heart

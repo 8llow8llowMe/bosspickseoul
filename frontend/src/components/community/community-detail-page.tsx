@@ -11,9 +11,20 @@ import {
 } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import CommunityDetailView from '@/components/community/community-detail-view'
+import ConfirmSheet from '@/components/ui/confirm-sheet'
+import { useToast } from '@/components/ui/toast'
 import { useCommunityViewerReady } from '@/hooks/use-community-viewer-ready'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { readAdjacentPosts } from '@/lib/community/adjacent-posts'
+import {
+  COMMUNITY_COMMENT_ALREADY_DELETED,
+  COMMUNITY_COMMENT_DELETE_FAILED,
+  countHiddenCommunityComments,
+  createDeferredCommit,
+  filterHiddenCommunityComments,
+  getCommunityCommentDeleteToastKey,
+  undoCommunityCommentDelete,
+} from '@/lib/community/comment-delete'
 import { realCommunitySource } from '@/lib/community/community-data-source'
 import {
   communityMockSource,
@@ -31,6 +42,12 @@ import {
   type CommunityViewer,
 } from '@/lib/community/community-state'
 import {
+  createCommunityLikeToggleQueues,
+  flipCommunityLike,
+  type CommunityLikeResult,
+  type CommunityLikeState,
+} from '@/lib/community/like-toggle-queue'
+import {
   COMMUNITY_DEFAULT_POPULAR_PERIOD,
   parseCommunityPopularPeriod,
 } from '@/lib/community/popular-period'
@@ -40,11 +57,11 @@ import {
   type CommunityReportInputField,
   type CommunityReportReasonPayload,
 } from '@/lib/community/report-reason'
+import { TOAST_ACTION_DURATION_MS } from '@/lib/ui/toast-state'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ApiResponse } from '@/types/api'
 import type {
   CommunityId,
-  CommunityCommentLikeBody,
   CommunityCommentsResponse,
   CommunityListParams,
   CommunityPostDetail,
@@ -134,9 +151,15 @@ export const createCommunityRelatedParams = (
 export const getCommunityPostLiked = (detail: CommunityPostDetail | null) =>
   detail?.liked ?? null
 
+/** 상세 캐시에 좋아요 상태를 쓴다. 토글 결과·낙관적 상태·되돌릴 상태(liked 를 모르면 null)가 모두 이 길이다. */
+type CommunityPostLikeCacheValue = Omit<
+  CommunityPostLikeResponse['dataBody'],
+  'liked'
+> & { liked: boolean | null }
+
 export const updateCommunityDetailLikeCache = (
   response: CommunityPostDetailResponse,
-  result: CommunityPostLikeResponse['dataBody'],
+  result: CommunityPostLikeCacheValue,
 ): CommunityPostDetailResponse =>
   response.dataBody.postId === result.postId
     ? {
@@ -151,7 +174,7 @@ export const updateCommunityDetailLikeCache = (
 
 export const updateCommunityRelatedLikeCache = (
   response: CommunityPostListResponse,
-  result: CommunityPostLikeResponse['dataBody'],
+  result: CommunityPostLikeCacheValue,
 ): CommunityPostListResponse => ({
   ...response,
   dataBody: {
@@ -184,9 +207,15 @@ const updateCommunityRelatedCommentCountCache = (
   },
 })
 
+/**
+ * 댓글·답글 캐시에 좋아요 **수**를 쓴다(토글 결과 · 낙관적 상태 · 되돌릴 상태). `liked` 는 쓰지 않는다 —
+ * 댓글 캐시 키에 조회자가 없어서(`communityKeys.comments`) 쓰면 같은 탭에서 로그아웃·다른 계정 로그인 뒤
+ * 앞사람의 하트가 비친다. 하트는 스레드의 로컬 상태가 들고, 응답의 `liked`(BE #594)만 캐시에서 온다.
+ * #594 착수 때 댓글 키에 조회자를 넣는다(community.md 「좋아요」).
+ */
 export const updateCommunityCommentLikeCache = (
   response: CommunityCommentsResponse,
-  result: CommunityCommentLikeBody,
+  result: { commentId: CommunityId; liked: boolean | null; likeCount: number },
 ): CommunityCommentsResponse => ({
   ...response,
   dataBody: {
@@ -542,6 +571,62 @@ export default function CommunityDetailPage({
   const [reportStatusMessage, setReportStatusMessage] = useState<string | null>(
     null,
   )
+  const { showToast, dismissToast } = useToast()
+  /* 글 삭제 확인 시트(#581 — window.confirm 대신). */
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  /*
+    좋아요 직렬화(#580). 글 하나 · 댓글 하나마다 큐가 하나다 — 진행 중 연타는 마지막 의도만 남긴다.
+    seq 는 「이 클릭이 마지막인가」를 잰다. 같은 실행에 묶인 클릭은 모두 같은 결과로 끝나므로, 캐시 쓰기·무효화는
+    마지막 클릭 하나만 한다.
+  */
+  const [likeQueues] = useState(createCommunityLikeToggleQueues)
+  const likeSeqRef = useRef(new Map<string, number>())
+  /*
+    댓글 삭제 되돌리기(#581). 누르면 숨기고(hiddenCommentIds) 되돌리기 시간이 지나야 DELETE 를 보낸다
+    (lib/community/comment-delete). 실행 함수는 렌더마다 바뀌는 뮤테이션을 부르므로 ref 로 최신을 잡는다.
+  */
+  const [hiddenCommentIds, setHiddenCommentIds] = useState<
+    ReadonlySet<CommunityId>
+  >(() => new Set())
+  const runCommentDeleteRef = useRef<(commentId: CommunityId) => void>(
+    () => undefined,
+  )
+  const commentDeleteQueueRef = useRef<ReturnType<
+    typeof createDeferredCommit<CommunityId>
+  > | null>(null)
+  /* 이벤트 핸들러에서만 부른다 — 처음 지울 때 만든다. */
+  const getCommentDeleteQueue = () => {
+    commentDeleteQueueRef.current ??= createDeferredCommit<CommunityId>({
+      delayMs: TOAST_ACTION_DURATION_MS,
+      commit: commentId => {
+        runCommentDeleteRef.current(commentId)
+      },
+    })
+    return commentDeleteQueueRef.current
+  }
+
+  /*
+    페이지를 떠나면 기다리던 삭제를 바로 보낸다 — 사용자는 이미 지웠다고 봤다. 탭 닫기·새로고침(pagehide)도
+    같은 일을 시도하지만 브라우저가 요청을 끊을 수 있다(그러면 댓글이 남는다 — 안전한 쪽 실패).
+  */
+  useEffect(() => {
+    const queueRef = commentDeleteQueueRef
+    /*
+      보낸 댓글의 되돌리기 토스트도 함께 닫는다 — 토스트는 페이지 밖(앱 전역)에 남는데, 떠난 뒤 누르면 되돌릴 것이
+      없다. 닫지 않으면 아무 일도 없이 성공처럼 닫히는 버튼이 된다.
+    */
+    const flush = () => {
+      queueRef.current?.flush().forEach(commentId => {
+        dismissToast(getCommunityCommentDeleteToastKey(commentId))
+      })
+    }
+
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [dismissToast])
 
   useEffect(() => {
     let active = true
@@ -734,32 +819,82 @@ export default function CommunityDetailPage({
     setMessage(getErrorMessage(error, fallback))
   }
 
+  const nextLikeSeq = (key: string) => {
+    const seq = (likeSeqRef.current.get(key) ?? 0) + 1
+    likeSeqRef.current.set(key, seq)
+    return seq
+  }
+  const isLatestLike = (key: string, seq: number) =>
+    likeSeqRef.current.get(key) === seq
+
+  const writePostLikeCaches = (state: CommunityLikeState) => {
+    const value = { postId, ...state }
+    queryClient.setQueryData<CommunityPostDetailResponse>(
+      detailQueryKey,
+      current =>
+        current ? updateCommunityDetailLikeCache(current, value) : current,
+    )
+    queryClient.setQueryData<CommunityPostListResponse>(
+      relatedQueryKey,
+      current =>
+        current ? updateCommunityRelatedLikeCache(current, value) : current,
+    )
+  }
+
+  /*
+    글 좋아요(#580). 누르면 onMutate 가 캐시를 먼저 뒤집고(하트는 상세 캐시의 liked 에서 그린다), 요청은 큐가
+    직렬화한다. 성공하면 서버 결과로 덮고, 실패하면 서버가 마지막으로 확인한 상태로 되돌린다.
+  */
+  const postLikeKey = `post:${postId}`
   const postLikeMutation = useMutation({
-    mutationFn: async () =>
-      validateCommunityResponse(await source.togglePostLike(postId)),
-    onSuccess: async response => {
-      // 하트는 상세 캐시의 liked 에서 그린다(getCommunityPostLiked) — 아래 캐시 갱신이 토글 결과를 싣는다.
+    mutationFn: ({
+      desired,
+      current,
+    }: {
+      desired: boolean
+      current: CommunityLikeState
+      seq: number
+    }) =>
+      likeQueues
+        .get(postLikeKey)
+        .request(desired, current, async (): Promise<CommunityLikeResult> => {
+          const response = validateCommunityResponse(
+            await source.togglePostLike(postId),
+          )
+          return {
+            liked: response.dataBody.liked,
+            likeCount: response.dataBody.likeCount,
+          }
+        }),
+    onMutate: async ({ desired, current }) => {
       setPostMutationError(null)
-      queryClient.setQueryData<CommunityPostDetailResponse>(
-        detailQueryKey,
-        current =>
-          current
-            ? updateCommunityDetailLikeCache(current, response.dataBody)
-            : current,
-      )
-      queryClient.setQueryData<CommunityPostListResponse>(
-        relatedQueryKey,
-        current =>
-          current
-            ? updateCommunityRelatedLikeCache(current, response.dataBody)
-            : current,
-      )
+      // 진행 중 조회가 낙관적 값을 옛 값으로 덮지 않게 먼저 끊는다.
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: detailQueryKey, exact: true }),
+        queryClient.cancelQueries({ queryKey: relatedQueryKey, exact: true }),
+      ])
+      writePostLikeCaches(flipCommunityLike(current, desired))
+    },
+    onSuccess: async (result, { seq }) => {
+      if (!isLatestLike(postLikeKey, seq)) {
+        return
+      }
+
+      writePostLikeCaches(result)
       await refreshCommunityDetailSummaryCaches({
         queryClient,
         relatedQueryKey,
       })
     },
-    onError: error => {
+    onError: (error, { seq }) => {
+      if (!isLatestLike(postLikeKey, seq)) {
+        return
+      }
+
+      const confirmed = likeQueues.get(postLikeKey).getConfirmed()
+      if (confirmed) {
+        writePostLikeCaches(confirmed)
+      }
       handleMutationError(
         error,
         setPostMutationError,
@@ -818,10 +953,26 @@ export default function CommunityDetailPage({
     },
   })
 
+  const unhideComment = (commentId: CommunityId) => {
+    setHiddenCommentIds(current => {
+      if (!current.has(commentId)) {
+        return current
+      }
+
+      const next = new Set(current)
+      next.delete(commentId)
+      return next
+    })
+  }
+
+  /*
+    되돌리기 시간이 지난 뒤 실제 삭제. 성공하면 댓글을 다시 받고 나서 숨김을 푼다 — 먼저 풀면 지운 댓글이
+    한 번 다시 비친다. 실패하면 숨김을 풀어 댓글을 되살리고 이유를 알린다.
+  */
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: CommunityId) =>
       validateCommunityResponse(await source.deleteComment(postId, commentId)),
-    onSuccess: async () => {
+    onSuccess: async (_response, commentId) => {
       setCommentMutationError(null)
       await Promise.all([
         queryClient.invalidateQueries({
@@ -837,32 +988,104 @@ export default function CommunityDetailPage({
           relatedQueryKey,
         }),
       ])
+      unhideComment(commentId)
     },
-    onError: error => {
-      handleMutationError(
-        error,
-        setCommentMutationError,
-        '댓글을 삭제하지 못했어요.',
+    onError: (error, commentId) => {
+      unhideComment(commentId)
+      if (recoverMutationUnauthorized(error)) {
+        return
+      }
+
+      // 숨겼던 댓글이 다시 나타난 이유를 먼저 말하고, 서버가 준 사유가 있으면 뒤에 붙인다.
+      const reason = error instanceof Error ? error.message.trim() : ''
+      setCommentMutationError(
+        reason
+          ? `${COMMUNITY_COMMENT_DELETE_FAILED} ${reason}`
+          : COMMUNITY_COMMENT_DELETE_FAILED,
       )
     },
   })
 
+  useEffect(() => {
+    runCommentDeleteRef.current = commentId => {
+      deleteCommentMutation.mutate(commentId)
+    }
+  }, [deleteCommentMutation])
+
+  /*
+    댓글 좋아요(#580). 글 좋아요와 같은 길 — 개수는 댓글 캐시에 낙관적으로 쓰고, 하트(liked)는 스레드가
+    로컬로 들고 있다가 결과(CommunityCommentLikeOutcome)로 맞춘다. 첫 상태는 BE #594 전이라 모를 수 있다.
+  */
   const commentLikeMutation = useMutation({
-    mutationFn: async (commentId: CommunityId) =>
-      validateCommunityResponse(
-        await source.toggleCommentLike(postId, commentId),
-      ),
-    onSuccess: response => {
+    mutationFn: ({
+      commentId,
+      desired,
+      current,
+    }: {
+      commentId: CommunityId
+      desired: boolean
+      current: CommunityLikeState
+      seq: number
+    }) =>
+      likeQueues
+        .get(`comment:${commentId}`)
+        .request(desired, current, async (): Promise<CommunityLikeResult> => {
+          const response = validateCommunityResponse(
+            await source.toggleCommentLike(postId, commentId),
+          )
+          return {
+            liked: response.dataBody.liked,
+            likeCount: response.dataBody.likeCount,
+          }
+        }),
+    onMutate: async ({ commentId, desired, current }) => {
       setCommentMutationError(null)
+      await queryClient.cancelQueries({
+        queryKey: commentsQueryKey,
+        exact: true,
+      })
       queryClient.setQueryData<CommunityCommentsResponse>(
         commentsQueryKey,
-        current =>
-          current
-            ? updateCommunityCommentLikeCache(current, response.dataBody)
-            : current,
+        cache =>
+          cache
+            ? updateCommunityCommentLikeCache(cache, {
+                commentId,
+                ...flipCommunityLike(current, desired),
+              })
+            : cache,
       )
     },
-    onError: error => {
+    onSuccess: (result, { commentId, seq }) => {
+      if (!isLatestLike(`comment:${commentId}`, seq)) {
+        return
+      }
+
+      queryClient.setQueryData<CommunityCommentsResponse>(
+        commentsQueryKey,
+        cache =>
+          cache
+            ? updateCommunityCommentLikeCache(cache, { commentId, ...result })
+            : cache,
+      )
+    },
+    onError: (error, { commentId, seq }) => {
+      if (!isLatestLike(`comment:${commentId}`, seq)) {
+        return
+      }
+
+      const confirmed = likeQueues.get(`comment:${commentId}`).getConfirmed()
+      if (confirmed) {
+        queryClient.setQueryData<CommunityCommentsResponse>(
+          commentsQueryKey,
+          cache =>
+            cache
+              ? updateCommunityCommentLikeCache(cache, {
+                  commentId,
+                  ...confirmed,
+                })
+              : cache,
+        )
+      }
       handleMutationError(
         error,
         setCommentMutationError,
@@ -907,6 +1130,7 @@ export default function CommunityDetailPage({
     mutationFn: async () =>
       validateCommunityResponse(await source.deletePost(postId)),
     onSuccess: async () => {
+      setDeleteConfirmOpen(false)
       queryClient.removeQueries({ queryKey: detailQueryKey, exact: true })
       queryClient.removeQueries({ queryKey: commentsQueryKey, exact: true })
       queryClient.removeQueries({ queryKey: relatedQueryKey, exact: true })
@@ -916,6 +1140,7 @@ export default function CommunityDetailPage({
       router.replace(listHref)
     },
     onError: error => {
+      setDeleteConfirmOpen(false)
       handleMutationError(
         error,
         setPostMutationError,
@@ -924,7 +1149,23 @@ export default function CommunityDetailPage({
     },
   })
 
-  const comments = commentsQuery.data?.dataBody.comments ?? []
+  const loadedComments = commentsQuery.data?.dataBody.comments ?? []
+  // 되돌리기를 기다리는 댓글은 화면에서 뺀다. 반응 바의 `댓글 N` 도 같이 줄인다.
+  const comments = filterHiddenCommunityComments(
+    loadedComments,
+    hiddenCommentIds,
+  )
+  const hiddenCommentCount = countHiddenCommunityComments(
+    loadedComments,
+    hiddenCommentIds,
+  )
+  const viewDetail =
+    detail && hiddenCommentCount > 0
+      ? {
+          ...detail,
+          commentCount: Math.max(0, detail.commentCount - hiddenCommentCount),
+        }
+      : detail
   const relatedPosts =
     relatedQuery.data?.dataBody.posts.contents
       .filter(post => post.postId !== postId)
@@ -960,110 +1201,163 @@ export default function CommunityDetailPage({
           : 'ready'
 
   return (
-    <CommunityDetailView
-      status={detailStatus}
-      detail={detail}
-      errorMessage={detailQuery.error?.message ?? null}
-      commentsStatus={commentsStatus}
-      comments={comments}
-      commentsErrorMessage={commentsQuery.error?.message ?? null}
-      relatedStatus={relatedStatus}
-      relatedPosts={relatedPosts}
-      relatedErrorMessage={relatedQuery.error?.message ?? null}
-      viewer={viewer}
-      authReady={authReady}
-      listHref={listHref}
-      editHref={editHref}
-      postLiked={postLiked}
-      postLikePending={postLikeMutation.isPending}
-      postDeletePending={deletePostMutation.isPending}
-      postMutationError={postMutationError}
-      commentMutationError={commentMutationError}
-      reportTarget={reportTarget}
-      reportPending={reportMutation.isPending}
-      reportErrorMessage={reportErrorMessage}
-      reportErrorField={reportErrorField}
-      reportStatusMessage={reportStatusMessage}
-      adjacent={adjacent}
-      fromContext={fromContext}
-      mockEnabled={mockEnabled}
-      onRetryDetail={() => {
-        void detailQuery.refetch()
-      }}
-      onRetryComments={() => {
-        void commentsQuery.refetch()
-      }}
-      onRetryRelated={() => {
-        void relatedQuery.refetch()
-      }}
-      onRequireLogin={requireLogin}
-      onTogglePostLike={async () => {
-        setPostMutationError(null)
-        try {
-          await postLikeMutation.mutateAsync()
-        } catch {
-          // Mutation error state is rendered without removing the article.
-        }
-      }}
-      onDeletePost={() => {
-        if (
-          ownsPost &&
-          !deletePostMutation.isPending &&
-          window.confirm('게시글을 삭제하시겠습니까?')
-        ) {
-          setPostMutationError(null)
-          deletePostMutation.mutate()
-        }
-      }}
-      onCreateComment={async payload => {
-        setCommentMutationError(null)
-        try {
-          await createCommentMutation.mutateAsync(payload)
+    <>
+      <CommunityDetailView
+        status={detailStatus}
+        detail={viewDetail}
+        errorMessage={detailQuery.error?.message ?? null}
+        commentsStatus={commentsStatus}
+        comments={comments}
+        commentsErrorMessage={commentsQuery.error?.message ?? null}
+        relatedStatus={relatedStatus}
+        relatedPosts={relatedPosts}
+        relatedErrorMessage={relatedQuery.error?.message ?? null}
+        viewer={viewer}
+        authReady={authReady}
+        listHref={listHref}
+        editHref={editHref}
+        postLiked={postLiked}
+        postLikePending={postLikeMutation.isPending}
+        postDeletePending={deletePostMutation.isPending}
+        postMutationError={postMutationError}
+        commentMutationError={commentMutationError}
+        reportTarget={reportTarget}
+        reportPending={reportMutation.isPending}
+        reportErrorMessage={reportErrorMessage}
+        reportErrorField={reportErrorField}
+        reportStatusMessage={reportStatusMessage}
+        adjacent={adjacent}
+        fromContext={fromContext}
+        mockEnabled={mockEnabled}
+        onRetryDetail={() => {
+          void detailQuery.refetch()
+        }}
+        onRetryComments={() => {
+          void commentsQuery.refetch()
+        }}
+        onRetryRelated={() => {
+          void relatedQuery.refetch()
+        }}
+        onRequireLogin={requireLogin}
+        onTogglePostLike={async () => {
+          const cached =
+            queryClient.getQueryData<CommunityPostDetailResponse>(
+              detailQueryKey,
+            )
+          if (!cached) {
+            return
+          }
+
+          // 지금 화면이 그리는 상태에서 뒤집는다(연타면 앞 클릭의 낙관적 상태에서).
+          const current: CommunityLikeState = {
+            liked: cached.dataBody.liked ?? null,
+            likeCount: cached.dataBody.likeCount,
+          }
+          try {
+            await postLikeMutation.mutateAsync({
+              desired: current.liked !== true,
+              current,
+              seq: nextLikeSeq(postLikeKey),
+            })
+          } catch {
+            // 되돌림과 오류 문구는 onError 가 맡는다. 글은 그대로 둔다.
+          }
+        }}
+        onDeletePost={() => {
+          if (ownsPost && !deletePostMutation.isPending) {
+            setDeleteConfirmOpen(true)
+          }
+        }}
+        onCreateComment={async payload => {
+          setCommentMutationError(null)
+          try {
+            await createCommentMutation.mutateAsync(payload)
+            return true
+          } catch {
+            return false
+          }
+        }}
+        onDeleteComment={async commentId => {
+          // 확인 창 대신 숨기고 되돌리기 토스트를 띄운다(#581). 실제 삭제는 토스트가 사라질 무렵이다.
+          setCommentMutationError(null)
+          setHiddenCommentIds(current => new Set(current).add(commentId))
+          getCommentDeleteQueue().schedule(commentId)
+          showToast({
+            message: '댓글을 삭제했어요.',
+            dedupeKey: getCommunityCommentDeleteToastKey(commentId),
+            action: {
+              label: '되돌리기',
+              onAction: () => {
+                undoCommunityCommentDelete({
+                  undo: () => getCommentDeleteQueue().undo(commentId),
+                  onRestored: () => {
+                    unhideComment(commentId)
+                  },
+                  onAlreadyDeleted: () => {
+                    showToast({
+                      message: COMMUNITY_COMMENT_ALREADY_DELETED,
+                      tone: 'info',
+                    })
+                  },
+                })
+              },
+            },
+          })
           return true
-        } catch {
-          return false
-        }
-      }}
-      onDeleteComment={async commentId => {
-        setCommentMutationError(null)
-        try {
-          await deleteCommentMutation.mutateAsync(commentId)
-          return true
-        } catch {
-          return false
-        }
-      }}
-      onToggleCommentLike={async commentId => {
-        setCommentMutationError(null)
-        try {
-          const response = await commentLikeMutation.mutateAsync(commentId)
-          return response.dataBody
-        } catch {
-          return null
-        }
-      }}
-      onOpenReport={target => {
-        setReportStatusMessage(null)
-        setReportErrorMessage(null)
-        setReportErrorField(null)
-        setReportTarget(target)
-      }}
-      onCloseReport={() => {
-        if (!reportMutation.isPending) {
-          setReportTarget(null)
+        }}
+        onToggleCommentLike={async (commentId, desired, current) => {
+          try {
+            const result = await commentLikeMutation.mutateAsync({
+              commentId,
+              desired,
+              current,
+              seq: nextLikeSeq(`comment:${commentId}`),
+            })
+            return { ok: true, ...result }
+          } catch {
+            const confirmed =
+              likeQueues.get(`comment:${commentId}`).getConfirmed() ?? current
+            return { ok: false, ...confirmed }
+          }
+        }}
+        onOpenReport={target => {
+          setReportStatusMessage(null)
           setReportErrorMessage(null)
           setReportErrorField(null)
-        }
-      }}
-      onSubmitReport={reason => {
-        if (!reportTarget || reportMutation.isPending) {
-          return
-        }
+          setReportTarget(target)
+        }}
+        onCloseReport={() => {
+          if (!reportMutation.isPending) {
+            setReportTarget(null)
+            setReportErrorMessage(null)
+            setReportErrorField(null)
+          }
+        }}
+        onSubmitReport={reason => {
+          if (!reportTarget || reportMutation.isPending) {
+            return
+          }
 
-        setReportErrorMessage(null)
-        setReportErrorField(null)
-        reportMutation.mutate({ target: reportTarget, reason })
-      }}
-    />
+          setReportErrorMessage(null)
+          setReportErrorField(null)
+          reportMutation.mutate({ target: reportTarget, reason })
+        }}
+      />
+      <ConfirmSheet
+        open={deleteConfirmOpen}
+        title="글을 삭제할까요?"
+        description="글을 삭제하면 달린 댓글도 함께 사라지고 되돌릴 수 없어요."
+        confirmLabel="삭제"
+        pending={deletePostMutation.isPending}
+        pendingLabel="삭제 중"
+        onCancel={() => {
+          setDeleteConfirmOpen(false)
+        }}
+        onConfirm={() => {
+          setPostMutationError(null)
+          deletePostMutation.mutate()
+        }}
+      />
+    </>
   )
 }

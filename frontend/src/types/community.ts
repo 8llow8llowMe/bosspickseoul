@@ -200,6 +200,11 @@ export type CommunityReply = {
   parentCommentId: CommunityId
   content: string
   likeCount: number
+  /**
+   * 내가 좋아요한 댓글인가 — **BE #594(열림) 전에는 오지 않는다.** 필드가 없거나 null 이면 「모름」이라
+   * 화면은 빈 하트로 그리고, 누르면 토글 결과로 알게 된다(`like-toggle-queue`). 응답에 생기면 그대로 쓴다.
+   */
+  liked?: boolean | null
   createdAt: string
   updatedAt: string
 }
@@ -218,6 +223,11 @@ export type CommunityComment = {
   writerProfileImageUrl?: string | null
   content: string
   likeCount: number
+  /**
+   * 내가 좋아요한 댓글인가 — **BE #594(열림) 전에는 오지 않는다.** 필드가 없거나 null 이면 「모름」이라
+   * 화면은 빈 하트로 그리고, 누르면 토글 결과로 알게 된다(`like-toggle-queue`). 응답에 생기면 그대로 쓴다.
+   */
+  liked?: boolean | null
   createdAt: string
   updatedAt: string
   replies: CommunityReply[]
