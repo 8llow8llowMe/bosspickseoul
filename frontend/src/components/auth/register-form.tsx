@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import styled from 'styled-components'
 import AuthShell, {
   AuthForm,
@@ -51,6 +52,7 @@ import {
 } from '@/lib/auth/signup-consent'
 import { normalizeApiResponseFailure } from '@/lib/api/api-error'
 import type { ApiResponse } from '@/types/api'
+import { touchHitArea } from '@/styles/touch-target'
 
 const INITIAL_FORM: RegisterFormValues = {
   email: '',
@@ -83,6 +85,17 @@ const PasswordToggle = styled.button`
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+  /* 보이는 아이콘은 그대로, 모바일 히트 영역만 44px. 이미 absolute 라 position 은 건드리지 않는다. */
+  ${touchHitArea({ keepPosition: true })}
 `
 
 const ResendRow = styled.div`
@@ -436,11 +449,14 @@ export default function RegisterForm() {
                   <PasswordToggle
                     type="button"
                     onClick={() => setShowPassword(current => !current)}
-                    aria-label={
-                      showPassword ? '비밀번호 숨기기' : '비밀번호 표시'
-                    }
+                    aria-label="비밀번호 표시"
+                    aria-pressed={showPassword}
                   >
-                    {showPassword ? '숨기기' : '표시'}
+                    {showPassword ? (
+                      <EyeOff aria-hidden />
+                    ) : (
+                      <Eye aria-hidden />
+                    )}
                   </PasswordToggle>
                 </PasswordFieldWrapper>
                 <HelperText>{passwordHelperText}</HelperText>

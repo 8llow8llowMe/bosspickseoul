@@ -175,6 +175,7 @@ import type {
 } from '@/types/commercial-analysis'
 import type { CommercialProfile } from '@/types/recommend'
 import { shellWidth } from '@/styles/layout'
+import { touchHitArea } from '@/styles/touch-target'
 
 export type AnalysisResultViewProps = {
   onClose?: () => void
@@ -368,7 +369,6 @@ const IconButton = styled.button`
 
 /** 헤더 전용 타이트 탭 버튼. 공유 TabButton을 확장(다른 화면의 탭에는 영향 없음). */
 const HeaderTabButton = styled(TabButton)`
-  min-height: 38px;
   padding: 0 10px;
   font-size: 13px;
 `
@@ -470,14 +470,14 @@ const ReportSection = styled.section`
   /* 데스크톱: sticky 헤더(≈63px) 아래로 자연스럽게 안착. */
   scroll-margin-top: 76px;
 
-  /* ≤1024px: 헤더에 가로 탭 바가 포함돼 더 높다(≈102px). */
+  /* ≤1024px: 헤더에 가로 탭 바가 포함돼 더 높다(≈108px). */
   @media (max-width: 1024px) {
     scroll-margin-top: 116px;
   }
 
-  /* ≤640px: 헤더가 두 줄(상권명 / 메타·기간)이 되고 탭 바가 붙는다. */
+  /* ≤640px: 헤더가 두 줄(상권명 / 메타·기간)이 되고 탭 바(44px)가 붙는다(≈154px). */
   @media (max-width: 640px) {
-    scroll-margin-top: 148px;
+    scroll-margin-top: 160px;
   }
 `
 
@@ -700,6 +700,8 @@ const ActionRow = styled.div`
 
   button {
     min-width: 112px;
+    /* 보이는 높이는 40px 그대로, 모바일에서 히트 영역만 44px. 행·열 간격이 8px 라 이웃과 겹치지 않는다. */
+    ${touchHitArea()}
   }
 
   @media (max-width: 760px) {

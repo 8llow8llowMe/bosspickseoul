@@ -4,6 +4,8 @@ import { ArrowLeft } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import styled from 'styled-components'
 
+import { touchHitArea } from '@/styles/touch-target'
+
 import { countOptions } from '@/lib/option-filter'
 import OptionPicker, {
   type OptionGroup,
@@ -61,6 +63,7 @@ const BackButton = styled.button`
   background: transparent;
   color: var(--color-text-700);
   cursor: pointer;
+  ${touchHitArea()}
 
   svg {
     width: 18px;

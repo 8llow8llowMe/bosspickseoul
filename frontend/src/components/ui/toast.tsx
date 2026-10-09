@@ -13,6 +13,8 @@ import { createPortal } from 'react-dom'
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 import styled, { keyframes } from 'styled-components'
 
+import { touchHitArea } from '@/styles/touch-target'
+
 import {
   appendToast,
   dismissToast,
@@ -145,6 +147,7 @@ const ActionButton = styled.button`
   font-weight: 700;
   line-height: 20px;
   cursor: pointer;
+  ${touchHitArea()}
 
   &:hover {
     text-decoration: underline;
@@ -167,6 +170,7 @@ const CloseButton = styled.button`
   background: none;
   color: var(--color-text-caption);
   cursor: pointer;
+  ${touchHitArea()}
 
   svg {
     width: 16px;

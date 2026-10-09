@@ -1,5 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { readFileSync } from 'node:fs'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import AnalysisPeriodSelect from '@/components/analysis/analysis-period-select'
@@ -83,5 +85,49 @@ describe('AnalysisPeriodSelect', () => {
     expect(markup).toContain('>연도<')
     expect(markup).toContain('>분기<')
     expect((markup.match(/disabled=""/g) ?? []).length).toBe(2)
+  })
+})
+
+describe('모바일 터치·글꼴 (#557 · #558)', () => {
+  const renderCss = (size: 'sm' | 'md'): string => {
+    const sheet = new ServerStyleSheet()
+    try {
+      renderToStaticMarkup(
+        sheet.collectStyles(
+          createElement(AnalysisPeriodSelect, {
+            value: '20261',
+            range: RANGE,
+            onChange: () => {},
+            size,
+          }),
+        ),
+      )
+      return sheet.getStyleTags().replace(/\s+/g, '')
+    } finally {
+      sheet.seal()
+    }
+  }
+
+  it.each(['sm', 'md'] as const)(
+    '%s 는 ≤1024px 에서 44px 높이·16px 글꼴이다 (결과 가로 탭 바와 같은 경계)',
+    size => {
+      expect(renderCss(size)).toMatch(
+        /@media\(max-width:1024px\)\{\.[\w-]+\{min-height:44px;font-size:16px;\}\}/,
+      )
+    },
+  )
+
+  it('결과 모바일 탭은 min-height 를 덮어쓰지 않고, ≤640px 섹션 여백은 헤더(≈154px)보다 크다', () => {
+    const source = readFileSync(
+      new URL('./analysis-result-view.tsx', import.meta.url),
+      'utf8',
+    )
+    const tab = source.slice(
+      source.indexOf('const HeaderTabButton'),
+      source.indexOf('`', source.indexOf('const HeaderTabButton') + 40),
+    )
+
+    expect(tab).not.toContain('min-height')
+    expect(source).toContain('scroll-margin-top: 160px;')
   })
 })
