@@ -46,6 +46,7 @@ import {
   type CommunityStoredDraft,
 } from '@/lib/community/editor-draft'
 import {
+  parseCommunityEditorCategoryPrefill,
   parseCommunityEditorPrefill,
   resolveCommunityCreateLocation,
   toCommunityLocationValue,
@@ -565,6 +566,9 @@ export default function CommunityRegisterPage() {
   const draftParams = draftRequest.kind === 'ready' ? draftRequest.params : null
   const prefill =
     mode === 'create' ? parseCommunityEditorPrefill(searchParams) : null
+  // 레일 「질문하기」로 오면 말머리 「질문」을 골라 둔다(#590). 수정 화면은 글의 말머리로 시작한다.
+  const categoryPrefill =
+    mode === 'create' ? parseCommunityEditorCategoryPrefill(searchParams) : null
   const rawSearchParams = searchParams.toString()
   const currentHref = rawSearchParams
     ? `${pathname}?${rawSearchParams}`
@@ -949,7 +953,7 @@ export default function CommunityRegisterPage() {
           title: draft?.title ?? '',
           content: draft?.content ?? '',
           images: [],
-          category: null,
+          category: categoryPrefill,
           // 비교 초안의 행정동 > 목록·상세에서 넘어온 지역 > 빈 칩.
           location: resolveCommunityCreateLocation(
             draft ? toCommunityLocationValue(draft) : null,

@@ -40,7 +40,8 @@ const railProps: ComponentProps<typeof CommunityListRail> = {
     ],
   },
   askTitle: '성동구에 대해 물어보세요',
-  writeHref: '/community/register?targetType=DISTRICT&targetCode=11200',
+  askHref:
+    '/community/register?targetType=DISTRICT&targetCode=11200&category=QUESTION',
   analysis: {
     label: '성동구 상권 분석 보기',
     href: '/analysis?districtCode=11200',
@@ -91,16 +92,54 @@ describe('CommunityListRail', () => {
     }
   })
 
-  it('asks for a post with the prefilled write link and links to analysis', () => {
+  it('asks with a question template (말머리 「질문」) instead of a second 글쓰기, and links to analysis (#590)', () => {
     const { markup } = render(createElement(CommunityListRail, railProps))
 
     expect(markup).toMatch(/<h2[^>]*>성동구에 대해 물어보세요<\/h2>/)
     expect(markup).toMatch(
-      /<a[^>]*href="\/community\/register\?targetType=DISTRICT&amp;targetCode=11200"[^>]*>글쓰기<\/a>/,
+      /<a[^>]*href="\/community\/register\?targetType=DISTRICT&amp;targetCode=11200&amp;category=QUESTION"[^>]*>질문하기<\/a>/,
     )
+    // 목록 머리의 「글쓰기」와 같은 이름을 쓰지 않는다 — 같은 행동이 두 곳에 있는 것처럼 보인다.
+    expect(markup).not.toContain('>글쓰기<')
     expect(markup).toMatch(
       /<a[^>]*href="\/analysis\?districtCode=11200"[^>]*>[\s\S]*?성동구 상권 분석 보기/,
     )
+  })
+})
+
+describe('CommunityListRail — 반응 없는 인기 글 대체(#590)', () => {
+  const recentProps: ComponentProps<typeof CommunityListRail> = {
+    ...railProps,
+    popular: {
+      kind: 'recent',
+      title: '성동구 이번 주 새 글',
+      posts: railProps.popular!.posts.map(post => ({
+        ...post,
+        likeCount: 0,
+        createdAt: '2026-10-09T08:35:00.000Z',
+      })),
+    },
+  }
+
+  it('「이번 주 새 글」은 순위와 ♡ 0 을 빼고 작성 시각을 적는다', () => {
+    const { markup } = render(createElement(CommunityListRail, recentProps))
+
+    expect(markup).toMatch(/<h2[^>]*>성동구 이번 주 새 글<\/h2>/)
+    expect(markup).toContain('data-community-rail-posts="recent"')
+    expect(markup).not.toContain('인기 1위')
+    expect(markup).not.toContain('좋아요')
+    expect(markup).toMatch(/<time[^>]*dateTime="2026-10-09T08:35:00.000Z"/)
+    expect(markup).toMatch(
+      /<a[^>]*data-popular-post-id="11"[^>]*href="\/community\/11\?from=ctx"/,
+    )
+  })
+
+  it('종류가 없으면 지금처럼 인기 글(순위 + ♡ 수)이다', () => {
+    const { markup } = render(createElement(CommunityListRail, railProps))
+
+    expect(markup).toContain('data-community-rail-posts="popular"')
+    expect(markup).toContain('인기 1위')
+    expect(markup).not.toContain('<time')
   })
 })
 
