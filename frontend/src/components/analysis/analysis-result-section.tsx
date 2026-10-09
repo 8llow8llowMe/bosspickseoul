@@ -88,7 +88,12 @@ const Header = styled.header`
     line-height: 27px;
   }
 
+  /*
+    설명은 차트·요약의 결론 문장이라 읽기 텍스트다 — 한 줄 상한 '--w-read'(#589). 전폭 카드
+    (핵심 지표 · 분기별 변화)에서 1,100px 한 줄로 늘어나지 않게 한다. 좁은 카드에서는 영향이 없다.
+  */
   p {
+    max-width: var(--w-read);
     color: var(--color-text-600);
     font-size: 13px;
     line-height: 20px;
