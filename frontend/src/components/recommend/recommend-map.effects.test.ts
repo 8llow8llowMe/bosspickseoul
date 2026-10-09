@@ -117,6 +117,18 @@ const results = [
   ]),
 ]
 
+/*
+ * 상권 단계 이름표는 서로 겹치면 우선순위가 낮은 쪽이 숨는다(#602, `area-label-collision.ts`).
+ * 가짜 지도는 `setBounds` 로 카메라를 옮기지 않아 서울 기본 level 8 에 머무는데, 그 축척에서
+ * 상권 픽스처(0.004° 간격)는 실제로도 겹친다. 상권 이름표를 **모두** 세는 테스트는 실제
+ * 화면처럼 확대된 카메라에서 그린다 — 처음부터 상권 단계면 초기 카메라로, 구 단계(선택
+ * 없음 → 서울 기본 카메라로 되돌림)에서 넘어가면 넘어가기 직전에 확대한다.
+ */
+const ZOOMED_IN_LEVEL = 3
+const ZOOMED_IN: Partial<Props> = {
+  initialCamera: { lat: 37.5, lng: 127.035, level: ZOOMED_IN_LEVEL },
+}
+
 const baseProps = (): Props => ({
   stage: 'district',
   districtAreas: [gangnam, seocho],
@@ -388,6 +400,7 @@ describe('RecommendMap 지도 이펙트 — 단계 전환과 레이어', () => {
     ).toBe(false)
 
     // 단계와 데이터가 한 렌더에 같이 바뀌어도 새 단계의 새 데이터로 그린다.
+    theMap().setLevel(ZOOMED_IN_LEVEL)
     view.rerender({
       stage: 'commercial',
       selectedDistrictCode: gangnam.areaCode,
@@ -499,8 +512,30 @@ describe('RecommendMap 지도 이펙트 — 선택과 미리보기', () => {
     expect(r2.zIndex).toBeGreaterThan(r1.zIndex)
   })
 
+  it('겹침 숨김은 상권 단계에만 걸린다 — 같은 축척에서 행정동은 전부, 상권은 하나만 보인다', async () => {
+    // 서울 기본 level 8: 행정동(0.01°)·상권(0.004°) 픽스처 모두 이름표가 겹치는 축척이다.
+    const view = await renderMap()
+    view.rerender({
+      stage: 'administration',
+      selectedDistrictCode: gangnam.areaCode,
+      administrationAreas: [yeoksam1, yeoksam2],
+    })
+    expect(liveLabels()).toHaveLength(2)
+
+    view.rerender({
+      stage: 'commercial',
+      selectedAdministrationCode: yeoksam1.areaCode,
+      commercialAreas: [commercialA, commercialB],
+    })
+    // 면적이 같아 코드 사전순(C1)이 남는다.
+    expect(liveLabels().map(label => label.textContent)).toEqual([
+      '역삼역 상권',
+    ])
+  })
+
   it('상권 단계는 지금 고른 상권을 선택 상태로 그린다', async () => {
     await renderMap({
+      ...ZOOMED_IN,
       stage: 'commercial',
       selectedDistrictCode: gangnam.areaCode,
       selectedAdministrationCode: yeoksam1.areaCode,
@@ -545,6 +580,7 @@ describe('RecommendMap 지도 이펙트 — 선택과 미리보기', () => {
 
   it('선택이 바뀐 뒤 상권 레이어를 다시 그리면 지금 고른 상권을 선택 상태로 그린다', async () => {
     const view = await renderMap({
+      ...ZOOMED_IN,
       stage: 'commercial',
       selectedDistrictCode: gangnam.areaCode,
       selectedAdministrationCode: yeoksam1.areaCode,

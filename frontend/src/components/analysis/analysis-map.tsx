@@ -316,6 +316,9 @@ export default function AnalysisMap({
       previewedCode: previewedCodeRef.current,
       onSelect: code => callbacksRef.current.onSelect(code),
       onPreviewChange: code => callbacksRef.current.onPreviewChange(code),
+      // 겹침 숨김은 상권 단계만이다(#602). 자치구 25·행정동 수십 개는 겹쳐도 전부 보여야
+      // 한다 — 그 단계는 이름표가 곧 고를 대상의 전체 목록이다.
+      collide: activeStep === 'commercial',
     })
     labelHandleRef.current = labelHandle
 
@@ -328,7 +331,7 @@ export default function AnalysisMap({
     clearLayersRef.current = clearLayers
 
     return clearLayers
-  }, [areas, layerKey, sdkStatus, selectedCode])
+  }, [activeStep, areas, layerKey, sdkStatus, selectedCode])
 
   // 호버(previewedCode)·선택 하이라이트를 레이어 재생성 없이 증분 적용한다.
   // 이 이펙트가 매 호버마다 25개 폴리곤을 다시 그리던 비용을 O(변경분)으로 낮춘다.

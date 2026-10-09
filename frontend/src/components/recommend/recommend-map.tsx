@@ -908,6 +908,8 @@ export default function RecommendMap({
       areas: readonly AreaBoundaryItem[],
       selectedCode: string | null,
       onSelect: (code: string) => void,
+      // 겹침 숨김은 상권 단계만 켠다(#602, map-shell.md D4-7).
+      { collide = false }: { collide?: boolean } = {},
     ) => {
       const polygonHandle = drawAreaPolygonLayer({
         map,
@@ -928,6 +930,7 @@ export default function RecommendMap({
         onSelect,
         onPreviewChange: setHoveredAreaCode,
         onBeforeSelect: suppressBackground,
+        collide,
       })
       polygonLayerCleanups.push(polygonHandle.cleanup, labelHandle.cleanup)
       // 선택이 바뀌면 layerSemanticKey 가 바뀌어 레이어를 통째로 다시 그린다.
@@ -969,6 +972,7 @@ export default function RecommendMap({
         layerInput.commercialAreas,
         readSelectedCommercialCode(),
         code => selectCommercial(code),
+        { collide: true },
       )
     }
 

@@ -357,14 +357,20 @@ const GlobalStyles = createGlobalStyle`
 
   /* 폴리곤 위에 얹는 지역 이름 뱃지(drawAreaLabelLayer). 상권분석·상권추천이
      같은 모양을 써야 해서 여기 둔다 — 뱃지 DOM 은 Kakao 오버레이 pane 안에
-     들어가므로 컴포넌트 styled 블록으로는 두 화면이 공유할 수 없다. */
+     들어가므로 컴포넌트 styled 블록으로는 두 화면이 공유할 수 없다.
+
+     카카오 기본 지도의 상점·역 이름은 래스터 타일에 구워져 있어 오버레이가 늘 그
+     위에 그려진다. 문제는 순서가 아니라 **닮음**이었다 — 회색 테두리·반투명 흰 알약은
+     타일의 흰 후광 글자와 섞여 고를 대상이 묻혔다(#602). 폴리곤과 같은 파랑 테두리
+     (primary-600, 지도 한 화면에 파랑 하나 규칙 그대로)로 「이 면의 이름표」임을 잇고,
+     불투명 바탕 + 한 단계 높은 그림자(level-3)로 타일 위에 떠 보이게 한다. */
   [data-kakao-map] .area-map-label {
     min-width: 44px;
     min-height: 34px;
-    border: 1px solid var(--color-border-300);
+    border: 1px solid var(--color-primary-600);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: var(--shadow-level-2);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-level-3);
     color: var(--color-text-800);
     padding: 7px 10px;
     font-size: 12px;
