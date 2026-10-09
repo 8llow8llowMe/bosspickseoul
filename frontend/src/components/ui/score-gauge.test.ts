@@ -29,7 +29,7 @@ describe('ScoreGauge', () => {
     ).toContain('aria-label="기회도 84점, 좋음"')
   })
 
-  // T-D1 과 짝 — 위험도 100 은 가득 찬 호에 나쁨 색이다.
+  // T-D1 과 짝 — 위험도 100 은 가득 찬 호에 주의 색이다.
   it('fills the arc by the raw score but colors it by direction', () => {
     const risky = render({
       score: 100,
@@ -39,7 +39,7 @@ describe('ScoreGauge', () => {
 
     expect(risky).toContain('data-score-quality="poor"')
     expect(risky).toContain('var(--score-low)')
-    expect(risky).toContain('aria-label="위험도 100점, 나쁨"')
+    expect(risky).toContain('aria-label="위험도 100점, 주의"')
     // 호는 뒤집지 않는다 — 뒤집으면 가운데 숫자 100 과 그림이 어긋난다.
     const circumference = 2 * Math.PI * 14
     expect(risky).toContain(

@@ -104,7 +104,7 @@ const GlobalStyles = createGlobalStyle`
     /*
      * Score Scale (DESIGN.md §Score Scale). 등급 HIGH ≥ 70 / MEDIUM 40~70 / LOW < 40.
      *
-     * **점수가 아니라 「좋음/보통/나쁨」에 매핑한다.** 위험도·혼잡도는 점수가 높을수록
+     * **점수가 아니라 「좋음/보통/주의」(내부 값 good/fair/poor)에 매핑한다.** 위험도·혼잡도는 점수가 높을수록
      * 나쁘므로, 점수를 그대로 이 토큰에 이으면 「위험도 100」이 초록이 된다.
      * 방향 변환은 lib/recommend/metric-polarity.ts 가 맡는다.
      *

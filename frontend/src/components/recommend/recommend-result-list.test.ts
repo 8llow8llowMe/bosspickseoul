@@ -6,6 +6,7 @@ import RecommendResultList, {
   BLUE_OCEAN_HEADING,
   BLUE_OCEAN_NOTE,
   describeBookmarkAction,
+  describeMetricDirection,
   SCORE_UNAVAILABLE_LABEL,
   formatBlueOceanCounts,
   formatScore,
@@ -389,7 +390,7 @@ describe('점수 게이지', () => {
   })
 
   // 위험도 100 을 초록으로 칠하면 화면이 정반대로 말한다.
-  it('위험도가 높으면 나쁨 색이다', () => {
+  it('위험도가 높으면 주의 색이다', () => {
     const markup = renderList({
       results: [
         candidate({
@@ -412,6 +413,67 @@ describe('점수 게이지', () => {
 
     expect(markup).toContain('data-score-quality="poor"')
     expect(markup).toContain('var(--score-low)')
+  })
+
+  /*
+   * #569 — 색만으로 등급을 전하지 않는다. 지표 행에 방향 문구와 등급 배지가
+   * **글자로** 보여야 「위험도 82」를 좋은 점수로 읽지 않는다.
+   */
+  it('지표 행이 방향과 등급을 글자로 보여 준다', () => {
+    const metric = (code: string, name: string, score: number) => ({
+      metricType: { code, name, description: '', scoreDescription: '' },
+      score,
+      grade: null,
+      summaryLabel: null,
+    })
+    const markup = renderList({
+      results: [
+        candidate({
+          metricBreakdown: [
+            metric('OPPORTUNITY_SCORE', '기회도', 82),
+            metric('RESIDENT_POPULATION_SCORE', '거주수요', 50),
+            metric('RISK_SCORE', '위험도', 82),
+            metric('CONGESTION_SCORE', '혼잡도', 10),
+          ],
+        }),
+      ],
+    })
+
+    expect(markup.match(/data-metric-polarity="true"/g)).toHaveLength(4)
+    expect(markup.match(/높을수록 좋아요/g)).toHaveLength(2)
+    expect(markup.match(/낮을수록 좋아요/g)).toHaveLength(2)
+    // 기회도 82 는 좋음, 거주수요 50 은 보통, 위험도 82 는 주의, 혼잡도 10 은 좋음.
+    expect(
+      [...markup.matchAll(/data-quality-badge="(\w+)"/g)].map(
+        match => match[1],
+      ),
+    ).toEqual(['good', 'fair', 'poor', 'good'])
+    expect(markup).toMatch(/data-quality-badge="poor"[^>]*>.*?주의<\/span>/)
+  })
+
+  it('방향을 모르는 지표는 배지 없이 API 의 점수 설명을 옮긴다', () => {
+    const markup = renderList({
+      results: [
+        candidate({
+          metricBreakdown: [
+            {
+              metricType: {
+                code: 'NEW_SCORE',
+                name: '새 지표',
+                description: '',
+                scoreDescription: '점수가 높을수록 새 요인이 큽니다',
+              },
+              score: 60,
+              grade: null,
+              summaryLabel: null,
+            },
+          ],
+        }),
+      ],
+    })
+
+    expect(markup).not.toContain('data-quality-badge')
+    expect(markup).toContain('점수가 높을수록 새 요인이 큽니다')
   })
 
   it('점수가 없는 상권에는 게이지를 그리지 않는다', () => {
@@ -547,5 +609,27 @@ describe('describeBookmarkAction', () => {
         loginRequired: true,
       }),
     ).toBe('역삼역 북마크 처리 중')
+  })
+})
+
+describe('describeMetricDirection', () => {
+  it('아는 지표는 판단을 붙여 말하고 API 설명보다 앞선다', () => {
+    expect(
+      describeMetricDirection({
+        metricType: {
+          code: 'RISK_SCORE',
+          scoreDescription: '점수가 높을수록 위험 요인이 큽니다',
+        },
+      }),
+    ).toBe('낮을수록 좋아요')
+  })
+
+  it('아무것도 모르면 비운다', () => {
+    expect(describeMetricDirection(null)).toBe('')
+    expect(
+      describeMetricDirection({
+        metricType: { code: 'X', scoreDescription: ' ' },
+      }),
+    ).toBe('')
   })
 })
