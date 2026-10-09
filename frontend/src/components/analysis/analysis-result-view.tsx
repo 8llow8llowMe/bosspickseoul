@@ -129,6 +129,11 @@ import {
 } from '@/lib/analysis/expense-presentation'
 import { toDistrictIncomeView } from '@/lib/analysis/district-income-presentation'
 import {
+  formatSalesPerStoreIndex,
+  formatStoreCount,
+  toBenchmarkSalesView,
+} from '@/lib/analysis/benchmark-presentation'
+import {
   MAP_CAMERA_PARAM,
   parseMapCamera,
   type MapCamera,
@@ -829,6 +834,56 @@ const ComparisonItem = styled.div`
   }
 `
 
+/**
+ * 「비교 분석」 지수 타일 2개(자치구 = 100 · 행정동 = 100, #544). 비교 타일과 같은 `comparison`
+ * 컨테이너 폭으로 배치한다 — 좁으면 세로로 쌓는다. 값 크기는 숫자 하나짜리 카드(`SingleFigure`)와 같다.
+ */
+const IndexGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+
+  @container comparison (max-width: 519px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const IndexItem = styled.div`
+  display: grid;
+  gap: 4px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  padding: 16px;
+
+  span,
+  p {
+    color: var(--color-text-caption-on-band);
+    font-size: 12px;
+    line-height: 18px;
+    word-break: keep-all;
+  }
+
+  strong {
+    color: var(--color-text-900);
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 30px;
+    font-variant-numeric: tabular-nums;
+    word-break: keep-all;
+  }
+`
+
+/** 비교 타일 안 값 아래 보조 줄(점포 수 · 월 매출 총액). 좁은 폭의 2열 배치에서도 한 줄을 다 쓴다. */
+const ComparisonMeta = styled.p`
+  grid-column: 1 / -1;
+  color: var(--color-text-caption-on-band);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+`
+
 const HighlightList = styled.ul`
   display: grid;
   gap: 9px;
@@ -1327,6 +1382,11 @@ export default function AnalysisResultView({
   const benchmark = getResponseBody(
     benchmarkQuery.data,
   ) as CommercialBenchmark | null
+  /*
+    「비교 분석」의 매출 비교는 점포당 매출 지수가 주 지표다(#544). 총액은 지역 크기에 비례해
+    「행정동이 상권보다 크다」만 말했다. `salesPerStore` 가 없는 구 응답이면 총액 3개로 물러선다.
+  */
+  const benchmarkSales = toBenchmarkSalesView(benchmark)
   // 시간대 행은 원천 구간 합계다. 막대는 시간당(`*PerHourRows`), 결론 문장은 합계를 받아
   // 안에서 시간당으로 비교한다(매출 비중은 합계가 기준이라).
   const footTimeRows = createRows(
@@ -2701,7 +2761,13 @@ export default function AnalysisResultView({
               <FullSpanItem>
                 <AnalysisResultSection
                   title="비교 분석"
-                  description={benchmark?.summary ?? undefined}
+                  description={
+                    (benchmarkSales.mode === 'per-store'
+                      ? benchmarkSales.conclusion
+                      : null) ??
+                    benchmark?.summary ??
+                    undefined
+                  }
                   loading={benchmarkQuery.isPending}
                   error={resolveApiError(benchmarkQuery)}
                   empty={!hasObjectValues(benchmark)}
@@ -2719,26 +2785,65 @@ export default function AnalysisResultView({
                       description="제공된 지역별 매출과 소비 수치를 확인해 주세요."
                     />
                   )}
+                  {/*
+                  지수(비교 단위 점포당 = 100)가 주 지표이고 세 단위의 점포당 월 매출 · 점포 수 ·
+                  총액은 그 근거로 아래에 둔다. null 은 0 이 아니라 「데이터 없음」이고, 값이 없는
+                  단위도 줄을 지우지 않는다.
+                */}
                   <ComparisonFrame>
-                    <ComparisonGrid>
-                      {[
-                        benchmark?.salesSummary?.district,
-                        benchmark?.salesSummary?.administration,
-                        benchmark?.salesSummary?.commercial,
-                      ].map((item, index) => (
-                        <ComparisonItem key={item?.code ?? index}>
-                          <span>
-                            {item?.name ?? ['자치구', '행정동', '상권'][index]}
-                          </span>
-                          <strong>
-                            {formatAnalysisValue(
-                              item?.monthlySalesAmount,
-                              '원',
-                            )}
-                          </strong>
-                        </ComparisonItem>
-                      ))}
-                    </ComparisonGrid>
+                    {benchmarkSales.mode === 'per-store' ? (
+                      <>
+                        <IndexGrid>
+                          {benchmarkSales.indices.map(index => (
+                            <IndexItem key={index.scope}>
+                              <span>{index.baseName} 대비 지수</span>
+                              <strong>
+                                {formatSalesPerStoreIndex(index.value)}
+                              </strong>
+                              <p>{index.baseName} 점포 평균 = 100</p>
+                            </IndexItem>
+                          ))}
+                        </IndexGrid>
+                        <ComparisonGrid>
+                          {benchmarkSales.units.map(unit => (
+                            <ComparisonItem key={unit.scope}>
+                              <span>{unit.label} 점포당 월 매출</span>
+                              <strong>
+                                {formatAnalysisValue(
+                                  unit.monthlySalesPerStore,
+                                  '원',
+                                )}
+                              </strong>
+                              <ComparisonMeta>
+                                {formatStoreCount(unit.storeCount)} · 월 매출{' '}
+                                {formatAnalysisValue(
+                                  unit.monthlySalesAmount,
+                                  '원',
+                                )}
+                              </ComparisonMeta>
+                            </ComparisonItem>
+                          ))}
+                        </ComparisonGrid>
+                        <AbsentNote>
+                          점포 수는 이 업종의 일반 점포와 프랜차이즈 점포를 합친
+                          수예요.
+                        </AbsentNote>
+                      </>
+                    ) : (
+                      <ComparisonGrid>
+                        {benchmarkSales.units.map(unit => (
+                          <ComparisonItem key={unit.scope}>
+                            <span>{unit.label}</span>
+                            <strong>
+                              {formatAnalysisValue(
+                                unit.monthlySalesAmount,
+                                '원',
+                              )}
+                            </strong>
+                          </ComparisonItem>
+                        ))}
+                      </ComparisonGrid>
+                    )}
                   </ComparisonFrame>
                 </AnalysisResultSection>
               </FullSpanItem>
