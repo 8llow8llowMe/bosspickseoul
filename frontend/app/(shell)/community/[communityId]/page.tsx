@@ -23,7 +23,8 @@ export async function generateMetadata({
       title: '커뮤니티 게시글',
       description: '창업 경험과 상권 인사이트를 나누는 커뮤니티 게시글입니다.',
       path: `/community/${communityId}`,
-      index: true,
+      // 본문 렌더가 notFound() 로 떨어지는 주소라 색인하지 않는다.
+      index: false,
       type: 'article',
     })
   }
