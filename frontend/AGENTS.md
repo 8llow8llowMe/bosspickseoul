@@ -52,6 +52,10 @@ gh pr create --base develop \
 
 기존 PR에 누락됐다면 `gh pr edit <번호> --add-assignee seonghoho --add-label frontend-web`을 사용한다. `frontend-web` 라벨은 Jenkins 배포 대상 지정이므로 누락하면 배포가 생략된다. 세부 동작과 `FORCE_DEPLOY` 복구 절차는 `docs/runbook/deployment.md`를 따른다.
 
+## 진행 중인 묶음 작업
+
+- **UI/UX 진단 후속(#554~#606)**: `docs/superpowers/plans/2026-10-09-uiux-review-execution.md`. 이슈 49건을 배치 21개로 묶고 배치마다 역할·모델(탐색·단순 변경 Sonnet, 흐름 변경·리팩터·검토 Opus), 순서, 착수 전 결정 목록을 정했다. 역할·모델 정본은 루트 `docs/claude-agents.md`·`docs/codex-agents.md`이고, 이 계획은 그 규칙을 적용한 결과다.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

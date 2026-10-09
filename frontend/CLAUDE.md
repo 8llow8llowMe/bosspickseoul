@@ -21,6 +21,10 @@ React/Vite → Next.js App Router 마이그레이션 작업 영역이며, **작�
 4. **code-review / systematic-debugging** → 검증·디버깅
    > 정본은 항상 한국어 Feature 명세 1곳. superpowers는 그걸 만들고 실행하는 과정이다.
 
+## 진행 중인 묶음 작업
+
+- **UI/UX 진단 후속(#554~#606)**: `docs/superpowers/plans/2026-10-09-uiux-review-execution.md` — 배치 21개, 배치별 하위 에이전트 역할·모델·순서·결정 목록.
+
 ## 기술 기준선
 
 - Next.js App Router + TypeScript / pnpm / styled-components / Zustand / React Query
