@@ -139,6 +139,6 @@ describe('HomePage', () => {
   it('히어로가 추천 갈래를 연다', () => {
     const html = render()
 
-    expect(html).toContain('어디가 좋을지 모르겠다면 상권 추천받기')
+    expect(html).toContain('동네를 정했다면 그 안에서 상권 순위 받기')
   })
 })
