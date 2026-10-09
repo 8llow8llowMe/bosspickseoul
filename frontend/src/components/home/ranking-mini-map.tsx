@@ -6,7 +6,7 @@ import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
-import { STATUS_MAP_RANK_STEPS } from '@/components/status/status-map'
+import { STATUS_MAP_VALUE_STEPS } from '@/components/status/status-map'
 import type { RankingMapLayers } from '@/lib/home/ranking-map'
 
 /**
@@ -23,7 +23,7 @@ import type { RankingMapLayers } from '@/lib/home/ranking-map'
  */
 
 /** 순위 1~5 에 하나씩 쓰는 칠 농도. `/status` 지도의 다섯 단계와 같은 값이다(D4-1). */
-const FILL_MIX_PERCENTS = STATUS_MAP_RANK_STEPS.map(step => step.mixPercent)
+const FILL_MIX_PERCENTS = STATUS_MAP_VALUE_STEPS.map(step => step.mixPercent)
 
 const fillFor = (rank: number) =>
   `color-mix(in srgb, var(--color-primary-600) ${FILL_MIX_PERCENTS[rank - 1]}%, var(--color-surface))`

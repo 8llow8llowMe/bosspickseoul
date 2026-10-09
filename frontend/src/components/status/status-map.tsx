@@ -8,22 +8,22 @@ import {
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
 import {
-  formatStatusChange,
-  formatStatusValue,
+  formatStatusRankSummary,
   STATUS_METRIC_LABELS,
 } from '@/lib/status/status-formatters'
 import {
   createStatusMapLabels,
   findSelectedStatusMapFeature,
   resolveStatusMapLabelModes,
+  resolveStatusMapValueSteps,
   STATUS_MAP_LABEL_BREAKPOINT_PX,
   STATUS_MAP_LABEL_TIERS,
-  type StatusMapLabel,
 } from '@/lib/status/status-map-model'
 import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
 type StatusMapProps = {
   metric: StatusMetric
+  /** 현재 지표의 **전체 순위**(최대 25). 단계 색·툴팁은 전부를, 순위 점은 앞 10개만 쓴다. */
   items: StatusRankedItem[]
   selectedDistrictCode: string | null
   onSelect: (districtCode: string) => void
@@ -39,24 +39,21 @@ type StatusMapProps = {
 }
 
 /*
- * 단계 색. Top10 을 순위 두 칸씩 다섯 단계로 칠한다(값이 아니라 순위 — Top10 응답에는 10개 구
- * 값만 있어 25개 구를 값으로 나눌 수 없고, 10개 안에서 값으로 나누면 1위만 진하고 나머지가
- * 비슷해지기 쉽다). 새 토큰 없이 primary-600 을 흰 바탕에 섞는다. 가장 옅은 단계(11%)와 순위
- * 밖 회색(grey100)은 명도 대비가 1.05:1 뿐이라 **색조로만** 갈린다 — 순위 점이 같은 정보를
- * 함께 주므로 색만으로 전달하지 않는다.
+ * 단계 색. 25개 구를 현재 지표 값의 5분위로 칠한다(`resolveStatusMapValueSteps`, #542). 예전에는
+ * Top10 응답에 10개 구 값만 있어 순위 두 칸씩 10개만 칠하고 15개 구는 회색이었다.
+ * 새 토큰 없이 primary-600 을 흰 바탕에 섞는다(비율은 그때와 같다). 가장 옅은 단계(11%)와 데이터
+ * 없는 회색(grey100)은 명도 대비가 1.05:1 뿐이라 **색조로만** 갈린다 — 툴팁과 목록이 값을 함께
+ * 주므로 색만으로 전달하지 않는다.
  */
-export const STATUS_MAP_RANK_STEPS = [
-  { step: 1, ranks: '1–2위', mixPercent: 60 },
-  { step: 2, ranks: '3–4위', mixPercent: 46 },
-  { step: 3, ranks: '5–6위', mixPercent: 33 },
-  { step: 4, ranks: '7–8위', mixPercent: 21 },
-  { step: 5, ranks: '9–10위', mixPercent: 11 },
+export const STATUS_MAP_VALUE_STEPS = [
+  { step: 1, mixPercent: 60 },
+  { step: 2, mixPercent: 46 },
+  { step: 3, mixPercent: 33 },
+  { step: 4, mixPercent: 21 },
+  { step: 5, mixPercent: 11 },
 ] as const
 
-export const getStatusMapRankStep = (rank: number | null): number | null =>
-  rank !== null && rank >= 1 && rank <= 10 ? Math.ceil(rank / 2) : null
-
-const rankStepFill = (mixPercent: number) =>
+const valueStepFill = (mixPercent: number) =>
   `color-mix(in srgb, var(--color-primary-600) ${mixPercent}%, var(--color-surface))`
 
 const STATUS_MAP_VIEW_BOX_SIZE = {
@@ -120,10 +117,10 @@ const DistrictPath = styled.path`
     fill var(--motion-fast) var(--ease-standard),
     opacity var(--motion-fast) var(--ease-standard);
 
-  ${STATUS_MAP_RANK_STEPS.map(
+  ${STATUS_MAP_VALUE_STEPS.map(
     ({ step, mixPercent }) => `
-      &[data-rank-step='${step}'] {
-        fill: ${rankStepFill(mixPercent)};
+      &[data-value-step='${step}'] {
+        fill: ${valueStepFill(mixPercent)};
       }
     `,
   ).join('')}
@@ -133,7 +130,7 @@ const DistrictPath = styled.path`
     opacity: 0.5;
   }
 
-  /* hover 는 채움을 바꾸지 않는다 — 단계 색 위에서 채움이 바뀌면 순위를 오독한다. 강조는
+  /* hover 는 채움을 바꾸지 않는다 — 단계 색 위에서 채움이 바뀌면 값 구간을 오독한다. 강조는
      위에 겹쳐 그리는 테두리(ActiveDistrictOutline)가 맡는다.
      포커스 표시는 점선(FocusedDistrictOutline)이 맡고 CSS 로도 한 겹 둔다 — 상태가
      어긋나도 포커스를 받은 구가 보이지 않는 일은 없어야 한다(WCAG 2.4.7). */
@@ -373,9 +370,9 @@ const Legend = styled.div`
   pointer-events: none;
 `
 
-/* 좁은 지도(모바일·태블릿)에서는 「순위 밖」 칸을 뺀다. 그대로 두면 범례 오른쪽 끝이
-   도봉구 라벨 자리까지 닿아, 도봉구가 순위에 들면 순위 점을 가린다(360·375px 실측). 회색은
-   뜻이 자명하고 툴팁이 「상위 10위 밖」을 말해 준다. */
+/* 회색은 그 지표에 값이 없는 구다(그 분기 행이 없음). 정상 운영에서는 25개 구가 모두 값이 있어
+   그런 구가 있을 때만 칸을 그린다. 좁은 지도(모바일·태블릿)에서는 빼는데, 그대로 두면 범례 오른쪽
+   끝이 도봉구 라벨 자리까지 닿아 순위 점을 가린다(360·375px 실측). 툴팁이 「데이터 없음」을 말해 준다. */
 const LegendOutside = styled.span`
   display: inline-flex;
   align-items: center;
@@ -405,18 +402,6 @@ const getBackgroundActionLabel = (action: 'expand' | 'collapse') =>
     ? '지도를 눌러 구별 현황 바텀시트 펼치기'
     : '지도를 더 보기 위해 구별 현황 바텀시트 최소화'
 
-const describeDistrict = (
-  metric: StatusMetric,
-  label: StatusMapLabel,
-  item: StatusRankedItem | undefined,
-): string => {
-  const metricLabel = STATUS_METRIC_LABELS[metric]
-
-  if (!item || label.rank === null) return `${metricLabel} 상위 10위 밖`
-
-  return `${metricLabel} ${label.rank}위 · ${formatStatusValue(metric, item.value)} · ${formatStatusChange(item.changeRate)}`
-}
-
 export default function StatusMap({
   metric,
   items,
@@ -440,8 +425,16 @@ export default function StatusMap({
   const labelsByDistrictCode = new Map(
     labels.map(label => [label.districtCode, label]),
   )
-  const itemsByDistrictCode = new Map(
-    items.map(item => [item.districtCode, item]),
+  // 같은 구가 두 번 오면 앞 항목을 쓴다(단계 계산과 같은 규칙).
+  const itemsByDistrictCode = new Map<string, StatusRankedItem>()
+  for (const item of items) {
+    if (!itemsByDistrictCode.has(item.districtCode)) {
+      itemsByDistrictCode.set(item.districtCode, item)
+    }
+  }
+  const valueSteps = resolveStatusMapValueSteps(items)
+  const hasDistrictWithoutStep = SEOUL_STATUS_FEATURES.some(
+    feature => !valueSteps.has(feature.districtCode),
   )
   const wideModes = resolveStatusMapLabelModes(
     labels,
@@ -505,17 +498,19 @@ export default function StatusMap({
         ) : null}
         {items.length > 0 ? (
           <Legend aria-hidden="true" data-status-map-legend>
-            <span>1위</span>
+            <span>많음</span>
             <LegendScale>
-              {STATUS_MAP_RANK_STEPS.map(({ step, mixPercent }) => (
-                <LegendSwatch key={step} $fill={rankStepFill(mixPercent)} />
+              {STATUS_MAP_VALUE_STEPS.map(({ step, mixPercent }) => (
+                <LegendSwatch key={step} $fill={valueStepFill(mixPercent)} />
               ))}
             </LegendScale>
-            <span>10위</span>
-            <LegendOutside>
-              <LegendSwatch $fill="var(--color-surface-muted)" />
-              <span>순위 밖</span>
-            </LegendOutside>
+            <span>적음</span>
+            {hasDistrictWithoutStep ? (
+              <LegendOutside>
+                <LegendSwatch $fill="var(--color-surface-muted)" />
+                <span>데이터 없음</span>
+              </LegendOutside>
+            ) : null}
           </Legend>
         ) : null}
         <MapViewport data-status-map-label-viewport="800x620">
@@ -534,14 +529,13 @@ export default function StatusMap({
               return (
                 <DistrictPath
                   key={feature.districtCode}
-                  aria-label={`${label.districtName}, ${describeDistrict(
+                  aria-label={`${label.districtName}, ${formatStatusRankSummary(
                     metric,
-                    label,
                     itemsByDistrictCode.get(feature.districtCode),
                   )}`}
                   aria-pressed={feature.districtCode === selectedDistrictCode}
                   d={feature.path}
-                  data-rank-step={getStatusMapRankStep(label.rank) ?? undefined}
+                  data-value-step={valueSteps.get(feature.districtCode)}
                   data-status-district-path={feature.districtCode}
                   role="button"
                   tabIndex={0}
@@ -630,9 +624,8 @@ export default function StatusMap({
               >
                 <TooltipTitle>{tooltipLabel.districtName}</TooltipTitle>
                 <TooltipMetric>
-                  {describeDistrict(
+                  {formatStatusRankSummary(
                     metric,
-                    tooltipLabel,
                     itemsByDistrictCode.get(tooltipLabel.districtCode),
                   )}
                 </TooltipMetric>
