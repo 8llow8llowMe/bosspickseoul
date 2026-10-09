@@ -135,15 +135,6 @@ const CardBody = styled.p`
   word-break: keep-all;
 `
 
-const DevBadge = styled.span`
-  margin-left: auto;
-  font-size: 12px;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-muted);
-  color: var(--color-text-caption);
-`
-
 const Cta = styled.div`
   margin-top: 24px;
   padding: 24px;
@@ -246,18 +237,18 @@ export default function FeatureBento() {
               <CardTitle>분석 화면 보관함</CardTitle>
             </CardHead>
             <CardBody>
-              분석한 화면을 그대로 저장하고, 링크 하나로 공유합니다.
+              분석한 화면을 그대로 저장해 두고, 링크 하나로 다른 사람에게 공유할
+              수 있습니다.
             </CardBody>
           </Hero>
 
           <Card>
             <CardHead>
               <MessageSquare aria-hidden="true" />
-              <CardTitle>커뮤니티 · 채팅</CardTitle>
-              <DevBadge>개발중</DevBadge>
+              <CardTitle>커뮤니티</CardTitle>
             </CardHead>
             <CardBody>
-              예비 창업자와 정보를 나누고 실시간으로 대화합니다.
+              예비 창업자와 상권 정보를 나누고 댓글로 이야기할 수 있습니다.
             </CardBody>
           </Card>
 
@@ -274,23 +265,25 @@ export default function FeatureBento() {
           <div>
             <CtaTitle>지금 내 상권을 분석해 보세요.</CtaTitle>
             <CtaBody>
-              회원가입 후 분석 리포트와 상권 추천을 이어서 사용할 수 있습니다.
+              분석은 로그인 없이 바로 시작할 수 있습니다. 회원가입하면 북마크,
+              분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기도 이용할 수
+              있습니다.
             </CtaBody>
           </div>
           <Actions>
             <PrimaryLink
-              href="/register"
-              {...trackAttrs('home_final_cta_click', { cta: 'register' })}
-            >
-              <UserPlus aria-hidden="true" />
-              시작하기
-            </PrimaryLink>
-            <SecondaryLink
               href="/analysis"
               {...trackAttrs('home_final_cta_click', { cta: 'analysis' })}
             >
               <ArrowRight aria-hidden="true" />
-              상권 분석 바로가기
+              상권 분석 시작하기
+            </PrimaryLink>
+            <SecondaryLink
+              href="/register"
+              {...trackAttrs('home_final_cta_click', { cta: 'register' })}
+            >
+              <UserPlus aria-hidden="true" />
+              회원가입
             </SecondaryLink>
           </Actions>
         </Cta>

@@ -611,7 +611,7 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
 
           <Composer>
             <ComposerInput
-              aria-label="chat message"
+              aria-label="채팅 메시지"
               placeholder="내용을 입력하세요. Enter로 전송하고 Shift+Enter로 줄바꿈합니다."
               value={composerValue}
               maxLength={499}

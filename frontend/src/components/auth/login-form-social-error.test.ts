@@ -62,3 +62,15 @@ describe('LoginForm — 소셜 콜백 실패 안내 (#527)', () => {
     expect(markup).not.toContain('카카오 계정으로 처음 오셨어요')
   })
 })
+
+describe('LoginForm — 설명 문구', () => {
+  it('로그인 없이 쓰는 기능과 로그인이 필요한 기능을 사실대로 말한다', () => {
+    const markup = renderWithError(null)
+
+    expect(markup).toContain('분석과 추천은 로그인 없이 쓸 수 있습니다.')
+    expect(markup).toContain(
+      'AI 리포트, 북마크, 분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기와 댓글도 이용할 수 있습니다.',
+    )
+    expect(markup).not.toContain('채팅')
+  })
+})

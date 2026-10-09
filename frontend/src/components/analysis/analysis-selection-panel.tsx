@@ -86,6 +86,26 @@ export const ANALYSIS_STEP_LABELS: Record<AnalysisStep, string> = {
   service: '업종',
 }
 
+const STEP_ORDER: readonly AnalysisStep[] = [
+  'district',
+  'administration',
+  'commercial',
+  'service',
+]
+
+const STEP_GAP_MESSAGE: Record<AnalysisStep, string> = {
+  district: '자치구를 선택해 주세요',
+  administration: '행정동을 선택해 주세요',
+  commercial: '상권을 선택해 주세요',
+  service: '업종을 선택해 주세요',
+}
+
+/** 비어 있는 첫 단계만 안내한다. 추천·시뮬레이션 화면의 「…를 선택해 주세요」 톤과 맞춘다. */
+const describeAnalysisSelectionGap = (selection: AnalysisSelection): string => {
+  const missing = STEP_ORDER.find(step => !selectionCodeByStep(selection, step))
+  return missing ? STEP_GAP_MESSAGE[missing] : ''
+}
+
 const Root = styled.section`
   min-height: 0;
   display: flex;
@@ -457,7 +477,7 @@ function AnalysisSelectionPanel({
         <Helper>
           {isComplete
             ? `${periodCode ? formatPeriodCode(periodCode) : '최신 분기'} 기준으로 분석해요`
-            : '상권과 업종을 선택해 주세요'}
+            : describeAnalysisSelectionGap(selection)}
         </Helper>
         {/*
           이 화면은 「어느 상권인지 이미 아는」 사람을 전제로 4단계를 요구한다.
@@ -469,6 +489,7 @@ function AnalysisSelectionPanel({
 
           선택이 끝난 뒤에는 감춘다. 그때는 주 CTA 가 유일한 다음 걸음이어야 한다.
         */}
+        {/* #597 본 작업 전 임시 문구. 동네(자치구·행정동)를 정한 사람을 전제로 한다. */}
         {isComplete ? null : (
           <RecommendEscape
             data-testid="analysis-recommend-escape"
@@ -478,7 +499,7 @@ function AnalysisSelectionPanel({
               serviceCode: selection.serviceCode,
             })}
           >
-            어디가 좋을지 모르겠다면 상권 추천받기
+            동네를 정했다면 그 안에서 상권 순위 받기
           </RecommendEscape>
         )}
       </Footer>

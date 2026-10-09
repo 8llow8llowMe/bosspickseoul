@@ -6,7 +6,6 @@ import {
   CardText,
   CardTitle,
   ContentCard,
-  EmptyState,
   MetaItem,
   MetaList,
   SectionNotice,
@@ -97,7 +96,6 @@ export default function ProfileRecommendBookmarksPage() {
             목록에 표시됩니다.
           </SectionBody>
         </SectionPanel>
-        <EmptyState>저장된 추천 상권이 아직 없어요.</EmptyState>
       </SectionStack>
     )
   }
@@ -106,10 +104,7 @@ export default function ProfileRecommendBookmarksPage() {
     <SectionStack>
       <SectionPanel>
         <SectionTitle>상권 북마크</SectionTitle>
-        <SectionBody>
-          V2 회원 북마크에 저장된 상권 목록입니다. 북마크 계약은 저장한 화면의
-          출처를 구분하지 않습니다.
-        </SectionBody>
+        <SectionBody>저장한 상권 목록입니다.</SectionBody>
       </SectionPanel>
       <ProfileRecommendBookmarkCards bookmarks={bookmarks} />
     </SectionStack>

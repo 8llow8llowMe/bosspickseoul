@@ -77,7 +77,7 @@ describe('AnalysisSelectionPanel 추천 탈출구', () => {
         /<a[^>]*data-testid="analysis-recommend-escape"[^>]*>/,
       )?.[0] ?? ''
 
-    expect(markup).toContain('어디가 좋을지 모르겠다면 상권 추천받기')
+    expect(markup).toContain('동네를 정했다면 그 안에서 상권 순위 받기')
     expect(link).toContain('href="/recommend?')
     expect(link).toContain('districtCode=11680')
     expect(link).toContain('administrationCode=11680640')
@@ -122,7 +122,58 @@ describe('AnalysisSelectionPanel', () => {
     expect(markup).toContain('행정동')
     expect(markup).toContain('상권')
     expect(markup).toContain('업종')
-    expect(markup).toContain('상권과 업종을 선택해 주세요')
+    expect(markup).toContain('자치구를 선택해 주세요')
+  })
+
+  it('상권까지 골랐으면 안내에 업종만 남는다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalysisSelectionPanel, {
+        activeStep: 'service',
+        selection: {
+          ...createEmptyAnalysisSelection(),
+          districtCode: '11680',
+          administrationCode: '11680510',
+          commercialCode: '3110001',
+        },
+        periodCode: '20261',
+        selectedNames: {},
+        items: [{ code: 'CS100001', name: '한식음식점' }],
+        status: 'ready',
+        error: null,
+        onStepChange: () => undefined,
+        onSelect: () => undefined,
+        onPreviewChange: () => undefined,
+        onRetry: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    )
+
+    expect(markup).toContain('업종을 선택해 주세요')
+  })
+
+  it('행정동을 건너뛰면 행정동부터 안내한다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalysisSelectionPanel, {
+        activeStep: 'service',
+        selection: {
+          ...createEmptyAnalysisSelection(),
+          districtCode: '11680',
+          commercialCode: '3110001',
+        },
+        periodCode: '20261',
+        selectedNames: {},
+        items: [{ code: 'CS100001', name: '한식음식점' }],
+        status: 'ready',
+        error: null,
+        onStepChange: () => undefined,
+        onSelect: () => undefined,
+        onPreviewChange: () => undefined,
+        onRetry: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    )
+
+    expect(markup).toContain('행정동을 선택해 주세요')
   })
 
   it('현재 선택 후보에 aria-selected를 제공한다', () => {

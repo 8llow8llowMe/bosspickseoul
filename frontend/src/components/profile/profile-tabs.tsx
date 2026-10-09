@@ -53,7 +53,7 @@ export default function ProfileTabs({ tabs }: ProfileTabsProps) {
   const pathname = usePathname()
 
   return (
-    <TabList aria-label="profile tabs">
+    <TabList aria-label="프로필 탭">
       {tabs.map(tab => (
         <TabLink key={tab.href} href={tab.href} $active={pathname === tab.href}>
           {tab.label}

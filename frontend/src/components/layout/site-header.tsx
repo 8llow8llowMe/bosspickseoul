@@ -557,7 +557,7 @@ export default function SiteHeader() {
         >
           <BrandLockup />
         </Brand>
-        <Nav aria-label="primary">
+        <Nav aria-label="주요 메뉴">
           {navigationItems.map(item => (
             <NavLink
               key={item.href}

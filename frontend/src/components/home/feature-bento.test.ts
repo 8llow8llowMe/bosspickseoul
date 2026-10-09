@@ -17,6 +17,31 @@ describe('FeatureBento', () => {
     expect(html).not.toContain('<img')
   })
 
+  describe('FeatureBento — 마지막 CTA', () => {
+    it('주 버튼은 분석, 보조 버튼은 회원가입이다', () => {
+      const html = render()
+      const analysis = html.indexOf('href="/analysis"')
+      const register = html.indexOf('href="/register"')
+
+      expect(analysis).toBeGreaterThan(-1)
+      expect(analysis).toBeLessThan(register)
+      expect(html).toContain('상권 분석 시작하기')
+      expect(html).toContain('회원가입</a>')
+      expect(html).not.toContain('상권 분석 바로가기')
+    })
+
+    it('로그인 없이 시작할 수 있다고 말하고, 개발중 배지와 채팅 언급이 없다', () => {
+      const html = render()
+
+      expect(html).toContain('분석은 로그인 없이 바로 시작할 수 있습니다.')
+      expect(html).toContain(
+        '북마크, 분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기도 이용할 수 있습니다.',
+      )
+      expect(html).not.toContain('개발중')
+      expect(html).not.toContain('채팅')
+    })
+  })
+
   describe('FeatureBento — 「분석 이후」 칸의 진실성', () => {
     it('AI 리포트를 이 칸에서 소개하지 않는다', () => {
       // AI 리포트는 분석의 산출물이라 「분석 이후」 칸의 전제와 어긋난다.

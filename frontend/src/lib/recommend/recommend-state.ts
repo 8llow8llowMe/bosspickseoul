@@ -427,7 +427,7 @@ export function recommendationReducer(
  * 로딩도 오류도 아니라서 기존 헬퍼가 전부 `null` 이었고, **비활성 버튼만 남아
  * 무엇이 빠졌는지 알 수 없었다.** 특히 행정동은 건너뛸 수 있어 보여서 여기서 막힌다.
  *
- * `/analysis`(「상권과 업종을 선택해 주세요」)와 `/simulation`
+ * `/analysis`(`describeAnalysisSelectionGap`: 「업종을 선택해 주세요」 등)와 `/simulation`
  * (`describeSimulationConditionGap`)은 이미 같은 안내를 한다 — 세 화면 중
  * `/recommend` 만 빠져 있었다.
  */
