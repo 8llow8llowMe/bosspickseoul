@@ -51,6 +51,18 @@ describe('AnalysisSummaryInsights', () => {
     expect(markup).not.toContain('매출 보기')
   })
 
+  /*
+   * #589 — 1440 에서 링크가 행 오른쪽 끝에 붙어 문장 끝과 490~630px 떨어졌다. 링크를 문장 바로
+   * 뒤에 이어 붙인다(같은 요소 안, 낭독용 공백 하나). 행 전체는 여전히 버튼 하나다.
+   */
+  it('근거 탭 링크를 문장 바로 뒤에 붙인다', () => {
+    const markup = render([insight()])
+
+    expect(markup).toMatch(
+      /매출의 38%가 11~14시에 나와요\. <span[^>]*>매출 보기<svg/,
+    )
+  })
+
   it('남는 줄이 없으면 목록을 그리지 않는다', () => {
     expect(render([insight({ sentence: null })])).toBe('')
   })

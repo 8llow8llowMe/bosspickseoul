@@ -33,11 +33,16 @@ const List = styled.ul`
   gap: 8px;
 `
 
+/*
+  행 전체가 버튼 하나다. 근거 탭 링크(Action)는 따로 칸을 두지 않고 **문장 바로 뒤에 잇는다**(#589).
+  오른쪽 끝 칸에 두던 때는 1440 에서 문장 끝과 링크가 490~630px 떨어져, 무엇을 여는 링크인지
+  눈이 행을 가로질러 다시 돌아와야 했다.
+*/
 const Row = styled.button`
   width: 100%;
   min-height: 52px;
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) auto;
+  grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   border: 1px solid var(--color-border-200);
@@ -58,7 +63,7 @@ const Row = styled.button`
 
   /* 좁으면 라벨을 문장 위로 올린다. 76px 칸에 라벨을 두면 문장이 두세 줄로 꺾인다. */
   @media (max-width: 640px) {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     row-gap: 2px;
   }
 `
@@ -97,9 +102,11 @@ const Sentence = styled.span`
   word-break: keep-all;
 `
 
+/* 문장 끝에 붙는 인라인 링크. 줄이 꺾여도 「매출 보기 ›」는 한 덩어리로 다음 줄에 넘어간다. */
 const Action = styled.span`
   display: inline-flex;
   align-items: center;
+  vertical-align: bottom;
   gap: 2px;
   color: var(--color-primary-700);
   font-size: 13px;
@@ -135,11 +142,13 @@ export default function AnalysisSummaryInsights({
           ) : (
             <Row type="button" onClick={() => onSelect(item.tab)}>
               <Label>{item.label}</Label>
-              <Sentence>{item.sentence}</Sentence>
-              <Action>
-                {item.tabLabel} 보기
-                <ChevronRight aria-hidden="true" />
-              </Action>
+              <Sentence>
+                {item.sentence}{' '}
+                <Action>
+                  {item.tabLabel} 보기
+                  <ChevronRight aria-hidden="true" />
+                </Action>
+              </Sentence>
             </Row>
           )}
         </li>
