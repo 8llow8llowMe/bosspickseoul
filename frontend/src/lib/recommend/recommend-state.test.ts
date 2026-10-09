@@ -36,6 +36,7 @@ describe('createInitialRecommendationState', () => {
       selectedCommercialCode: null,
       resultSelectionSource: null,
       sheetSnap: 'expanded',
+      pendingAdministrationPicker: null,
       // 씨앗에 `c` 가 없으면 자동 맞춤이 그대로 돈다(url-state §2-2).
       cameraMode: 'auto',
     })
@@ -89,7 +90,7 @@ describe('recommendationReducer', () => {
     expect(next.pickerStep).toBeNull()
   })
 
-  it('keeps the service while resetting district-dependent state', () => {
+  it('keeps the service and the previous results while resetting district-dependent state', () => {
     const initial: RecommendationState = {
       ...readyState(),
       submitted: {
@@ -117,17 +118,20 @@ describe('recommendationReducer', () => {
         administration: null,
         service: { code: 'CS100010', name: '커피-음료' },
       },
-      submitted: null,
+      // #570 — 결과는 새로 제출할 때만 바뀐다. 조건을 고르는 동안에도 남는다.
+      submitted: initial.submitted,
       view: 'criteria',
       pickerStep: null,
-      selectedCommercialCode: null,
+      selectedCommercialCode: '3110008',
       resultSelectionSource: null,
       sheetSnap: 'expanded',
+      // 행정동 목록이 도착하면 행정동 선택 뷰를 연다.
+      pendingAdministrationPicker: '11110',
       cameraMode: 'auto',
     })
   })
 
-  it('resets submitted results when the administration changes', () => {
+  it('keeps the previous results when the administration changes', () => {
     const initial: RecommendationState = {
       ...readyState(),
       submitted: {
@@ -155,15 +159,15 @@ describe('recommendationReducer', () => {
         administration: { code: '11680102', name: '역삼2동' },
         service: { code: 'CS100010', name: '커피-음료' },
       },
-      submitted: null,
+      submitted: initial.submitted,
       view: 'criteria',
       pickerStep: null,
-      selectedCommercialCode: null,
+      selectedCommercialCode: '3110008',
       sheetSnap: 'expanded',
     })
   })
 
-  it('returns to criteria and clears the submitted snapshot when the service changes', () => {
+  it('returns to criteria but keeps the submitted snapshot when the service changes', () => {
     const initial: RecommendationState = {
       ...readyState(),
       submitted: {
@@ -189,9 +193,9 @@ describe('recommendationReducer', () => {
       code: 'CS100020',
       name: '한식음식점',
     })
-    expect(next.submitted).toBeNull()
+    expect(next.submitted).toBe(initial.submitted)
     expect(next.view).toBe('criteria')
-    expect(next.selectedCommercialCode).toBeNull()
+    expect(next.selectedCommercialCode).toBe('3110008')
     expect(next.sheetSnap).toBe('expanded')
   })
 
@@ -412,7 +416,7 @@ describe('recommendationReducer', () => {
     })
   })
 
-  it('returns to expanded criteria while keeping the draft on edit', () => {
+  it('returns to expanded criteria while keeping the draft and the results on edit', () => {
     const submitted = recommendationReducer(readyState(), {
       type: 'submitted',
       commercialCodes: ['3110008'],
@@ -424,12 +428,14 @@ describe('recommendationReducer', () => {
 
     expect(recommendationReducer(selected, { type: 'editRequested' })).toEqual({
       draft: readyState().draft,
-      submitted: null,
+      // #570 — 「조건 수정」은 결과를 지우지 않는다.
+      submitted: selected.submitted,
       view: 'criteria',
       pickerStep: null,
-      selectedCommercialCode: null,
-      resultSelectionSource: null,
+      selectedCommercialCode: '3110008',
+      resultSelectionSource: 'user',
       sheetSnap: 'expanded',
+      pendingAdministrationPicker: null,
       cameraMode: 'auto',
     })
   })
@@ -453,6 +459,213 @@ describe('recommendationReducer', () => {
         snap: 'collapsed',
       }),
     ).toEqual({ ...results, sheetSnap: 'collapsed' })
+  })
+})
+
+describe('#570 — 조건 수정은 결과를 지우지 않는다', () => {
+  const resultsState = () =>
+    recommendationReducer(
+      recommendationReducer(readyState(), {
+        type: 'submitted',
+        commercialCodes: ['3110008', '3110012'],
+      }),
+      { type: 'resultSelected', commercialCode: '3110012' },
+    )
+
+  it('결과 헤더의 조건 칩은 그 조건의 선택 뷰로 곧장 보낸다', () => {
+    const results = resultsState()
+    const next = recommendationReducer(results, {
+      type: 'editRequested',
+      step: 'service',
+    })
+
+    expect(next.view).toBe('picker')
+    expect(next.pickerStep).toBe('service')
+    expect(next.sheetSnap).toBe('expanded')
+    expect(next.submitted).toBe(results.submitted)
+  })
+
+  it('업종만 바꿔도 다시 제출하기 전까지 이전 결과가 남는다', () => {
+    const results = resultsState()
+    const editing = recommendationReducer(
+      recommendationReducer(results, {
+        type: 'editRequested',
+        step: 'service',
+      }),
+      {
+        type: 'serviceSelected',
+        service: { code: 'CS100001', name: '한식음식점' },
+      },
+    )
+
+    expect(editing.view).toBe('criteria')
+    expect(editing.draft.service?.code).toBe('CS100001')
+    expect(editing.submitted).toBe(results.submitted)
+    expect(editing.selectedCommercialCode).toBe('3110012')
+  })
+
+  it('이전 결과로 돌아가면 고치던 초안을 마지막 제출 조건으로 되돌린다', () => {
+    const results = resultsState()
+    const editing = recommendationReducer(
+      recommendationReducer(results, { type: 'editRequested' }),
+      { type: 'districtSelected', district: { code: '11110', name: '종로구' } },
+    )
+
+    const restored = recommendationReducer(editing, {
+      type: 'previousResultsRestored',
+    })
+
+    expect(restored.view).toBe('results')
+    expect(restored.draft).toEqual(readyState().draft)
+    // 초안이 제출 스냅숏을 가리키면 초안을 고칠 때 스냅숏까지 바뀐다.
+    expect(restored.draft.district).not.toBe(results.submitted?.district)
+    expect(restored.submitted).toBe(results.submitted)
+    // 고른 상권도 그대로 — 1위로 되돌아가지 않는다.
+    expect(restored.selectedCommercialCode).toBe('3110012')
+    expect(restored.resultSelectionSource).toBe('user')
+    expect(restored.pickerStep).toBeNull()
+    expect(restored.pendingAdministrationPicker).toBeNull()
+    expect(restored.cameraMode).toBe('auto')
+  })
+
+  it('제출한 적이 없으면 돌아갈 결과도 없다', () => {
+    const criteria = readyState()
+
+    expect(
+      recommendationReducer(criteria, { type: 'previousResultsRestored' }),
+    ).toBe(criteria)
+  })
+
+  it('새로 제출하면 그때 결과와 선택을 바꾼다', () => {
+    const results = resultsState()
+    const editing = recommendationReducer(
+      recommendationReducer(results, { type: 'editRequested' }),
+      {
+        type: 'serviceSelected',
+        service: { code: 'CS100001', name: '한식음식점' },
+      },
+    )
+    const resubmitted = recommendationReducer(editing, {
+      type: 'submitted',
+      commercialCodes: ['3110008', '3110012'],
+    })
+
+    expect(resubmitted.submitted?.service.code).toBe('CS100001')
+    expect(resubmitted.submitted?.requestKey).not.toBe(
+      results.submitted?.requestKey,
+    )
+    expect(resubmitted.selectedCommercialCode).toBeNull()
+  })
+})
+
+describe('#570 — 자치구를 고르면 행정동 선택 뷰를 연다', () => {
+  const pickDistrict = (state = createInitialRecommendationState()) =>
+    recommendationReducer(state, {
+      type: 'districtSelected',
+      district: { code: '11680', name: '강남구' },
+    })
+
+  it('목록이 오기 전에는 조건 화면에서 기다린다', () => {
+    const waiting = pickDistrict()
+
+    expect(waiting.view).toBe('criteria')
+    expect(waiting.pickerStep).toBeNull()
+    expect(waiting.pendingAdministrationPicker).toBe('11680')
+  })
+
+  it('그 자치구의 목록이 도착하면 행정동 선택 뷰를 펼쳐 연다', () => {
+    const waiting = { ...pickDistrict(), sheetSnap: 'collapsed' as const }
+    const next = recommendationReducer(waiting, {
+      type: 'administrationListReady',
+      districtCode: '11680',
+    })
+
+    expect(next.view).toBe('picker')
+    expect(next.pickerStep).toBe('administration')
+    expect(next.sheetSnap).toBe('expanded')
+    expect(next.pendingAdministrationPicker).toBeNull()
+
+    // 한 번만 연다 — 같은 목록이 다시 와도(재조회) 닫은 선택 뷰를 또 열지 않는다.
+    const closed = recommendationReducer(next, { type: 'pickerClosed' })
+
+    expect(
+      recommendationReducer(closed, {
+        type: 'administrationListReady',
+        districtCode: '11680',
+      }),
+    ).toBe(closed)
+  })
+
+  it('다른 자치구의 낡은 목록에는 열지 않는다', () => {
+    const waiting = pickDistrict()
+
+    expect(
+      recommendationReducer(waiting, {
+        type: 'administrationListReady',
+        districtCode: '11110',
+      }),
+    ).toBe(waiting)
+  })
+
+  it('기다리는 동안 다른 선택 뷰를 열었거나 행정동을 골랐으면 끼어들지 않는다', () => {
+    const openedService = recommendationReducer(pickDistrict(), {
+      type: 'pickerOpened',
+      step: 'service',
+    })
+
+    expect(openedService.pendingAdministrationPicker).toBeNull()
+    expect(
+      recommendationReducer(openedService, {
+        type: 'administrationListReady',
+        districtCode: '11680',
+      }),
+    ).toBe(openedService)
+
+    const pickedOnMap = recommendationReducer(pickDistrict(), {
+      type: 'administrationSelected',
+      administration: { code: '11680640', name: '역삼1동' },
+    })
+
+    expect(pickedOnMap.pendingAdministrationPicker).toBeNull()
+  })
+
+  it('시트를 접으면 대기를 지운다 — 지도를 보겠다는 뜻이다', () => {
+    const collapsed = recommendationReducer(pickDistrict(), {
+      type: 'sheetSnapChanged',
+      snap: 'collapsed',
+    })
+
+    expect(collapsed.pendingAdministrationPicker).toBeNull()
+    expect(
+      recommendationReducer(collapsed, {
+        type: 'administrationListReady',
+        districtCode: '11680',
+      }),
+    ).toBe(collapsed)
+
+    // 펼치는 것은 대기를 건드리지 않는다.
+    expect(
+      recommendationReducer(pickDistrict(), {
+        type: 'sheetSnapChanged',
+        snap: 'expanded',
+      }).pendingAdministrationPicker,
+    ).toBe('11680')
+  })
+
+  it('링크로 들어온 자치구는 선택 뷰를 열지 않는다', () => {
+    const seeded = createInitialRecommendationState({
+      district: { code: '11680', name: '강남구' },
+      administration: null,
+      service: null,
+    })
+
+    expect(seeded.pendingAdministrationPicker).toBeNull()
+    expect(
+      recommendationReducer(seeded, {
+        type: 'administrationListReady',
+        districtCode: '11680',
+      }),
+    ).toBe(seeded)
   })
 })
 

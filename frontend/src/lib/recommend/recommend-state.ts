@@ -56,6 +56,14 @@ export type SubmittedRecommendation = {
 
 export type RecommendationState = {
   draft: RecommendationCriteria
+  /**
+   * 마지막으로 **제출한** 조건과 그 결과의 열쇠.
+   *
+   * 조건을 고치는 동안에도 지우지 않는다(#570). 「조건 수정」을 누르는 순간 결과가
+   * 사라지면 업종 하나만 바꿔 보려던 사용자도 돌아갈 길을 잃는다. 이 값은 **새로 제출할
+   * 때만** 바뀌고, 조건 화면은 이것이 있으면 「이전 결과로 돌아가기」를 보여 준다.
+   * 예외는 링크가 들고 온 없는 행정동(`administrationRejected`)뿐이다.
+   */
   submitted: SubmittedRecommendation | null
   view: RecommendationView
   /** `view === 'picker'` 일 때만 의미가 있다. 그 외에는 항상 `null`. */
@@ -71,6 +79,14 @@ export type RecommendationState = {
    */
   resultSelectionSource: 'auto' | 'user' | null
   sheetSnap: RecommendationSheetSnap
+  /**
+   * 사용자가 방금 고른 자치구의 코드. 그 자치구의 행정동 목록이 도착하면
+   * (`administrationListReady`) 행정동 선택 뷰를 자동으로 연다(#570,
+   * condition-selector D4-2-1). 목록을 기다리는 동안에만 값이 있다.
+   *
+   * 링크 씨앗은 여기에 넣지 않는다 — 공유받은 화면이 열자마자 목록으로 덮이면 안 된다.
+   */
+  pendingAdministrationPicker: string | null
   /**
    * 자동 맞춤이 지도를 움직여도 되는가(§2-2).
    *
@@ -126,7 +142,21 @@ export type RecommendationAction =
    */
   | { type: 'administrationNameResolved'; administration: RecommendationOption }
   | { type: 'administrationRejected'; code: string }
-  | { type: 'editRequested' }
+  /**
+   * 결과 화면의 「조건 수정」. `step` 이 있으면 그 조건의 선택 뷰로 곧장 간다 — 결과
+   * 헤더의 조건 칩(업종 칩 → 업종 선택 뷰)이 쓴다. **결과는 지우지 않는다**(#570).
+   */
+  | { type: 'editRequested'; step?: RecommendConditionStep }
+  /**
+   * 조건 화면의 「이전 결과로 돌아가기」. 고치던 초안은 버리고 **마지막 제출 조건으로
+   * 되돌린다** — 결과 헤더와 조건 바가 서로 다른 조건을 말하지 않게 하기 위해서다.
+   */
+  | { type: 'previousResultsRestored' }
+  /**
+   * 행정동 목록이 도착했다. 사용자가 고른 자치구의 목록이면 행정동 선택 뷰를 연다.
+   * 목록이 비었거나 실패했으면 화면이 이 액션을 보내지 않는다.
+   */
+  | { type: 'administrationListReady'; districtCode: string }
   | { type: 'sheetSnapChanged'; snap: RecommendationSheetSnap }
   /**
    * 「선택한 지역으로 돌아가기」 버튼. 지도는 모드와 무관하게 **즉시** 맞추고(사용자가 원한
@@ -180,6 +210,7 @@ export const createInitialRecommendationState = (
   selectedCommercialCode: null,
   resultSelectionSource: null,
   sheetSnap: 'expanded',
+  pendingAdministrationPicker: null,
   // 링크가 카메라를 들고 왔으면 그것이 화면을 지배한다 — 자동 맞춤을 잠근다(§2-2).
   cameraMode: seed?.camera ? 'url' : 'auto',
 })
@@ -189,6 +220,11 @@ export function recommendationReducer(
   action: RecommendationAction,
 ): RecommendationState {
   switch (action.type) {
+    /*
+     * 조건을 고르는 세 액션은 **`submitted` 와 결과 선택을 건드리지 않는다**(#570).
+     * 결과는 새로 제출할 때만 바뀌고, 그 전까지는 「이전 결과로 돌아가기」로 되돌아갈 수
+     * 있어야 한다. 조건 화면의 지도는 `stage` 가 결과가 아니라 결과 선택을 보지 않는다.
+     */
     case 'districtSelected':
       return {
         ...state,
@@ -197,15 +233,49 @@ export function recommendationReducer(
           administration: null,
           service: state.draft.service,
         },
-        submitted: null,
         view: 'criteria',
         pickerStep: null,
-        selectedCommercialCode: null,
-        resultSelectionSource: null,
         sheetSnap: 'expanded',
+        /*
+         * 행정동 선택 뷰는 **목록이 도착한 뒤에** 연다(`administrationListReady`).
+         * 지금 열면 빈 목록이나 로딩 문구만 든 선택 뷰가 먼저 뜬다.
+         */
+        pendingAdministrationPicker: action.district.code,
         // 사용자 의도 액션 — 링크 카메라의 잠금을 푼다(§2-2).
         cameraMode: 'auto',
       }
+    case 'administrationListReady': {
+      const { draft } = state
+
+      if (
+        state.pendingAdministrationPicker === null ||
+        state.pendingAdministrationPicker !== action.districtCode
+      ) {
+        return state
+      }
+
+      /*
+       * 기다리는 동안 사용자가 다른 일을 시작했으면(다른 선택 뷰를 열었거나 행정동을
+       * 지도에서 이미 골랐다) 끼어들지 않는다. 그런 액션은 대부분 대기를 이미 지웠고,
+       * 여기는 남은 경우를 막는 마지막 확인이다.
+       */
+      if (
+        state.view !== 'criteria' ||
+        draft.district?.code !== action.districtCode ||
+        draft.administration !== null
+      ) {
+        return { ...state, pendingAdministrationPicker: null }
+      }
+
+      return {
+        ...state,
+        view: 'picker',
+        pickerStep: 'administration',
+        pendingAdministrationPicker: null,
+        // 목록이 길어 접힌 시트에서 열면 아무것도 안 보인다.
+        sheetSnap: 'expanded',
+      }
+    }
     case 'administrationSelected': {
       // 자치구·행정동은 지도에서 고를 수 있지만 **업종은 지도에 없다.** 지역이
       // 다 차면 남은 하나를 바로 열어 준다 — 상권분석이 지도 선택마다 다음
@@ -218,12 +288,10 @@ export function recommendationReducer(
           ...state.draft,
           administration: action.administration,
         },
-        submitted: null,
         view: needsService ? 'picker' : 'criteria',
         pickerStep: needsService ? 'service' : null,
-        selectedCommercialCode: null,
-        resultSelectionSource: null,
         sheetSnap: 'expanded',
+        pendingAdministrationPicker: null,
         cameraMode: 'auto',
       }
     }
@@ -234,12 +302,10 @@ export function recommendationReducer(
           ...state.draft,
           service: action.service,
         },
-        submitted: null,
         view: 'criteria',
         pickerStep: null,
-        selectedCommercialCode: null,
-        resultSelectionSource: null,
         sheetSnap: 'expanded',
+        pendingAdministrationPicker: null,
         cameraMode: 'auto',
       }
     case 'submitted': {
@@ -275,6 +341,7 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         resultSelectionSource: null,
         sheetSnap: 'expanded',
+        pendingAdministrationPicker: null,
         /*
          * 씨앗 자동 제출(`'seed'`)은 링크를 복원하는 데이터 흐름일 뿐이라 카메라
          * 잠금을 풀지 않는다. 사용자가 「상권 추천받기」를 누른 제출만 `'auto'` 다.
@@ -359,6 +426,7 @@ export function recommendationReducer(
         selectedCommercialCode: null,
         resultSelectionSource: null,
         sheetSnap: 'expanded',
+        pendingAdministrationPicker: null,
       }
     }
     case 'resultSelected':
@@ -377,17 +445,44 @@ export function recommendationReducer(
         sheetSnap: 'collapsed',
         cameraMode: 'auto',
       }
+    /*
+     * 결과·결과 선택·비교 담기를 **남긴 채** 조건 화면으로 간다(#570). 예전에는 여기서
+     * `submitted` 를 지워, 업종 하나만 바꿔 보려다 마음을 바꾸면 처음부터 다시 받아야 했다.
+     * `step` 이 있으면 그 조건의 선택 뷰로 곧장 간다(결과 헤더의 조건 칩).
+     */
     case 'editRequested':
       return {
         ...state,
-        submitted: null,
-        view: 'criteria',
-        pickerStep: null,
-        selectedCommercialCode: null,
-        resultSelectionSource: null,
+        view: action.step ? 'picker' : 'criteria',
+        pickerStep: action.step ?? null,
         sheetSnap: 'expanded',
+        pendingAdministrationPicker: null,
         cameraMode: 'auto',
       }
+    case 'previousResultsRestored': {
+      const { submitted } = state
+
+      if (!submitted) return state
+
+      return {
+        ...state,
+        /*
+         * 고치던 초안은 버린다. 남겨 두면 결과 헤더(제출 조건)와 URL·지도(초안)가 서로
+         * 다른 조건을 말하고, 다시 「조건 수정」을 누르면 본 적 없는 조건이 튀어나온다.
+         */
+        draft: {
+          district: { ...submitted.district },
+          administration: { ...submitted.administration },
+          service: { ...submitted.service },
+        },
+        view: 'results',
+        pickerStep: null,
+        sheetSnap: 'expanded',
+        pendingAdministrationPicker: null,
+        // 사용자 의도 액션이다. 지도는 결과(사용자가 고른 상권이면 그 상권)로 돌아간다.
+        cameraMode: 'auto',
+      }
+    }
     case 'pickerOpened':
       return {
         ...state,
@@ -395,6 +490,8 @@ export function recommendationReducer(
         pickerStep: action.step,
         // 선택 뷰는 목록이 길다 — 접힌 시트에서 열면 아무것도 안 보인다.
         sheetSnap: 'expanded',
+        // 사용자가 직접 다른 선택 뷰를 열었다. 목록이 늦게 와도 끼어들지 않는다.
+        pendingAdministrationPicker: null,
       }
     case 'pickerClosed':
       return {
@@ -407,6 +504,14 @@ export function recommendationReducer(
       return {
         ...state,
         sheetSnap: action.snap,
+        /*
+         * 시트를 접었다는 것은 지도를 보겠다는 뜻이다(지도에서 행정동을 고르려는 것일 수 있다).
+         * 목록이 늦게 와서 시트를 다시 펼치며 끼어들지 않게 대기를 지운다.
+         */
+        pendingAdministrationPicker:
+          action.snap === 'collapsed'
+            ? null
+            : state.pendingAdministrationPicker,
       }
     /*
      * 지도는 이 버튼을 모드와 무관하게 즉시 처리한다(`recommend-map.tsx` 의 `recenter`).

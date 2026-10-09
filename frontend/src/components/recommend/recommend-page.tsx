@@ -47,6 +47,13 @@ import {
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { COMPARE_MAX_COMMERCIALS } from '@/lib/recommend/compare-url'
 import {
+  readCompareSelection,
+  toggleCompareSelection,
+  useAdministrationListReady,
+  useRecommendViewFocus,
+  type CompareSelectionState,
+} from '@/lib/recommend/recommend-view-effects'
+import {
   recommendCommercialsKey,
   recommendProfileKey,
   recommendResultsKey,
@@ -99,7 +106,10 @@ import RecommendFeedback from './recommend-feedback'
 import RecommendLivePopular from './recommend-live-popular'
 import RecommendMap from './recommend-map'
 import RecommendMobileSheet from './recommend-mobile-sheet'
-import RecommendPanel, { type RecommendPanelProps } from './recommend-panel'
+import RecommendPanel, {
+  CRITERIA_FOCUS_ATTRIBUTE,
+  type RecommendPanelProps,
+} from './recommend-panel'
 
 type ProfileQueryLike = {
   data?: CommercialProfileResponse
@@ -419,6 +429,28 @@ export const selectResultHeadingForViewport = <T,>(
     ? (desktopHeading ?? mobileHeading)
     : (mobileHeading ?? desktopHeading)
 
+/**
+ * 지금 보이는 패널(데스크톱 또는 시트)의 조건 화면 첫 포커스 자리. 숨은 쪽은
+ * `getClientRects()` 가 비어 있다(`display: none`).
+ */
+export const findVisibleCriteriaFocusTarget = (): HTMLElement | null => {
+  if (typeof document === 'undefined') return null
+
+  return (
+    [
+      ...document.querySelectorAll<HTMLElement>(
+        `[${CRITERIA_FOCUS_ATTRIBUTE}]`,
+      ),
+    ].find(element => element.getClientRects().length > 0) ?? null
+  )
+}
+
+/** 데스크톱 패널(≥1024)이 보이는 폭인가. 측정할 수 없으면(서버) 넓다고 본다. */
+export const matchesDesktopPanelViewport = (): boolean =>
+  typeof window === 'undefined' ||
+  typeof window.matchMedia !== 'function' ||
+  window.matchMedia('(min-width: 1024px)').matches
+
 export const handleRecommendationResponseOnce = ({
   marker,
   requestKey,
@@ -427,8 +459,18 @@ export const handleRecommendationResponseOnce = ({
   dispatch,
   heading,
   preferredCommercialCode = null,
+  isResultsView = true,
 }: {
   marker: HandledRecommendationMarker
+  /**
+   * 지금 결과 뷰인가. 아니면 **마커를 소비하지 않고** 돌아간다(#570 리뷰).
+   *
+   * 결과가 오기 전에 「조건 수정」을 누르면 리듀서는 `resultsLoaded` 를 버린다(결과 뷰가
+   * 아니다). 그런데 마커와 링크의 지목 상권은 이미 소비돼, 「이전 결과로 돌아가기」로
+   * 돌아오면 1위 자동 선택(또는 링크가 지목한 상권)이 영영 오지 않았다. 소비를 결과 뷰로
+   * 미루면 돌아오는 순간 응답이 그대로 처리된다.
+   */
+  isResultsView?: boolean
   requestKey: string
   dataUpdatedAt: number
   results: readonly CandidateCommercial[]
@@ -439,6 +481,7 @@ export const handleRecommendationResponseOnce = ({
     focus: (options?: FocusOptions) => void
   } | null
 }): boolean => {
+  if (!isResultsView) return false
   if (!consumeRecommendationResponse(marker, requestKey, dataUpdatedAt)) {
     return false
   }
@@ -712,7 +755,8 @@ function RecommendPageBody() {
    * 비교 담기 선택. 화면 안 일시 상태다 — **URL 에 넣지 않는다.** 추천 결과를
    * 공유한 링크가 받는 사람의 체크 상태까지 옮길 이유가 없다.
    */
-  const [compareSelection, setCompareSelection] = useState<string[]>([])
+  const [compareSelectionState, setCompareSelectionState] =
+    useState<CompareSelectionState>({ requestKey: null, codes: [] })
   const desktopResultHeadingRef = useRef<HTMLHeadingElement>(null)
   const mobileResultHeadingRef = useRef<HTMLHeadingElement>(null)
   const handledResultRef = useRef('')
@@ -1198,10 +1242,7 @@ function RecommendPageBody() {
       return
     }
 
-    const isDesktop =
-      typeof window === 'undefined' ||
-      typeof window.matchMedia !== 'function' ||
-      window.matchMedia('(min-width: 1024px)').matches
+    const isDesktop = matchesDesktopPanelViewport()
     const handled = handleRecommendationResponseOnce({
       marker: handledResultRef,
       requestKey: state.submitted.requestKey,
@@ -1214,6 +1255,7 @@ function RecommendPageBody() {
         mobileResultHeadingRef.current,
       ),
       preferredCommercialCode: seedSelectionRef.current,
+      isResultsView: state.view === 'results',
     })
 
     // 실제로 반영됐을 때만 비운다. 마커가 걸러 낸 호출에서 비우면 링크의 선택을 잃는다.
@@ -1224,6 +1266,7 @@ function RecommendPageBody() {
     recommendationQuery.isSuccess,
     results,
     state.submitted,
+    state.view,
   ])
 
   // 조건 폼의 두 실패도 같은 규약을 따른다 — 404는 재시도해도 같으므로 버튼 없이 서버 문구만 남는다.
@@ -1351,6 +1394,44 @@ function RecommendPageBody() {
     setPreviewedCommercialCode(null)
     dispatch({ type: 'editRequested' })
   }, [])
+  /** 결과 헤더의 조건 칩 — 그 조건의 선택 뷰로 곧장 간다(#570). 결과는 남는다. */
+  const handleEditStep = useCallback((step: RecommendConditionStep) => {
+    setPreviewedCommercialCode(null)
+    dispatch({ type: 'editRequested', step })
+  }, [])
+  /**
+   * 뷰가 바뀐 뒤 포커스 자리(#570). 「이전 결과로 돌아가기」 뒤에는 결과 제목, 선택 뷰를
+   * 닫거나 항목을 골라 조건 화면으로 돌아오면 「이전 결과로 돌아가기」(있으면) 또는 조건
+   * 화면 제목이다. 둘 다 누른 요소가 사라져 포커스를 잃는 자리다.
+   */
+  const { requestRestoreFocus } = useRecommendViewFocus({
+    view: state.view,
+    getResultHeading: () =>
+      selectResultHeadingForViewport(
+        matchesDesktopPanelViewport(),
+        desktopResultHeadingRef.current,
+        mobileResultHeadingRef.current,
+      ),
+    getCriteriaTarget: findVisibleCriteriaFocusTarget,
+  })
+  const handleRestorePreviousResults = useCallback(() => {
+    setPreviewedCommercialCode(null)
+    requestRestoreFocus()
+    dispatch({ type: 'previousResultsRestored' })
+  }, [requestRestoreFocus])
+  /**
+   * 사용자가 고른 자치구의 행정동 목록이 도착하면 행정동 선택 뷰를 연다(#570). 판단은
+   * 리듀서(`administrationListReady`)가 한다 — 여기서는 「목록이 쓸 만하게 도착했다」만 알린다.
+   * 실패·빈 목록이면 보내지 않는다. 그때는 조건 화면이 오류·안내를 보여 주고, 「다시
+   * 시도」가 성공하면 그때 열린다(대기가 남아 있으므로).
+   */
+  useAdministrationListReady({
+    pendingDistrictCode: state.pendingAdministrationPicker,
+    draftDistrictCode: state.draft.district?.code ?? null,
+    isSuccess: administrationsQuery.isSuccess,
+    count: administrations.length,
+    dispatch,
+  })
   const handleResultSelect = useCallback((commercialCode: string) => {
     setPreviewedCommercialCode(commercialCode)
     dispatch({ type: 'resultSelected', commercialCode })
@@ -1364,23 +1445,29 @@ function RecommendPageBody() {
     },
     [],
   )
-  const handleCompareToggle = useCallback((commercialCode: string) => {
-    setCompareSelection(current =>
-      current.includes(commercialCode)
-        ? current.filter(code => code !== commercialCode)
-        : current.length >= COMPARE_MAX_COMMERCIALS
-          ? current
-          : [...current, commercialCode],
-    )
-  }, [])
+  const submittedRequestKey = state.submitted?.requestKey ?? null
   /**
-   * 조건을 바꿔 추천을 다시 받으면 선택을 비운다 — 다른 행정동의 상권이
-   * 섞이면 비교가 성립하지 않는다.
+   * 조건을 바꿔 추천을 다시 받으면 선택을 비운다 — 다른 행정동의 상권이 섞이면 비교가
+   * 성립하지 않는다. 선택이 제출 열쇠를 함께 들고 있어 열쇠가 바뀐 **그 렌더에서** 빈다.
+   * 조건을 고치는 동안에는 열쇠가 그대로라 선택도 남는다(#570).
    */
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCompareSelection([])
-  }, [state.submitted?.requestKey])
+  const compareSelection = readCompareSelection(
+    compareSelectionState,
+    submittedRequestKey,
+  )
+  const handleCompareToggle = useCallback(
+    (commercialCode: string) => {
+      setCompareSelectionState(current =>
+        toggleCompareSelection(
+          current,
+          submittedRequestKey,
+          commercialCode,
+          COMPARE_MAX_COMMERCIALS,
+        ),
+      )
+    },
+    [submittedRequestKey],
+  )
   const handleBookmarkToggle = useCallback(
     (commercialCode: string, commercialName: string) => {
       handleRecommendationBookmarkToggle({
@@ -1693,6 +1780,8 @@ function RecommendPageBody() {
       isBookmarkLoginRequired: hasHydrated && !isLoggedIn,
       onSubmit: handleSubmit,
       onEdit: handleEdit,
+      onEditStep: handleEditStep,
+      onRestorePreviousResults: handleRestorePreviousResults,
       onResultSelect: handleResultSelect,
       onResultPreviewChange: handleResultPreviewChange,
       onBookmarkToggle: handleBookmarkToggle,
@@ -1714,6 +1803,8 @@ function RecommendPageBody() {
       handleBookmarkToggle,
       handleCompareToggle,
       handleEdit,
+      handleEditStep,
+      handleRestorePreviousResults,
       handleResultPreviewChange,
       handleResultSelect,
       handleSubmit,
