@@ -53,9 +53,12 @@ import {
 } from '@/lib/community/photo-viewer'
 import { sortPostImages } from '@/lib/community/post-images'
 import type {
+  CommunityLikeOutcome,
+  CommunityLikeState,
+} from '@/lib/community/like-toggle-queue'
+import type {
   CommunityId,
   CommunityComment,
-  CommunityCommentLikeBody,
   CommunityPostDetail,
   CommunityPostImage,
   CommunityPostSummary,
@@ -107,9 +110,12 @@ export type CommunityDetailViewProps = {
     parentCommentId?: CommunityId
   }) => Promise<boolean>
   onDeleteComment: (commentId: CommunityId) => Promise<boolean>
+  /** 댓글 좋아요(#580) — 누를 때 의도·지금 상태를 넘기고, 결과(실패면 되돌린 상태)를 받는다. */
   onToggleCommentLike: (
     commentId: CommunityId,
-  ) => Promise<CommunityCommentLikeBody | null>
+    desired: boolean,
+    current: CommunityLikeState,
+  ) => Promise<CommunityLikeOutcome>
   onOpenReport: (
     target: Pick<CommunityReportCreateRequest, 'targetKind' | 'targetId'>,
   ) => void
@@ -790,7 +796,8 @@ function CommunityPostReactions({
         aria-pressed={liked}
         aria-busy={likePending || undefined}
         data-liked={liked ? 'true' : 'false'}
-        disabled={!authReady || likePending}
+        /* 요청 중에도 잠그지 않는다(#580) — 누르면 바로 뒤집고, 연타는 페이지가 직렬화해 마지막 의도만 보낸다. */
+        disabled={!authReady}
         onClick={onToggleLike}
       >
         <Heart

@@ -85,7 +85,11 @@ const renderThread = (overrides: Partial<ThreadProps> = {}) => {
     onRequireLogin: vi.fn(),
     onCreateComment: vi.fn(async () => true),
     onDeleteComment: vi.fn(async () => true),
-    onToggleCommentLike: vi.fn(async () => null),
+    onToggleCommentLike: vi.fn(async () => ({
+      ok: true,
+      liked: true,
+      likeCount: 1,
+    })),
     onReport: vi.fn(),
     ...overrides,
   }
@@ -226,9 +230,8 @@ describe('댓글 더보기 — 글 더보기와 같은 메뉴', () => {
       ),
     ).map(item => item.getAttribute('aria-label'))
 
-  it('내 댓글은 삭제만 — 확인을 거쳐 그 댓글을 지운다', async () => {
+  it('내 댓글은 삭제만 — 확인 창 없이 그 댓글을 넘기고(되돌리기는 페이지 몫, #581) 포커스를 댓글 제목에 둔다', async () => {
     stubMatchMedia(false)
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const { props } = renderThread({
       comments: [comment('101', { memberId: '9999' })],
     })
@@ -244,10 +247,12 @@ describe('댓글 더보기 — 글 더보기와 같은 메뉴', () => {
         'button[aria-label="댓글 삭제"]',
       )!,
     )
-    await flushFrames(3)
+    await flushFrames(4)
 
-    expect(confirm).toHaveBeenCalledWith('댓글을 삭제하시겠습니까?')
     expect(props.onDeleteComment).toHaveBeenCalledWith('101')
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(document.activeElement?.tagName).toBe('H2')
+    expect(document.activeElement?.textContent).toBe('댓글 1')
   })
 
   it('남의 댓글은 신고만 — 신고 대상으로 그 댓글을 넘긴다', async () => {
@@ -289,38 +294,157 @@ describe('댓글 더보기 — 글 더보기와 같은 메뉴', () => {
   })
 })
 
-describe('댓글 좋아요', () => {
-  it('처리 중에는 「처리 중」 글자 대신 aria-busy + 비활성이고, 끝나면 채운 하트가 된다', async () => {
-    let resolve: (value: {
-      commentId: string
-      liked: boolean
-      likeCount: number
-    }) => void = () => {}
+describe('댓글 좋아요 — 누르면 바로 바뀐다(#580)', () => {
+  type Outcome = { ok: boolean; liked: boolean | null; likeCount: number }
+
+  const likeButton = () =>
+    document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label^="댓글 좋아요"]',
+    )!
+
+  it('응답 전에 하트를 채우고, 처리 중에도 잠그지 않는다', async () => {
+    let resolve: (value: Outcome) => void = () => {}
     const onToggleCommentLike = vi.fn(
       () =>
-        new Promise<{ commentId: string; liked: boolean; likeCount: number }>(
-          done => {
-            resolve = done
-          },
-        ),
+        new Promise<Outcome>(done => {
+          resolve = done
+        }),
     )
     renderThread({ onToggleCommentLike })
-    const like = document.body.querySelector<HTMLButtonElement>(
-      'button[aria-label="댓글 좋아요 3"]',
-    )!
+    const like = likeButton()
 
     fireEvent.click(like)
 
-    expect(like.getAttribute('aria-busy')).toBe('true')
-    expect(like.disabled).toBe(true)
-    expect(like.textContent).toBe('3')
-
-    await act(async () => {
-      resolve({ commentId: '101', liked: true, likeCount: 4 })
+    // 모르는 첫 상태(BE #594 전)는 빈 하트라 누르면 채움이 의도다. 지금 상태는 「모름」으로 넘긴다.
+    expect(onToggleCommentLike).toHaveBeenCalledWith('101', true, {
+      liked: null,
+      likeCount: 3,
     })
-
-    expect(like.getAttribute('aria-busy')).toBeNull()
     expect(like.getAttribute('aria-pressed')).toBe('true')
     expect(like.querySelector('svg')?.getAttribute('fill')).toBe('currentColor')
+    expect(like.disabled).toBe(false)
+    expect(like.getAttribute('aria-busy')).toBeNull()
+
+    await act(async () => {
+      resolve({ ok: true, liked: true, likeCount: 4 })
+    })
+
+    expect(like.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('처리 중에 다시 누르면 지금 화면 상태(채움)에서 뒤집은 의도(해제)를 넘긴다', () => {
+    const onToggleCommentLike = vi.fn(() => new Promise<Outcome>(() => {}))
+    renderThread({ onToggleCommentLike })
+
+    fireEvent.click(likeButton())
+    fireEvent.click(likeButton())
+
+    expect(onToggleCommentLike).toHaveBeenNthCalledWith(2, '101', false, {
+      liked: true,
+      likeCount: 3,
+    })
+    expect(likeButton().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('실패하면 돌려받은 상태(서버가 마지막으로 확인한 상태)로 되돌린다', async () => {
+    const onToggleCommentLike = vi.fn(async (): Promise<Outcome> => ({
+      ok: false,
+      liked: null,
+      likeCount: 3,
+    }))
+    renderThread({ onToggleCommentLike })
+
+    await act(async () => {
+      fireEvent.click(likeButton())
+    })
+
+    expect(likeButton().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('응답에 liked 가 있으면(BE #594) 첫 상태로 그대로 쓴다', () => {
+    const onToggleCommentLike = vi.fn(() => new Promise<Outcome>(() => {}))
+    renderThread({
+      comments: [comment('101', { liked: true })],
+      onToggleCommentLike,
+    })
+
+    expect(likeButton().getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(likeButton())
+    expect(onToggleCommentLike).toHaveBeenCalledWith('101', false, {
+      liked: true,
+      likeCount: 3,
+    })
+  })
+})
+
+describe('댓글 등록 중 — 키보드를 내리지 않는다(#580)', () => {
+  it('등록 중 입력칸은 disabled 가 아니라 readOnly + aria-busy, 등록 버튼만 잠근다', async () => {
+    let resolve: (value: boolean) => void = () => {}
+    const onCreateComment = vi.fn(
+      () =>
+        new Promise<boolean>(done => {
+          resolve = done
+        }),
+    )
+    renderThread({ onCreateComment })
+    const textarea = getTextArea()
+
+    textarea.focus()
+    fireEvent.focus(textarea)
+    fireEvent.change(textarea, { target: { value: '첫 댓글' } })
+    await act(async () => {
+      fireEvent.submit(textarea.form!)
+    })
+
+    expect(textarea.disabled).toBe(false)
+    expect(textarea.readOnly).toBe(true)
+    expect(textarea.getAttribute('aria-busy')).toBe('true')
+    expect(findButton('등록 중')?.disabled).toBe(true)
+    expect(document.activeElement).toBe(textarea)
+
+    await act(async () => {
+      resolve(true)
+    })
+
+    // 성공 뒤에도 펼친 채 포커스를 두고 입력값만 비운다.
+    expect(textarea.value).toBe('')
+    expect(textarea.readOnly).toBe(false)
+    expect(textarea.getAttribute('aria-busy')).toBeNull()
+    expect(textarea.rows).toBe(3)
+    expect(document.activeElement).toBe(textarea)
+    expect(findButton('등록')).not.toBeNull()
+  })
+
+  it('등록 버튼을 눌러도 입력칸 포커스를 빼앗지 않는다(mousedown 기본 동작을 막는다)', () => {
+    renderThread()
+    const textarea = getTextArea()
+
+    textarea.focus()
+    fireEvent.focus(textarea)
+    const submit = findButton('등록')!
+    const allowed = fireEvent.mouseDown(submit)
+
+    expect(allowed).toBe(false)
+  })
+
+  it('답글은 등록 뒤에도 입력칸을 닫지 않고 비운 채 포커스를 둔다', async () => {
+    renderThread()
+
+    fireEvent.click(findButton('답글 달기')!)
+    const replyArea = document.body.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="답글 내용"]',
+    )!
+    replyArea.focus()
+    fireEvent.change(replyArea, { target: { value: '한 줄 더' } })
+    await act(async () => {
+      fireEvent.submit(replyArea.form!)
+    })
+
+    const after = document.body.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="답글 내용"]',
+    )
+    expect(after).toBe(replyArea)
+    expect(after?.value).toBe('')
+    expect(document.activeElement).toBe(replyArea)
   })
 })

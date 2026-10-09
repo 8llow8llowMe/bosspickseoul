@@ -1,6 +1,13 @@
 'use client'
 
-import { useId, useState, type FocusEvent, type FormEvent } from 'react'
+import {
+  useId,
+  useRef,
+  useState,
+  type FocusEvent,
+  type FormEvent,
+  type MouseEvent,
+} from 'react'
 import { Heart } from 'lucide-react'
 import styled from 'styled-components'
 import CommunityMoreMenu from '@/components/community/community-more-menu'
@@ -19,11 +26,15 @@ import {
 } from '@/lib/community/comment-thread'
 import type { CommunityViewer } from '@/lib/community/community-state'
 import { communityOutlinedField } from '@/lib/community/field-styles'
+import {
+  getCommunityLikeIntent,
+  type CommunityLikeOutcome,
+  type CommunityLikeState,
+} from '@/lib/community/like-toggle-queue'
 import { isCommunityPostEdited } from '@/lib/community/post-detail'
 import type {
   CommunityId,
   CommunityComment,
-  CommunityCommentLikeBody,
   CommunityReply,
 } from '@/types/community'
 
@@ -46,10 +57,17 @@ export type CommunityCommentThreadProps = {
     content: string
     parentCommentId?: CommunityId
   }) => Promise<boolean>
+  /** 확인 없이 바로 부른다 — 페이지가 숨기고 되돌리기 토스트를 띄운다(#581). */
   onDeleteComment: (commentId: CommunityId) => Promise<boolean>
+  /**
+   * 좋아요(#580). 스레드는 누른 즉시 하트를 뒤집고 의도·지금 상태를 넘긴다. 결과가 오면 그 상태로 맞춘다
+   * (실패면 되돌린 상태). 진행 중에도 버튼을 잠그지 않는다 — 직렬화는 페이지가 한다.
+   */
   onToggleCommentLike: (
     commentId: CommunityId,
-  ) => Promise<CommunityCommentLikeBody | null>
+    desired: boolean,
+    current: CommunityLikeState,
+  ) => Promise<CommunityLikeOutcome>
   onReport: (target: { targetKind: 'COMMENT'; targetId: CommunityId }) => void
 }
 
@@ -251,6 +269,11 @@ const TextArea = styled.textarea`
     cursor: not-allowed;
     background: var(--color-surface-muted);
   }
+
+  /* 등록 중(readOnly + aria-busy) — 포커스와 키보드는 그대로 두고 글자만 못 고치게 한다(#580). */
+  &[aria-busy='true'] {
+    cursor: progress;
+  }
 `
 
 const ComposerFooter = styled.div`
@@ -310,13 +333,46 @@ const getCommentCount = (comments: CommunityComment[]) =>
 const isOwner = (item: CommentItem, viewer: CommunityViewer) =>
   viewer.authenticated && String(item.memberId) === viewer.memberId
 
+/**
+ * 하트 상태. 로컬(누른 결과)이 먼저고, 없으면 응답의 `liked`(BE #594 — 생기면 쓴다), 그것도 없으면 빈 하트다.
+ * 수는 늘 캐시(props)에서 — 페이지가 낙관적으로 쓰고 응답으로 덮는다.
+ */
 export const getCommunityCommentLikePresentation = (
-  item: Pick<CommentItem, 'likeCount'>,
+  item: Pick<CommentItem, 'likeCount' | 'liked'>,
   liked: boolean | undefined,
 ) => ({
-  liked: liked ?? false,
+  liked: liked ?? item.liked ?? false,
   likeCount: item.likeCount,
 })
+
+/** 지금 아는 상태(직렬화 큐의 출발점). 모르면 liked 는 null 이다. */
+const getCommunityCommentLikeState = (
+  item: Pick<CommentItem, 'likeCount' | 'liked'>,
+  liked: boolean | undefined,
+): CommunityLikeState => ({
+  liked: liked ?? item.liked ?? null,
+  likeCount: item.likeCount,
+})
+
+/*
+  등록 버튼을 눌러도 입력칸 포커스를 빼앗지 않는다 — 모바일에서 포커스가 버튼으로 가면 키보드가 내려가고
+  연달아 쓸 때 입력칸을 다시 눌러야 한다(#580). 키보드(Enter·Space)로 누르는 길은 그대로다.
+*/
+const keepComposerFocus = (event: MouseEvent<HTMLButtonElement>) => {
+  event.preventDefault()
+}
+
+/**
+ * 등록이 끝나면 입력칸에 포커스를 둔다 — 포커스가 그 폼 안에 있었거나(키보드로 등록 버튼을 눌렀다), 잠긴
+ * 등록 버튼에서 body 로 떨어졌을 때만. 사용자가 그사이 다른 곳으로 옮겼으면 건드리지 않는다.
+ */
+const restoreComposerFocus = (form: HTMLFormElement) => {
+  const active = document.activeElement
+
+  if (!active || active === document.body || form.contains(active)) {
+    form.querySelector('textarea')?.focus()
+  }
+}
 
 type RequestCommunityCommentAccessOptions = {
   authReady: boolean
@@ -383,16 +439,11 @@ export default function CommunityCommentThread({
   const [pendingComposer, setPendingComposer] = useState<
     'root' | CommunityId | null
   >(null)
-  const [pendingLikeIds, setPendingLikeIds] = useState<Set<CommunityId>>(
-    () => new Set(),
-  )
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<CommunityId>>(
-    () => new Set(),
-  )
   const [likedByCommentId, setLikedByCommentId] = useState<
-    Record<CommunityId, boolean>
+    Record<CommunityId, boolean | undefined>
   >({})
   const [localError, setLocalError] = useState<string | null>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
 
   /* 포커스했거나 쓰던 글이 있으면 펼친다. 등록 중에도 펼친 채 둔다(버튼이 사라지지 않게). */
   const composerExpanded =
@@ -448,23 +499,31 @@ export default function CommunityCommentThread({
     }
   }
 
-  const handleRootSubmit = async (event: FormEvent) => {
+  /* 성공하면 입력값만 비운다 — 포커스와 펼침은 그대로다(#580, 연달아 쓰기). */
+  const handleRootSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const form = event.currentTarget
     if (await submitDraft(draft)) {
       setDraft('')
+      restoreComposerFocus(form)
     }
   }
 
+  /*
+    답글 등록이 성공해도 입력칸을 닫지 않는다(#580) — 입력값만 비우고 포커스·펼침을 그대로 둔다. 이어서
+    한 줄 더 쓰는 일이 잦고, 닫히면 모바일 키보드가 내려간다. 닫기는 「취소」로 한다.
+  */
   const handleReplySubmit = async (
-    event: FormEvent,
+    event: FormEvent<HTMLFormElement>,
     parentCommentId: CommunityId,
   ) => {
     event.preventDefault()
+    const form = event.currentTarget
     const value = replyDrafts[parentCommentId] ?? ''
 
     if (await submitDraft(value, parentCommentId)) {
       setReplyDrafts(current => ({ ...current, [parentCommentId]: '' }))
-      setReplyParentId(null)
+      restoreComposerFocus(form)
       // 새 답글은 시간순 끝에 붙는다 — 접혀 있으면 방금 쓴 답글이 숨으므로 펼친다.
       setExpandedReplyIds(current => addId(current, parentCommentId))
     }
@@ -480,7 +539,11 @@ export default function CommunityCommentThread({
     setComposerFocused(false)
   }
 
-  const handleLike = async (commentId: CommunityId) => {
+  /*
+    누르면 하트를 바로 뒤집는다(잠그지 않는다). 연타해도 같은 큐에 묶여 모두 같은 최종 결과로 끝나므로,
+    결과가 올 때마다 그 상태로 맞추면 마지막 화면이 서버와 같다. 실패면 되돌린 상태가 온다.
+  */
+  const handleLike = async (item: CommentItem) => {
     if (!authReady) {
       return
     }
@@ -490,33 +553,28 @@ export default function CommunityCommentThread({
       return
     }
 
-    if (pendingLikeIds.has(commentId)) {
-      return
-    }
+    const commentId = item.commentId
+    const current = getCommunityCommentLikeState(
+      item,
+      likedByCommentId[commentId],
+    )
+    const desired = getCommunityLikeIntent(current.liked)
 
-    setPendingLikeIds(current => addId(current, commentId))
+    setLikedByCommentId(state => ({ ...state, [commentId]: desired }))
     setLocalError(null)
 
-    try {
-      const result = await onToggleCommentLike(commentId)
-      if (result) {
-        setLikedByCommentId(current => ({
-          ...current,
-          [commentId]: result.liked,
-        }))
-      }
-    } catch (error) {
-      setLocalError(
-        error instanceof Error
-          ? error.message
-          : '댓글 좋아요를 처리하지 못했어요.',
-      )
-    } finally {
-      setPendingLikeIds(current => removeId(current, commentId))
-    }
+    const outcome = await onToggleCommentLike(commentId, desired, current)
+    setLikedByCommentId(state => ({
+      ...state,
+      [commentId]: outcome.liked ?? undefined,
+    }))
   }
 
-  const handleDelete = async (commentId: CommunityId) => {
+  /*
+    확인 창 없이 지운다(#581) — 페이지가 행을 숨기고 「되돌리기」 토스트를 띄운다. 행이 사라지면 메뉴 트리거도
+    사라지니 포커스를 댓글 제목으로 옮긴다(body 로 떨어지면 키보드 사용자가 자리를 잃는다).
+  */
+  const handleDelete = (commentId: CommunityId) => {
     if (!authReady) {
       return
     }
@@ -526,25 +584,11 @@ export default function CommunityCommentThread({
       return
     }
 
-    if (
-      pendingDeleteIds.has(commentId) ||
-      !window.confirm('댓글을 삭제하시겠습니까?')
-    ) {
-      return
-    }
-
-    setPendingDeleteIds(current => addId(current, commentId))
     setLocalError(null)
-
-    try {
-      await onDeleteComment(commentId)
-    } catch (error) {
-      setLocalError(
-        error instanceof Error ? error.message : '댓글을 삭제하지 못했어요.',
-      )
-    } finally {
-      setPendingDeleteIds(current => removeId(current, commentId))
-    }
+    void onDeleteComment(commentId)
+    requestAnimationFrame(() => {
+      titleRef.current?.focus()
+    })
   }
 
   const handleReport = (commentId: CommunityId) => {
@@ -574,7 +618,10 @@ export default function CommunityCommentThread({
         <TextArea
           aria-label="답글 내용"
           maxLength={MAX_COMMENT_LENGTH}
-          disabled={!authReady || pendingComposer !== null}
+          disabled={!authReady}
+          /* 등록 중에는 disabled 대신 readOnly — 포커스(모바일 키보드)를 잃지 않는다(#580). */
+          readOnly={pendingComposer !== null}
+          aria-busy={pendingComposer === parentCommentId || undefined}
           placeholder="답글을 남겨 보세요"
           rows={3}
           value={value}
@@ -605,6 +652,7 @@ export default function CommunityCommentThread({
               variant="primary"
               type="submit"
               disabled={!authReady || pendingComposer !== null}
+              onMouseDown={keepComposerFocus}
             >
               {pendingComposer === parentCommentId ? '등록 중' : '등록'}
             </Button>
@@ -619,8 +667,6 @@ export default function CommunityCommentThread({
       item,
       likedByCommentId[item.commentId],
     )
-    const likePending = pendingLikeIds.has(item.commentId)
-    const deletePending = pendingDeleteIds.has(item.commentId)
     const owner = isOwner(item, viewer)
     const edited = isCommunityPostEdited(item.createdAt, item.updatedAt)
     const likeCount = formatCommunityCount(likePresentation.likeCount)
@@ -655,9 +701,9 @@ export default function CommunityCommentThread({
               actions={getCommunityCommentMenuActions(owner)}
               editHref={null}
               authReady={authReady}
-              deletePending={deletePending}
+              deletePending={false}
               onDelete={() => {
-                void handleDelete(item.commentId)
+                handleDelete(item.commentId)
               }}
               onReport={() => {
                 handleReport(item.commentId)
@@ -672,10 +718,9 @@ export default function CommunityCommentThread({
             type="button"
             aria-label={`댓글 좋아요 ${likeCount}`}
             aria-pressed={likePresentation.liked}
-            aria-busy={likePending || undefined}
-            disabled={!authReady || likePending}
+            disabled={!authReady}
             onClick={() => {
-              void handleLike(item.commentId)
+              void handleLike(item)
             }}
           >
             <Heart
@@ -765,7 +810,7 @@ export default function CommunityCommentThread({
 
   return (
     <Section aria-labelledby={`${composerId}-title`}>
-      <Title id={`${composerId}-title`}>
+      <Title id={`${composerId}-title`} ref={titleRef} tabIndex={-1}>
         댓글 {formatCommunityCount(getCommentCount(comments))}
       </Title>
 
@@ -808,7 +853,10 @@ export default function CommunityCommentThread({
               aria-label="댓글 내용"
               data-community-comment-entry="true"
               maxLength={MAX_COMMENT_LENGTH}
-              disabled={!authReady || pendingComposer !== null}
+              disabled={!authReady}
+              /* 등록 중에는 disabled 대신 readOnly — 포커스(모바일 키보드)를 잃지 않는다(#580). */
+              readOnly={pendingComposer !== null}
+              aria-busy={pendingComposer === 'root' || undefined}
               placeholder="댓글을 남겨 보세요"
               rows={composerExpanded ? 3 : 1}
               value={draft}
@@ -826,6 +874,7 @@ export default function CommunityCommentThread({
                   variant="primary"
                   type="submit"
                   disabled={!authReady || pendingComposer !== null}
+                  onMouseDown={keepComposerFocus}
                 >
                   {pendingComposer === 'root' ? '등록 중' : '등록'}
                 </Button>
