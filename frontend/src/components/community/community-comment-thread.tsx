@@ -1,6 +1,13 @@
 'use client'
 
-import { useId, useState, type FocusEvent, type FormEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FocusEvent,
+  type FormEvent,
+} from 'react'
 import { Heart } from 'lucide-react'
 import styled from 'styled-components'
 import CommunityMoreMenu from '@/components/community/community-more-menu'
@@ -19,6 +26,11 @@ import {
 } from '@/lib/community/comment-thread'
 import type { CommunityViewer } from '@/lib/community/community-state'
 import { communityOutlinedField } from '@/lib/community/field-styles'
+import {
+  findCommunityCommentAnchorTarget,
+  getCommunityCommentAnchorId,
+  parseCommunityCommentAnchor,
+} from '@/lib/community/notifications'
 import { isCommunityPostEdited } from '@/lib/community/post-detail'
 import type {
   CommunityId,
@@ -393,6 +405,43 @@ export default function CommunityCommentThread({
     Record<CommunityId, boolean>
   >({})
   const [localError, setLocalError] = useState<string | null>(null)
+  const anchorHandledRef = useRef(false)
+
+  /*
+    알림에서 들어온 주소의 댓글 앵커(`#comment-{id}`, community.md §S4 「알림 목록」). 댓글은 화면이 뜬 뒤에
+    받아 와서 브라우저 기본 해시 이동이 닿지 못한다 — 목록이 도착하면 한 번만 그 댓글로 내린다. 접힌 답글이면
+    부모를 먼저 펼친다(CM-026). 앵커의 댓글이 지워져 목록에 없으면 아무것도 하지 않는다.
+  */
+  useEffect(() => {
+    if (anchorHandledRef.current || typeof window === 'undefined') {
+      return
+    }
+
+    const anchorId = parseCommunityCommentAnchor(window.location.hash)
+    const target = anchorId
+      ? findCommunityCommentAnchorTarget(comments, anchorId)
+      : null
+
+    if (!target) {
+      return
+    }
+
+    anchorHandledRef.current = true
+    const { parentCommentId } = target
+
+    // 펼침은 다음 프레임에, 이동은 펼친 답글이 그려진 그다음 프레임에 한다.
+    window.requestAnimationFrame(() => {
+      if (parentCommentId) {
+        setExpandedReplyIds(current => addId(current, parentCommentId))
+      }
+
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById(getCommunityCommentAnchorId(target.commentId))
+          ?.scrollIntoView({ block: 'center' })
+      })
+    })
+  }, [comments])
 
   /* 포커스했거나 쓰던 글이 있으면 펼친다. 등록 중에도 펼친 채 둔다(버튼이 사라지지 않게). */
   const composerExpanded =
@@ -626,7 +675,10 @@ export default function CommunityCommentThread({
     const likeCount = formatCommunityCount(likePresentation.likeCount)
 
     return (
-      <Row data-community-comment={reply ? 'reply' : 'root'}>
+      <Row
+        data-community-comment={reply ? 'reply' : 'root'}
+        id={getCommunityCommentAnchorId(item.commentId)}
+      >
         <RowHead>
           <CommunityWriter
             nickname={item.writerNickname}
