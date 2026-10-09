@@ -105,7 +105,9 @@ const NavLink = styled(Link)<{ $active?: boolean }>`
   padding: 0 12px;
   border-radius: var(--radius-control);
   color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-600)'};
+    props.$active
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-600)'};
   font-size: 14px;
   font-weight: 600;
   background: ${props =>
@@ -116,7 +118,7 @@ const NavLink = styled(Link)<{ $active?: boolean }>`
 
   &:hover {
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 `
 
@@ -159,7 +161,7 @@ const ActionLink = styled(Link)<{ $primary?: boolean }>`
       props.$primary
         ? 'var(--color-fill-primary-text-hover)'
         : 'var(--color-primary-100)'};
-    color: ${props => (props.$primary ? 'white' : 'var(--color-primary-700)')};
+    color: ${props => (props.$primary ? 'white' : 'var(--color-text-primary-on-light)')};
   }
 
   svg {
@@ -196,7 +198,7 @@ const AvatarButton = styled.button`
   &:hover {
     border-color: var(--color-primary-100);
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 `
 
@@ -281,7 +283,7 @@ const DropdownItem = styled.button`
 
   &:hover {
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 `
 
@@ -307,7 +309,7 @@ const MobileToggle = styled.button`
 
   &:hover {
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   svg {
@@ -376,13 +378,15 @@ const MobileLink = styled(Link)<{ $active?: boolean }>`
   background: ${props =>
     props.$active ? 'var(--color-primary-100)' : 'transparent'};
   color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+    props.$active
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-700)'};
   font-size: 14px;
   font-weight: 600;
 
   &:hover {
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 `
 

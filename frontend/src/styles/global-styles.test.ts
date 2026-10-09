@@ -563,6 +563,144 @@ describe('브랜드 강조색은 로고 전용이다', () => {
 })
 
 /**
+ * **글자**에 `--color-primary-700`(= blue500)을 쓰지 않는다. 흰 바탕 2.77:1 · blue50 위 2.47:1 이라
+ * AA(4.5)에 못 미친다. 파란 글자는 `--color-text-primary-on-light`(blue700)다(DESIGN.md §2 Blue
+ * Text, contrast-tokens.md D3-3). 테두리·포커스 링·배경·`fill`/`stroke`·`accent-color` 는 primary-700
+ * 그대로라 걸지 않는다 — `color` 속성 앞에 `-`/영숫자가 붙은 것(`border-color` 등)은 건너뛴다.
+ *
+ * 아직 못 옮긴 파일은 `KNOWN_DEBT` 에 남아 있다(#556 후속). **새 파일이 걸리면 실패**하고, 목록에 있는
+ * 파일별 위반 수가 늘면 실패하고, 줄면 「숫자를 낮춰라」(0 이면 「목록에서 빼라」)로 실패한다 —
+ * 부채가 줄기만 하도록 상한을 잠근다.
+ *
+ * 한계: 색을 상수 맵·변수에 담았다가 `color: ${map[x]}` 로 꺼내는 **간접 참조는 못 잡는다**. 선언 안에
+ * `--color-primary-700` 이 직접 적힌 것만 본다.
+ */
+describe('글자색에 primary-700 을 쓰지 않는다', () => {
+  const projectRoot = path.resolve(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+  )
+
+  /** 파일 → 글자색 primary-700 선언 수(상한). */
+  const KNOWN_DEBT = new Map<string, number>([
+    ['src/components/analysis/analysis-policy-list.tsx', 2],
+    ['src/components/analysis/analysis-result-nav.tsx', 2],
+    ['src/components/analysis/analysis-result-section.tsx', 1],
+    ['src/components/analysis/analysis-selection-panel.tsx', 1],
+    ['src/components/analysis/analysis-summary-insights.tsx', 1],
+    ['src/components/analysis/popular-commercials-shortcut.tsx', 2],
+    ['src/components/auth/password-reset-form.tsx', 1],
+    ['src/components/chatting/chat-room-search.tsx', 1],
+    ['src/components/chatting/chatting-detail-page.tsx', 3],
+    ['src/components/chatting/chatting-list-page.tsx', 3],
+    ['src/components/chatting/chatting-unavailable-page.tsx', 1],
+    ['src/components/community/community-choice-chips.tsx', 1],
+    ['src/components/community/community-list-filter.tsx', 1],
+    ['src/components/home/analysis-mini-demo.tsx', 3],
+    ['src/components/home/metric-toggle-group.tsx', 2],
+    ['src/components/home/product-story.tsx', 1],
+    ['src/components/profile/profile-shell.tsx', 2],
+    ['src/components/profile/profile-tabs.tsx', 1],
+    ['src/components/profile/profile-ui.tsx', 2],
+    ['src/components/recommend/recommend-result-list.tsx', 1],
+    ['src/components/simulation/report/simulation-save-button.tsx', 1],
+    ['src/components/simulation/simulation-analysis-context-card.tsx', 2],
+    ['src/components/simulation/simulation-brand-search.tsx', 1],
+    ['src/components/simulation/simulation-choice-grid.tsx', 2],
+    ['src/components/simulation/simulation-condition-section.tsx', 1],
+    ['src/components/simulation/simulation-result-panel.tsx', 1],
+    ['src/components/ui/badge.tsx', 1],
+    ['src/components/ui/button.tsx', 1],
+    ['src/components/ui/option-picker.tsx', 6],
+    ['src/components/ui/tabs.tsx', 2],
+    ['src/components/ui/toast.tsx', 2],
+  ])
+
+  const blankComments = (source: string): string =>
+    source.replace(/\/\*[\s\S]*?\*\/|(?<!:)\/\/[^\n]*/g, match =>
+      match.replace(/[^\n]/g, ' '),
+    )
+
+  /**
+   * 선언 끝(`;`·`}`)까지 본다 — `color: ${p => p.$on ? 'var(--color-primary-700)' : …}` 삼항도 잡는다.
+   * JS 객체(`{ color: 'x', borderColor: 'var(--color-primary-700)' }`)의 다음 키로 넘어가지 않도록
+   * `, 키:` 에서도 끊는다.
+   */
+  const blueText =
+    /(?<![-\w])color\s*:(?:(?!,\s*['"]?[\w$-]+['"]?\s*:)[^;}])*--color-primary-700/g
+
+  const countBlueText = (source: string): number =>
+    blankComments(source).match(blueText)?.length ?? 0
+
+  const hasBlueText = (source: string): boolean => countBlueText(source) > 0
+
+  it('판정 — 글자색만 걸고 테두리·배경·fill·accent-color 는 건너뛴다', () => {
+    expect(hasBlueText('a{ color: var(--color-primary-700); }')).toBe(true)
+    expect(
+      hasBlueText(
+        "a{ color: ${p => p.$on ? 'var(--color-primary-700)' : 'var(--color-text-700)'}; }",
+      ),
+    ).toBe(true)
+    expect(hasBlueText('a{ border-color: var(--color-primary-700); }')).toBe(
+      false,
+    )
+    expect(hasBlueText('a{ background: var(--color-primary-700); }')).toBe(
+      false,
+    )
+    expect(hasBlueText('a{ fill: var(--color-primary-700); }')).toBe(false)
+    expect(hasBlueText('a{ accent-color: var(--color-primary-700); }')).toBe(
+      false,
+    )
+    expect(
+      hasBlueText('a{ outline: 2px solid var(--color-primary-700); }'),
+    ).toBe(false)
+    expect(hasBlueText('a{ color: var(--color-text-primary-on-light); }')).toBe(
+      false,
+    )
+    expect(hasBlueText('// color: var(--color-primary-700)')).toBe(false)
+    expect(
+      hasBlueText(
+        "const s = { color: 'var(--color-text-700)', borderColor: 'var(--color-primary-700)' }",
+      ),
+    ).toBe(false)
+    expect(hasBlueText("const s = { color: 'var(--color-primary-700)' }")).toBe(
+      true,
+    )
+  })
+
+  it('파일별 위반 수가 상한(KNOWN_DEBT)을 넘지 않고, 줄면 상한을 낮춘다', () => {
+    const found = new Map<string, number>()
+
+    for (const file of collectFiles(projectRoot, isSourceFile)) {
+      const source = readIfPresent(file)
+      const count = source === null ? 0 : countBlueText(source)
+
+      if (count > 0) {
+        const rel = path
+          .relative(path.dirname(projectRoot), file)
+          .replaceAll('\\', '/')
+        found.set(rel.replace(/^.*?(?=src\/)/, ''), count)
+      }
+    }
+
+    const grew = [...found]
+      .filter(([name, count]) => count > (KNOWN_DEBT.get(name) ?? 0))
+      .map(
+        ([name, count]) => `${name}: ${KNOWN_DEBT.get(name) ?? 0} -> ${count}`,
+      )
+    const shrank = [...KNOWN_DEBT]
+      .filter(([name, limit]) => (found.get(name) ?? 0) < limit)
+      .map(
+        ([name, limit]) =>
+          `${name}: 상한 ${limit} -> ${found.get(name) ?? 0} 로 낮추거나(0 이면 목록에서 뺀다)`,
+      )
+
+    expect(grew).toEqual([])
+    expect(shrank).toEqual([])
+  })
+})
+
+/**
  * 포커스 **링**(outline)은 `--color-primary-700`(= blue500)이다. `--color-primary-600`
  * (= blue600)은 hover/pressed 전용이다(DESIGN.md §Primary).
  *

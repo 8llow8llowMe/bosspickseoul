@@ -79,7 +79,7 @@ const Head = styled.div`
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-text-caption);
+  color: var(--color-text-caption-on-band);
   font-size: 12px;
 
   svg {
@@ -136,7 +136,7 @@ const Fill = styled.div<{ $width: number }>`
 `
 
 const ContextText = styled.span`
-  color: var(--color-text-600);
+  color: var(--color-text-caption-on-band);
   font-size: 12px;
   line-height: 18px;
   word-break: keep-all;
