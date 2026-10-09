@@ -13,6 +13,8 @@ import {
 import { ChevronLeft, FileText } from 'lucide-react'
 import styled from 'styled-components'
 
+import { touchHitArea } from '@/styles/touch-target'
+
 import {
   BOTTOM_SHEET_COLLAPSED_HEIGHT,
   BOTTOM_SHEET_EXPANDED_RATIO,
@@ -162,6 +164,7 @@ const AiChip = styled.button`
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  ${touchHitArea()}
 
   svg {
     width: 14px;
@@ -236,6 +239,7 @@ const BackButton = styled.button`
   background: transparent;
   color: var(--color-text-700);
   cursor: pointer;
+  ${touchHitArea()}
 
   svg {
     width: 20px;

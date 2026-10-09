@@ -508,6 +508,10 @@ inline-size` 를 걸고 `@container` 로 열을 바꾼다(결과 화면: 1열 <6
 - Buttons: xlarge (~56px), large (~48px), medium (~40px), small (~36px)
 - List items: minimum 52px row height for financial actions
 - Keypad buttons: large targets (56-64px) for secure input
+- 모바일(≤1023px) 터치 대상은 **히트 영역 44px 이상**이다. 보이는 크기가 작으면 `src/styles/touch-target.ts` 의
+  `touchHitArea()`(가상 요소로 히트 영역만 확장)를 쓰고, `<select>`·`<input>` 은 `min-height: 44px` 로 키운다.
+- 모바일(≤1023px) `input`·`select`·`textarea` 글꼴은 16px(Body Large) — iOS Safari 의 포커스 자동 확대를 막는다.
+  전역 규칙(`global-styles.ts`, `!important` 없음)은 스타일 없는 입력의 바닥이고, 글꼴을 직접 선언한 컴포넌트(TextField·select)는 각자 모바일 분기에서 16px 로 올린다. 16px 를 넘는 입력은 줄이지 않는다. 줌을 막는 `maximum-scale`·`user-scalable=no` 는 쓰지 않는다. 컨트롤 높이는 그대로다.
 
 ### Collapsing Strategy
 

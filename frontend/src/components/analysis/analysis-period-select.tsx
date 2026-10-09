@@ -44,6 +44,16 @@ const Select = styled.select<{ $size: AnalysisPeriodSelectSize }>`
   cursor: pointer;
   ${props => (props.$size === 'md' ? 'min-height: 36px;' : '')}
 
+  /*
+    <select> 는 가상 요소를 그리지 못해 히트 영역만 넓힐 수 없다. 모바일에서는 칸 자체를 44px 로
+    키우고 글꼴을 16px 로 올린다(analysis.md S2-7, iOS 자동 확대 방지 #558). 1024px 는 결과 화면의
+    가로 탭 바(MobileTabList)와 같은 경계다 — 전역 폼 규칙(1023px)보다 1px 넓다.
+  */
+  @media (max-width: 1024px) {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
   &:hover:not(:disabled) {
     border-color: var(--color-primary-600);
   }
@@ -63,8 +73,8 @@ const Select = styled.select<{ $size: AnalysisPeriodSelectSize }>`
 `
 
 /**
- * `sm` 은 상권 분석 결과의 그룹 머리(28px)다. `md` 는 터치 타깃 최소 36px 을 맞춘다
- * (DESIGN.md §Touch target) — 구별현황처럼 모바일에서 주 조작부 옆에 올 때 쓴다.
+ * `sm` 은 상권 분석 결과의 그룹 머리(28px)다. `md` 는 데스크톱 최소 36px 이다 — 구별현황처럼
+ * 주 조작부 옆에 올 때 쓴다. 두 크기 모두 모바일(≤1024px)에서는 44px·16px 로 올라간다.
  */
 export type AnalysisPeriodSelectSize = 'sm' | 'md'
 
