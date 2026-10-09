@@ -147,6 +147,13 @@ import {
   type AnalysisSelection,
 } from '@/lib/analysis/selection'
 import { createRecommendHandoffLabel } from '@/lib/analysis/recommend-handoff'
+import {
+  describeSalesPerStoreEmpty,
+  describeSalesPerStoreSentence,
+  describeSalesShareSentence,
+  describeTotalSalesCaption,
+  resolveMonthlySalesPerStore,
+} from '@/lib/analysis/summary-sales'
 import { useActivatedSections } from '@/lib/analysis/use-activated-sections'
 import { useScrollSpy } from '@/lib/analysis/use-scroll-spy'
 import { useResolvedAnalysisPeriod } from '@/hooks/use-resolved-analysis-period'
@@ -638,10 +645,19 @@ const ChartBox = styled.div<{ $maxWidth: number }>`
   margin: 0 auto;
 `
 
-/** 핵심 지표 카드 안에서 숫자 카드 아래 인사이트 줄을 쌓는다. */
+/*
+  핵심 지표 카드 안에서 숫자 카드 아래 인사이트 줄을 쌓는다.
+
+  요약 열 상한(#589). 결과 레이어 본문은 1440 에서 약 1,110px 라, 핵심 지표 카드와 인사이트 줄이
+  그 폭을 다 쓰면 문장과 링크·숫자 사이가 수백 px 벌어졌다. 「넓어질수록 나빠지는」 묶음이라
+  (DESIGN.md 폭 체계) 상한을 진다. 960 토큰이 없어 가장 가까운 기존 컬럼 토큰 '--w-form'(880)을
+  쓴다 — 4칸 그리드는 880 에서도 4열이다(카드 묶음 ≥640). 새 리터럴 폭은 만들지 않는다.
+*/
 const SummaryStack = styled.div`
   display: grid;
   gap: 14px;
+  width: 100%;
+  max-width: var(--w-form);
 `
 
 /** 한 카드 안에서 차트 아래 보조 막대(성비)를 쌓는다. */
@@ -1798,19 +1814,36 @@ export default function AnalysisResultView({
     unchangedLabels: unchangedServiceNames,
   } = splitPeerStoreChangeRows(toPeerStoreChangeRows(stores?.peerStores))
 
+  /* 업종 이름을 아직 못 받았으면 코드(「CS100010」)를 문장에 넣지 않고 설명을 비운다. */
+  const resolvedServiceName =
+    services?.find(item => item.serviceCode === serviceCode)?.serviceName ??
+    salesSummary?.commercial?.serviceName
+
+  /*
+    요약 첫 숫자는 **점포당 월 매출**이다(#561). `monthlySales` 는 상권 안 이 업종 전체 합계라
+    「월 매출」 하나로 적으면 한 가게 매출로 읽혔다(홍대 걷고싶은 거리 · 커피-음료: 26억 3527만원 = 점포 59개 합계, 한 곳당 4466만원).
+    서버 점포당 값은 지역 평균 대비 탭(`/benchmarks`)이 받아 둔 경우에만 쓰고 요약이 따로 부르지
+    않는다. 없으면 합계 ÷ 점포 수(같은 분모 `similarStoreCount`)다. 합계는 분모를 밝혀 캡션으로 남긴다.
+  */
+  const monthlySalesPerStore = resolveMonthlySalesPerStore({
+    monthlySalesPerStore:
+      benchmark?.salesPerStore?.commercial?.monthlySalesPerStore,
+    monthlySales,
+    storeCount,
+  })
+  const totalSalesCaption = describeTotalSalesCaption(
+    resolvedServiceName,
+    monthlySales,
+  )
+
   const summaryCards: SummaryCard[] = [
     {
-      label: '월 매출',
-      value: monthlySales,
+      label: '점포당 월 매출',
+      value: monthlySalesPerStore,
       unit: '원',
       icon: Banknote,
-      context:
-        salesShare === undefined
-          ? null
-          : {
-              text: `${administrationName ?? '행정동'} 전체의 ${formatSharePercent(salesShare)}`,
-              ratio: salesShare,
-            },
+      emptyText: describeSalesPerStoreEmpty(storeCount, monthlySales),
+      context: totalSalesCaption === null ? null : { text: totalSalesCaption },
     },
     {
       label: '유동인구',
@@ -1895,16 +1928,26 @@ export default function AnalysisResultView({
 
   /*
     「핵심 지표」 설명 자리의 결론 문장. 「주요 수치를 먼저 확인하세요」는 아무것도 말하지
-    않았다. 비중을 계산할 수 없으면 설명을 비운다(지어내지 않는다).
+    않았다. 두 문장 다 만들 수 없으면 설명을 비운다(지어내지 않는다).
+
+    첫 문장은 점포당 값(#561), 둘째 문장은 행정동 안 비중이다. 비중은 카드 막대에 있던 것을 문장으로
+    옮겼다 — 카드 캡션이 합계(분모)를 말하게 되면서 막대가 무엇의 비율인지 흐려졌다.
   */
-  /* 업종 이름을 아직 못 받았으면 코드(「CS100010」)를 문장에 넣지 않고 설명을 비운다. */
-  const resolvedServiceName =
-    services?.find(item => item.serviceCode === serviceCode)?.serviceName ??
-    salesSummary?.commercial?.serviceName
+  const salesPerStoreSentence = describeSalesPerStoreSentence({
+    commercialName: profile?.commercialName,
+    serviceName: resolvedServiceName,
+    storeCount,
+    monthlySales,
+    salesPerStore: monthlySalesPerStore,
+  })
+  const salesShareSentence = describeSalesShareSentence({
+    administrationName,
+    serviceName: resolvedServiceName,
+    share: salesShare,
+  })
   const coreMetricsDescription =
-    salesShare === undefined || !administrationName || !resolvedServiceName
-      ? undefined
-      : `${profile?.commercialName ?? '이 상권'}의 ${resolvedServiceName} 매출은 ${administrationName} 전체의 ${formatSharePercent(salesShare)}를 차지해요.`
+    [salesPerStoreSentence, salesShareSentence].filter(Boolean).join(' ') ||
+    undefined
 
   /*
     보고서 하단 추천 링크(condition-selector D8-2 보조 동선).
@@ -2086,7 +2129,7 @@ export default function AnalysisResultView({
               「점포 현황」·「생활권·시설」 카드는 점포 탭 「점포 분석」·생활권 탭 「주요 시설과
               교통」과 같은 수를 반복해서 걷어냈다. 「지역별 월 매출 비교」도 지역 평균 대비 탭과
               같은 세 값(자치구 · 행정동 · 상권 총액)이라 뺐다 — 이 상권의 비중은 핵심 지표
-              설명 문장과 「월 매출」 카드가 말한다.
+              설명 문장이, 업종 전체 합계는 「점포당 월 매출」 카드 캡션이 말한다(#561).
             */}
             <DashboardGrid>
               <FullSpanItem>

@@ -34,6 +34,11 @@ export type SummaryCard = {
   /** 훑는 눈이 멈출 자리. 지표의 성격에서 곧장 오는 것만 쓴다. */
   icon?: LucideIcon
   context?: SummaryCardContext | null
+  /**
+   * 값이 없을 때 「데이터 없음」 대신 적을 말. 결측이 아니라 **사실**일 때만 쓴다 —
+   * 점포 수 0 인 상권의 점포당 매출은 「점포 없음」이다(#561).
+   */
+  emptyText?: string | null
 }
 
 /**
@@ -170,7 +175,12 @@ export default function AnalysisSummaryCards({
                 {Icon ? <Icon aria-hidden="true" /> : null}
                 <span>{card.label}</span>
               </Head>
-              <Value>{formatAnalysisValue(card.value, card.unit)}</Value>
+              <Value>
+                {card.value === null || card.value === undefined
+                  ? (card.emptyText ??
+                    formatAnalysisValue(card.value, card.unit))
+                  : formatAnalysisValue(card.value, card.unit)}
+              </Value>
               <Context>
                 {width === null ? null : (
                   <Track aria-hidden="true">
