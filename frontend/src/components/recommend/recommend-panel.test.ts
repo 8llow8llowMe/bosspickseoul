@@ -291,6 +291,70 @@ describe('RecommendPanel', () => {
     expect(markup).not.toMatch(/<button[^>]*data-step="service"[^>]*disabled/)
   })
 
+  it('다음에 눌러야 할 칩을 표시하고, 잠긴 행정동 칩에는 사유를 연결한다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      draft: { district: null, administration: null, service: null },
+      view: 'criteria',
+    })
+
+    // 자치구가 비면 첫 칩이 다음 자리다. 행정동은 잠겨 있어 다음이 아니다.
+    expect(markup).toMatch(
+      /<button[^>]*data-next="true"[^>]*data-step="district"/,
+    )
+    expect(markup).not.toMatch(
+      /<button[^>]*data-next[^>]*data-step="administration"/,
+    )
+    expect(markup).not.toMatch(/<button[^>]*data-next[^>]*data-step="service"/)
+    // id 는 useId 라 값을 못 박지 않고, 칩의 aria-describedby 와 사유 span 의 id 가 같은지 본다.
+    const describedBy = markup.match(
+      /<button[^>]*aria-describedby="([^"]+)"[^>]*data-step="administration"/,
+    )?.[1]
+
+    expect(describedBy).toBeTruthy()
+    expect(markup).toContain(`<span id="${describedBy}"`)
+    expect(markup).toContain('자치구를 먼저 골라 주세요')
+  })
+
+  it('행정동을 불러오는 중에도 강조는 행정동에 머문다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      draft: {
+        district: { code: '11680', name: '강남구' },
+        administration: null,
+        service: null,
+      },
+      isAdministrationsLoading: true,
+      view: 'criteria',
+    })
+
+    expect(markup).toMatch(
+      /<button[^>]*data-next="true"[^>]*data-step="administration"/,
+    )
+    expect(markup).not.toMatch(/<button[^>]*data-next[^>]*data-step="service"/)
+    // 로딩 잠김에는 「자치구를 먼저」 사유를 붙이지 않는다.
+    expect(markup).not.toContain('자치구를 먼저 골라 주세요')
+  })
+
+  it('자치구를 고르면 다음 칩이 행정동으로 옮겨 가고 사유는 사라진다', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      draft: {
+        district: { code: '11680', name: '강남구' },
+        administration: null,
+        service: null,
+      },
+      view: 'criteria',
+    })
+
+    expect(markup).toMatch(
+      /<button[^>]*data-next="true"[^>]*data-step="administration"/,
+    )
+    expect(markup).not.toMatch(
+      /aria-describedby="[^"]*"[^>]*data-step="administration"/,
+    )
+  })
+
   it('선택 뷰는 같은 패널의 세 번째 뷰다 — 시트를 겹치지 않는다', () => {
     const markup = renderPanel({
       ...baseProps,
