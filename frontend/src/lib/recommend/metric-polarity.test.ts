@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   COMPOSITE_SCORE_POLARITY,
+  describeMetricPolarity,
   getScoreQualityColor,
   getScoreQualityLabel,
   resolveMetricPolarity,
@@ -86,7 +87,28 @@ describe('score quality presentation', () => {
   it('leaves the neutral grade unspoken', () => {
     expect(getScoreQualityLabel('good')).toBe('좋음')
     expect(getScoreQualityLabel('fair')).toBe('보통')
-    expect(getScoreQualityLabel('poor')).toBe('나쁨')
+    // 「나쁨」은 상권을 단정한다 — 살펴볼 이유라는 뜻으로 「주의」라고 말한다(#569).
+    expect(getScoreQualityLabel('poor')).toBe('주의')
     expect(getScoreQualityLabel('neutral')).toBe('')
+  })
+})
+
+describe('describeMetricPolarity', () => {
+  // #569 — 숫자와 색만 있으면 「위험도 82」를 좋은 점수로 읽는다.
+  it('puts the direction into words for all four known metrics', () => {
+    expect(
+      ['OPPORTUNITY_SCORE', 'RESIDENT_POPULATION_SCORE'].map(code =>
+        describeMetricPolarity(resolveMetricPolarity(code)),
+      ),
+    ).toEqual(['높을수록 좋아요', '높을수록 좋아요'])
+    expect(
+      ['RISK_SCORE', 'CONGESTION_SCORE'].map(code =>
+        describeMetricPolarity(resolveMetricPolarity(code)),
+      ),
+    ).toEqual(['낮을수록 좋아요', '낮을수록 좋아요'])
+  })
+
+  it('says nothing when the direction is unknown', () => {
+    expect(describeMetricPolarity(null)).toBe('')
   })
 })

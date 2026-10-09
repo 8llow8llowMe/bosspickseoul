@@ -49,7 +49,7 @@ export const resolveMetricPolarity = (
 }
 
 /**
- * 「좋음/보통/나쁨」. 방향을 모르면 `neutral` 이고, 그때는 색으로 판단하지 않는다.
+ * 「좋음/보통/주의」(내부 값 good/fair/poor). 방향을 모르면 `neutral` 이고, 그때는 색으로 판단하지 않는다.
  *
  * `lower-is-better` 지표는 **등급을 매기기 전에** 점수를 뒤집는다. 뒤집는 것은
  * 등급뿐이고 **점수 자체(호가 채우는 양)는 그대로 둔다** — 호까지 뒤집으면 가운데
@@ -82,13 +82,28 @@ export const getScoreQualityColor = (quality: ScoreQuality): string =>
 const QUALITY_LABELS: Readonly<Record<ScoreQuality, string>> = {
   good: '좋음',
   fair: '보통',
-  poor: '나쁨',
+  // 「나쁨」은 상권을 단정한다. 점수 하나가 낮다는 것은 살펴볼 이유이지 판정이 아니다(#569).
+  poor: '주의',
   neutral: '',
 }
 
 /**
- * 스크린리더용 등급 문구. `neutral` 은 빈 문자열이다 — 판단하지 않은 것을
+ * 등급 문구. 지표 행의 배지와 게이지의 스크린리더 문구가 함께 쓴다 — **색만으로
+ * 등급을 전하지 않기 위해서다**(#569). `neutral` 은 빈 문자열이다 — 판단하지 않은 것을
  * 「보통」이라고 말하면 그것도 거짓이다.
  */
 export const getScoreQualityLabel = (quality: ScoreQuality): string =>
   QUALITY_LABELS[quality]
+
+const POLARITY_LABELS: Readonly<Record<MetricPolarity, string>> = {
+  'higher-is-better': '높을수록 좋아요',
+  'lower-is-better': '낮을수록 좋아요',
+}
+
+/**
+ * 지표의 방향을 글자로 옮긴다(#569). 화면에 숫자와 색만 있으면 「위험도 82」를
+ * 좋은 점수로 읽는다. 방향을 모르면 빈 문자열이다 — 아무 방향이나 말하지 않는다.
+ */
+export const describeMetricPolarity = (
+  polarity: MetricPolarity | null,
+): string => (polarity === null ? '' : POLARITY_LABELS[polarity])

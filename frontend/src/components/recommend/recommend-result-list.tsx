@@ -8,7 +8,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import ScoreGauge from '@/components/ui/score-gauge'
 import {
   COMPOSITE_SCORE_POLARITY,
+  describeMetricPolarity,
+  getScoreQualityColor,
+  getScoreQualityLabel,
   resolveMetricPolarity,
+  resolveScoreQuality,
 } from '@/lib/recommend/metric-polarity'
 import {
   isRecord,
@@ -387,6 +391,7 @@ const MetricRow = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 6px 0;
   border-top: 1px solid var(--color-border-200);
   color: var(--color-text-700);
   font-size: 13px;
@@ -395,13 +400,56 @@ const MetricRow = styled.div`
     border-top: 0;
   }
 
+  dt {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+
   dd {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
+    gap: 8px;
     color: var(--color-text-900);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
+`
+
+/* 방향 문구. 지표 이름 아래 한 줄 — 「위험도 82」를 좋은 점수로 읽지 않게 한다(#569). */
+const MetricPolarity = styled.span`
+  color: var(--color-text-caption);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+`
+
+/*
+ * 등급 배지. **글자가 등급을 말하고 점은 거든다** — 색만으로 전하지 않는다(DESIGN.md
+ * §Score Scale). 면은 중립 회색이라 등급색 글자의 대비 문제를 만들지 않는다.
+ */
+const QualityBadge = styled.span`
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-700);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+`
+
+const QualityDot = styled.span`
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 `
 
 const SecondaryActions = styled.div`
@@ -551,6 +599,24 @@ const getMetricCode = (metric: unknown): string =>
     ? readTrimmedString(metric.metricType.code)
     : ''
 
+/**
+ * 지표 이름 아래에 적는 방향 문구.
+ *
+ * 아는 지표는 「높을수록 좋아요」/「낮을수록 좋아요」로 **판단을 붙여** 말한다. 모르는 지표는
+ * 방향을 지어내지 않고 API 의 `scoreDescription`(「점수가 높을수록 …」)을 그대로 옮긴다 —
+ * 백엔드가 지표를 늘려도 화면이 조용히 거짓말하지 않게 하는 쪽이다. 둘 다 없으면 비운다.
+ */
+export const describeMetricDirection = (metric: unknown): string => {
+  const polarityLabel = describeMetricPolarity(
+    resolveMetricPolarity(getMetricCode(metric)),
+  )
+
+  if (polarityLabel) return polarityLabel
+  if (!isRecord(metric) || !isRecord(metric.metricType)) return ''
+
+  return readTrimmedString(metric.metricType.scoreDescription)
+}
+
 /** 게이지에 넘길 점수. 숫자가 아니면 `null` 이고, 그때 게이지는 그려지지 않는다. */
 const readGaugeScore = (score: unknown): number | null =>
   hasScore(score) ? score : null
@@ -672,6 +738,34 @@ export const clearRecommendationPreviewIfInactive = (
   onPreviewChange?: (selectedCode: string | null) => void,
 ): void => {
   if (!isFocused && !isHovered) onPreviewChange?.(null)
+}
+
+/**
+ * 지표 하나의 등급 배지 + 게이지. 배지는 게이지의 스크린리더 문구와 같은 등급을 **눈으로**
+ * 말한다. 방향을 모르는 지표(`neutral`)는 배지를 그리지 않는다 — 판단하지 않은 것이다.
+ */
+function MetricScore({ metric, index }: { metric: unknown; index: number }) {
+  const score = readGaugeScore(getMetricScore(metric))
+  const polarity = resolveMetricPolarity(getMetricCode(metric))
+  const quality = resolveScoreQuality(score, polarity)
+  const qualityLabel = getScoreQualityLabel(quality)
+
+  return (
+    <>
+      {qualityLabel ? (
+        // 게이지의 접근성 이름이 이미 등급을 말한다 — 두 번 읽히지 않게 숨긴다.
+        <QualityBadge aria-hidden="true" data-quality-badge={quality}>
+          <QualityDot style={{ color: getScoreQualityColor(quality) }} />
+          {qualityLabel}
+        </QualityBadge>
+      ) : null}
+      <ScoreGauge
+        label={getMetricLabel(metric, index)}
+        polarity={polarity}
+        score={score}
+      />
+    </>
+  )
 }
 
 export default function RecommendResultList({
@@ -868,16 +962,17 @@ export default function RecommendResultList({
                           metric,
                         )}-${index}`}
                       >
-                        <dt>{getMetricLabel(metric, index)}</dt>
+                        <dt>
+                          <span>{getMetricLabel(metric, index)}</span>
+                          {describeMetricDirection(metric) ? (
+                            <MetricPolarity data-metric-polarity="true">
+                              {describeMetricDirection(metric)}
+                            </MetricPolarity>
+                          ) : null}
+                        </dt>
                         <dd>
                           {hasScore(getMetricScore(metric)) ? (
-                            <ScoreGauge
-                              label={getMetricLabel(metric, index)}
-                              polarity={resolveMetricPolarity(
-                                getMetricCode(metric),
-                              )}
-                              score={readGaugeScore(getMetricScore(metric))}
-                            />
+                            <MetricScore metric={metric} index={index} />
                           ) : (
                             formatScore(getMetricScore(metric))
                           )}
