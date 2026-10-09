@@ -38,6 +38,7 @@ type RouteKey =
   | 'communityList'
   | 'communityRegister'
   | 'communityDetail'
+  | 'communityNotifications'
   | 'chattingList'
   | 'chattingDetail'
   | 'terms'
@@ -134,6 +135,10 @@ export const routeSkeletons: Record<RouteKey, RouteSkeletonDefinition> = {
   },
   communityRegister: {
     path: '/community/register',
+    visibility: 'noindex',
+  },
+  communityNotifications: {
+    path: '/community/notifications',
     visibility: 'noindex',
   },
   communityDetail: {

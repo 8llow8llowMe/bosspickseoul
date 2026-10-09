@@ -13,6 +13,8 @@ import { redirectRequestToPath } from '@/lib/http/redirect'
 // 저장 이력 목록은 `/profile/bookmarks/simulation` 이라 `/profile` 로 이미 보호된다.
 export const PROTECTED_PATHS = [
   '/community/register',
+  // 알림 목록(#536)은 내 알림만 보여 준다 — 글 목록·상세와 달리 로그인 전용이다.
+  '/community/notifications',
   '/chatting',
   '/profile',
 ] as const

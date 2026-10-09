@@ -77,17 +77,20 @@ const RowSkeleton = () => (
 type CommunityListSkeletonProps = {
   /** `initial` 첫 로딩(5줄) · `more` 다음 쪽(2줄). */
   variant: 'initial' | 'more'
+  /** 스크린리더가 읽는 로딩 문구. 알림 목록처럼 글이 아닌 피드가 덮어 쓴다. */
+  label?: string
 }
 
 export default function CommunityListSkeleton({
   variant,
+  label = '게시글을 불러오는 중이에요',
 }: CommunityListSkeletonProps) {
   const rows = variant === 'initial' ? 5 : 2
 
   return (
     // aria-busy 를 걸지 않는다 — 자기 자신이 알림(status)이라 busy 면 그 알림이 미뤄진다.
     <div data-community-list-skeleton={variant} role="status">
-      <VisuallyHidden>게시글을 불러오는 중이에요</VisuallyHidden>
+      <VisuallyHidden>{label}</VisuallyHidden>
       {Array.from({ length: rows }, (_, index) => (
         <RowSkeleton key={index} />
       ))}

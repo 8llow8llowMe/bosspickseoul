@@ -40,6 +40,7 @@ describe('middleware', () => {
   it.each([
     '/community/register',
     '/community/register/step-two',
+    '/community/notifications',
     '/chatting/room',
     '/profile',
   ])('keeps %s protected', pathname => {
