@@ -332,7 +332,7 @@ export default function SimulationResultPreview({
         <ButtonLink href={reportHref} size="large" rightIcon={<ArrowRight />}>
           상세 리포트 보기
         </ButtonLink>
-        {/* 이 조건을 A 에 채운 비교 화면을 연다. B 는 빈 편집기로 열린다. */}
+        {/* 이 조건을 A 에, 그 복사본을 B 에 채운 비교 화면을 연다(#567). */}
         <ButtonLink
           href={compareHref}
           size="large"

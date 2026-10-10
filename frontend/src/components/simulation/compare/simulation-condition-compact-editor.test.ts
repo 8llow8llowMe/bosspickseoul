@@ -88,3 +88,50 @@ describe('SimulationConditionCompactEditor', () => {
     }
   })
 })
+
+/** #567 — B 는 A 복사본으로 시작한다. 바꾼 칸에만 「A와 다름」을 단다. */
+describe('SimulationConditionCompactEditor — 기준(조건 A)과 다른 칸', () => {
+  const a: Partial<SimulationConditionState> = {
+    franchisee: false,
+    districtCode: '11680',
+    serviceCode: 'CS100001',
+    storeSize: 66,
+    floorType: 'FIRST_FLOOR',
+  }
+
+  const renderB = (state: Partial<SimulationConditionState>) =>
+    renderToStaticMarkup(
+      createElement(SimulationConditionCompactEditor, {
+        label: '조건 B',
+        conditions: controller(state),
+        idPrefix: 'compare-b',
+        reference: { ...createEmptySimulationConditionState(), ...a },
+      }),
+    )
+
+  it('복사 직후에는 배지가 없다', () => {
+    expect(renderB(a)).not.toContain('A와 다름')
+  })
+
+  it('층만 바꾸면 층 칸에만 배지를 달고 낭독기에도 잇는다', () => {
+    const html = renderB({ ...a, floorType: 'OTHER' })
+
+    expect(html.match(/A와 다름/g)).toHaveLength(1)
+    expect(html).toContain('id="compare-b-floorType-changed"')
+    expect(html).toContain('aria-describedby="compare-b-floorType-changed"')
+  })
+
+  it('면적을 바꾸면 면적 칸 이름 옆에 배지를 단다', () => {
+    const html = renderB({ ...a, storeSize: 40 })
+
+    expect(html).toContain('id="compare-b-storeSize-changed"')
+    // TextField 가 helper id 를 뒤에 이어 붙이므로 배지 id 가 맨 앞에 오는지만 본다
+    expect(html).toMatch(
+      /aria-describedby="compare-b-storeSize-changed( [^"]*)?"/,
+    )
+  })
+
+  it('기준을 넘기지 않는 조건 A 편집기에는 배지가 없다', () => {
+    expect(render({ ...a, floorType: 'OTHER' })).not.toContain('A와 다름')
+  })
+})

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildSimulationCompareHref,
+  buildSimulationCompareHrefFromReport,
   isSameSimulationComparePair,
   parseSimulationCompareConditionPair,
   parseSimulationComparePair,
@@ -242,5 +243,32 @@ describe('resolveSimulationPairFailedSide', () => {
     expect(resolveSimulationPairFailedSide(false, true)).toBe('right')
     expect(resolveSimulationPairFailedSide(true, true)).toBe('both')
     expect(resolveSimulationPairFailedSide(false, false)).toBeNull()
+  })
+})
+
+/** #567 — 조건 하나에서 비교로 넘어가면 B 는 A 의 복사본으로 시작한다(결정 D-3). */
+describe('buildSimulationCompareHrefFromReport', () => {
+  it('B 에 A 를 그대로 복사한다 — 편집기 양쪽이 같은 조건으로 열린다', () => {
+    const href = buildSimulationCompareHrefFromReport(
+      { ...franchise, periodCode: '20261' },
+      'standalone',
+      '맛나감자탕',
+    )
+    const pair = parseSimulationCompareConditionPair(readBack(href))
+
+    expect(pair.right).toEqual(pair.left)
+    expect(pair.left.brandName).toBe('맛나감자탕')
+    expect(pair.left.franchiseeId).toBe(101)
+  })
+
+  it('복사한 쌍은 같은 계산이다 — 비교 화면은 이 쌍을 조회하지 않는다', () => {
+    const href = buildSimulationCompareHrefFromReport(personal, 'analysis')
+    const pair = parseSimulationComparePair(readBack(href))
+
+    expect(href.startsWith('/analysis/simulation/compare?')).toBe(true)
+    expect(pair.left).not.toBeNull()
+    expect(
+      isSameSimulationComparePair(pair, { left: personal, right: personal }),
+    ).toBe(true)
   })
 })

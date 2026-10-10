@@ -6,6 +6,7 @@ import styled from 'styled-components'
 
 import SimulationBrandSearch from '@/components/simulation/simulation-brand-search'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/text-field'
 import {
@@ -13,10 +14,16 @@ import {
   SIMULATION_SERVICE_TYPES,
 } from '@/data/simulation-service-types'
 import {
+  listSimulationCompareDifferences,
+  SIMULATION_COMPARE_CHANGED_BADGE,
+  type SimulationCompareField,
+} from '@/lib/simulation/compare-presentation'
+import {
   parseStoreSizeInput,
   SIMULATION_DISTRICT_OPTIONS,
   squareMeterToPyeong,
   type SimulationConditionSection,
+  type SimulationConditionState,
 } from '@/lib/simulation/conditions'
 import type { SimulationConditionsController } from '@/lib/simulation/use-simulation-conditions'
 import type { SimulationFloorType } from '@/types/simulation'
@@ -27,6 +34,11 @@ export type SimulationConditionCompactEditorProps = {
   conditions: SimulationConditionsController
   /** 필드 DOM id 접두사(`compare-a` 등). 오류 CTA 가 고칠 필드로 포커스를 옮길 때 쓴다(C5). */
   idPrefix: string
+  /**
+   * 견줄 기준 조건(조건 B 편집기에 조건 A 를 넘긴다, #567). 주면 값이 다른 칸에 「A와 다름」 배지를 단다.
+   * 조건 A 편집기에는 넘기지 않는다.
+   */
+  reference?: SimulationConditionState | null
 }
 
 /**
@@ -83,7 +95,12 @@ const Field = styled.label`
   min-width: 0;
 `
 
+/* 칸 이름 줄. 「A와 다름」 배지가 이름 옆에 붙는다(#567). label 안이라 span 이다. */
 const FieldLabel = styled.span`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 4px;
   color: var(--color-text-700);
   font-size: 13px;
   font-weight: 600;
@@ -167,12 +184,17 @@ const PickedRow = styled.div`
   padding-top: 12px;
 `
 
+/* 이름 옆 간격은 배지가 진다 — 면적 칸 이름(TextField)과 브랜드 줄은 flex 가 아니다. */
+const ChangedBadge = styled(Badge)`
+  margin-left: 6px;
+`
+
 const PickedValue = styled.p`
   min-width: 0;
   display: grid;
   gap: 2px;
 
-  span {
+  > span {
     color: var(--color-text-700);
     font-size: 13px;
     font-weight: 600;
@@ -233,10 +255,31 @@ export default function SimulationConditionCompactEditor({
   label,
   conditions,
   idPrefix,
+  reference = null,
 }: SimulationConditionCompactEditorProps) {
   const { state } = conditions
   const fieldId = (section: SimulationConditionSection) =>
     compareFieldDomId(idPrefix, section)
+
+  /*
+    기준(조건 A)과 다른 칸. 배지는 보이는 이름 옆에 두고, 칸의 접근성 이름은 aria-label 이 따로 정하므로
+    aria-describedby 로 배지를 이어 낭독기에도 「A와 다름」이 들리게 한다.
+  */
+  const changed = reference
+    ? listSimulationCompareDifferences(reference, state)
+    : null
+  const changedBadgeId = (field: SimulationCompareField) =>
+    `${idPrefix}-${field}-changed`
+  const isChanged = (field: SimulationCompareField) =>
+    changed?.has(field) ?? false
+  const changedBadge = (field: SimulationCompareField) =>
+    isChanged(field) ? (
+      <ChangedBadge $tone="blue" id={changedBadgeId(field)}>
+        {SIMULATION_COMPARE_CHANGED_BADGE}
+      </ChangedBadge>
+    ) : null
+  const describedBy = (field: SimulationCompareField) =>
+    isChanged(field) ? changedBadgeId(field) : undefined
   const brandChangeId = `${idPrefix}-brand-change`
 
   /**
@@ -271,11 +314,15 @@ export default function SimulationConditionCompactEditor({
     <Root>
       <Grid>
         <Field>
-          <FieldLabel>창업 형태</FieldLabel>
+          <FieldLabel>
+            창업 형태
+            {changedBadge('franchisee')}
+          </FieldLabel>
           <SelectShell>
             <Select
               id={fieldId('franchise')}
               aria-label={`${label} 창업 형태`}
+              aria-describedby={describedBy('franchisee')}
               value={state.franchisee === null ? '' : String(state.franchisee)}
               onChange={event => {
                 conditions.setFranchisee(event.target.value === 'true')
@@ -295,11 +342,15 @@ export default function SimulationConditionCompactEditor({
         </Field>
 
         <Field>
-          <FieldLabel>자치구</FieldLabel>
+          <FieldLabel>
+            자치구
+            {changedBadge('district')}
+          </FieldLabel>
           <SelectShell>
             <Select
               id={fieldId('district')}
               aria-label={`${label} 자치구`}
+              aria-describedby={describedBy('district')}
               value={state.districtCode ?? ''}
               onChange={event => conditions.setDistrict(event.target.value)}
             >
@@ -317,11 +368,15 @@ export default function SimulationConditionCompactEditor({
         </Field>
 
         <Field>
-          <FieldLabel>업종</FieldLabel>
+          <FieldLabel>
+            업종
+            {changedBadge('service')}
+          </FieldLabel>
           <SelectShell>
             <Select
               id={fieldId('service')}
               aria-label={`${label} 업종`}
+              aria-describedby={describedBy('service')}
               value={state.serviceCode ?? ''}
               onChange={event => conditions.setService(event.target.value)}
             >
@@ -339,10 +394,14 @@ export default function SimulationConditionCompactEditor({
         </Field>
 
         <Field>
-          <FieldLabel>층 구분</FieldLabel>
+          <FieldLabel>
+            층 구분
+            {changedBadge('floorType')}
+          </FieldLabel>
           <SelectShell>
             <Select
               aria-label={`${label} 층 구분`}
+              aria-describedby={describedBy('floorType')}
               value={state.floorType ?? ''}
               onChange={event => {
                 conditions.setFloorType(
@@ -370,7 +429,13 @@ export default function SimulationConditionCompactEditor({
         emphasized
         fieldSize="medium"
         inputMode="numeric"
-        label="매장 면적"
+        label={
+          <>
+            매장 면적
+            {changedBadge('storeSize')}
+          </>
+        }
+        aria-describedby={describedBy('storeSize')}
         // 칸 안 단위(㎡)는 TextField 의 slot 규약상 aria-hidden 이라 이름에 단위를 실어 준다.
         aria-label={`${label} 매장 면적 (제곱미터)`}
         placeholder="예: 66"
@@ -398,7 +463,10 @@ export default function SimulationConditionCompactEditor({
       {state.franchisee === true && state.serviceCode && brandPicked ? (
         <PickedRow id={fieldId('brand')}>
           <PickedValue>
-            <span>브랜드</span>
+            <span>
+              브랜드
+              {changedBadge('brand')}
+            </span>
             {/* 이름은 URL 의 표시용 brandName 에서 온다. 없으면 지어내지 않는다. */}
             <strong>{state.brandName ?? '선택한 브랜드'}</strong>
           </PickedValue>

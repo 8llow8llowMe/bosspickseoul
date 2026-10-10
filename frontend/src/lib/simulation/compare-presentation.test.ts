@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import {
   describeCompareConditionLine,
+  describeCompareSubmitHint,
+  listSimulationCompareDifferences,
   describeMirrorRowGap,
   describeSimulationCostGap,
   formatMirrorAmount,
   SIMULATION_COMPARE_NEUTRAL_NOTICE,
   toMirrorCostRows,
 } from '@/lib/simulation/compare-presentation'
+import { createSimulationConditionState } from '@/lib/simulation/conditions'
 import type { SimulationReport } from '@/types/simulation'
 
 const report = (
@@ -257,5 +260,57 @@ describe('describeCompareConditionLine', () => {
         brandName: '맛나감자탕',
       }),
     ).toBe('강동구 · 한식음식점 · 맛나감자탕 · 66㎡ (약 20평) · 1층')
+  })
+})
+
+/** #567 — B 는 A 복사본으로 시작하고, 바꾼 칸에만 「A와 다름」을 단다. */
+describe('listSimulationCompareDifferences', () => {
+  const a = createSimulationConditionState({
+    franchisee: true,
+    franchiseeId: 9,
+    brandName: '맛나감자탕',
+    districtCode: '11740',
+    serviceCode: 'CS100001',
+    storeSize: 66,
+    floorType: 'FIRST_FLOOR',
+  })
+
+  it('복사 직후에는 다른 칸이 없다', () => {
+    expect(listSimulationCompareDifferences(a, { ...a }).size).toBe(0)
+  })
+
+  it('바꾼 칸만 집는다 — 층만 바꾸면 층 하나', () => {
+    expect([
+      ...listSimulationCompareDifferences(a, { ...a, floorType: 'OTHER' }),
+    ]).toEqual(['floorType'])
+  })
+
+  it('자치구·면적·브랜드도 각각 집는다', () => {
+    const changed = listSimulationCompareDifferences(a, {
+      ...a,
+      districtCode: '11440',
+      storeSize: 40,
+      franchiseeId: 10,
+    })
+
+    expect([...changed].sort()).toEqual(['brand', 'district', 'storeSize'])
+  })
+
+  it('B 칸이 비어 있으면 다르다고 하지 않는다 — 비운 뒤 모든 칸에 배지가 붙지 않게', () => {
+    expect(
+      listSimulationCompareDifferences(a, createSimulationConditionState())
+        .size,
+    ).toBe(0)
+  })
+})
+
+describe('describeCompareSubmitHint', () => {
+  it('양쪽이 같은 계산이면 B 에서 바꿀 조건을 고르라고 한다', () => {
+    expect(describeCompareSubmitHint(true)).toBe(
+      '조건 B에서 하나 이상 바꾸면 비교할 수 있어요.',
+    )
+    expect(describeCompareSubmitHint(false)).toBe(
+      '양쪽 조건을 모두 고르면 비교할 수 있어요.',
+    )
   })
 })

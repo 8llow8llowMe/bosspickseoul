@@ -7,7 +7,10 @@
  */
 
 import { toCostBreakdown } from '@/lib/simulation/report-presentation'
-import { formatStoreSize } from '@/lib/simulation/conditions'
+import {
+  formatStoreSize,
+  type SimulationConditionState,
+} from '@/lib/simulation/conditions'
 import { formatLargeWon } from '@/lib/format'
 import type { SimulationCondition, SimulationReport } from '@/types/simulation'
 
@@ -183,3 +186,44 @@ export const describeMirrorRowGap = (row: MirrorCostRow): string | null => {
   const difference = Math.abs(row.leftAmount - row.rightAmount)
   return `${SIMULATION_COMPARE_SIDE_MARKS[lower]}가 ${formatLargeWon(difference)} 적어요`
 }
+
+/** 비교 편집기의 칸. 층과 면적은 한 섹션(매장 조건)이지만 편집기에서는 칸이 따로라 나눠 본다. */
+export type SimulationCompareField =
+  'franchisee' | 'district' | 'service' | 'brand' | 'storeSize' | 'floorType'
+
+/**
+ * B 가 A 와 **다르게 고른 칸**(#567). 편집기 칸 옆 「A와 다름」 배지가 이것을 쓴다.
+ *
+ * B 는 A 의 복사본으로 시작하므로(D-3) 처음에는 빈 집합이다. 사용자가 바꾼 칸만 드러나야 「무엇을 바꿔
+ * 비교하는가」가 한눈에 보인다. **B 칸이 비어 있으면 다르다고 하지 않는다** — 「조건 B 비우기」 뒤에 모든
+ * 칸에 배지가 붙으면 배지가 아무것도 가리키지 않는다. 브랜드는 아이디로 견준다(이름은 표시용이다).
+ */
+export const listSimulationCompareDifferences = (
+  base: SimulationConditionState,
+  target: SimulationConditionState,
+): ReadonlySet<SimulationCompareField> => {
+  const changed = new Set<SimulationCompareField>()
+  const differs = <T>(left: T | null, right: T | null): boolean =>
+    right !== null && left !== right
+
+  if (differs(base.franchisee, target.franchisee)) changed.add('franchisee')
+  if (differs(base.districtCode, target.districtCode)) changed.add('district')
+  if (differs(base.serviceCode, target.serviceCode)) changed.add('service')
+  if (differs(base.franchiseeId, target.franchiseeId)) changed.add('brand')
+  if (differs(base.storeSize, target.storeSize)) changed.add('storeSize')
+  if (differs(base.floorType, target.floorType)) changed.add('floorType')
+
+  return changed
+}
+
+/** 「A와 다름」 배지 문구. 화면과 테스트가 같은 문장을 쓰게 한 곳에 둔다. */
+export const SIMULATION_COMPARE_CHANGED_BADGE = `${SIMULATION_COMPARE_SIDE_MARKS.left}와 다름`
+
+/**
+ * `비교하기` 가 꺼져 있을 때 그 아래 한 줄. 양쪽이 같은 계산이면 무엇이 모자란지가 다르다 — B 는 A 복사본으로
+ * 시작하므로(#567) 처음 화면이 바로 이 상태다.
+ */
+export const describeCompareSubmitHint = (sameConditions: boolean): string =>
+  sameConditions
+    ? `${SIMULATION_COMPARE_SIDE_LABELS.right}에서 하나 이상 바꾸면 비교할 수 있어요.`
+    : '양쪽 조건을 모두 고르면 비교할 수 있어요.'

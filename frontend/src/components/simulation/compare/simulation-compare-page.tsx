@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Pencil, Scale } from 'lucide-react'
+import { ArrowLeft, Eraser, Pencil, Scale } from 'lucide-react'
 import styled from 'styled-components'
 
 import SimulationCompareColumns, {
@@ -25,10 +25,14 @@ import {
 import { getResponseBody } from '@/lib/api/response'
 import {
   describeCompareConditionLine,
+  describeCompareSubmitHint,
   SIMULATION_COMPARE_SIDE_LABELS,
   SIMULATION_COMPARE_SIDE_MARKS,
 } from '@/lib/simulation/compare-presentation'
-import type { SimulationConditionSection } from '@/lib/simulation/conditions'
+import {
+  isSameSimulationReportRequest,
+  type SimulationConditionSection,
+} from '@/lib/simulation/conditions'
 import {
   buildSimulationCompareHref,
   isSameSimulationComparePair,
@@ -50,6 +54,7 @@ import {
 import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditions'
 import type { SimulationReport } from '@/types/simulation'
 import { centeredColumn } from '@/styles/layout'
+import { touchHitArea } from '@/styles/touch-target'
 import { SIMULATION_MEDIA } from '@/components/simulation/simulation-media'
 
 export type SimulationComparePageProps = { variant?: SimulationReportVariant }
@@ -203,6 +208,21 @@ const EditorCard = styled.section`
   }
 `
 
+/* 편집기 제목 줄. 조건 B 쪽에만 「조건 B 비우기」가 붙는다(#567). */
+const EditorHead = styled.div`
+  min-height: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+`
+
+/* 보이는 높이는 medium(40px) 그대로 두고 ≤1023 에서 히트 영역만 44px 로 넓힌다. */
+const ClearButton = styled(Button)`
+  ${touchHitArea()}
+`
+
 const Submit = styled.div`
   display: flex;
   flex-direction: column;
@@ -283,7 +303,30 @@ export default function SimulationComparePage({
 
   const leftRequest = left.reportRequest
   const rightRequest = right.reportRequest
-  const canCalculate = leftRequest !== null && rightRequest !== null
+  /*
+    B 는 A 의 복사본으로 시작한다(#567, 결정 D-3). 양쪽이 같은 계산이면 비교할 것이 없다 — 막지 않으면
+    들어오자마자 같은 리포트를 두 번 POST 하고, 「같아요」만 늘어선 결과가 그려지며, ≤767 에서는 그 결과
+    때문에 편집기가 접혀 B 를 고치려면 「조건 고치기」부터 눌러야 한다.
+  */
+  const sameConditions = isSameSimulationReportRequest(
+    leftRequest,
+    rightRequest,
+  )
+  const canCalculate =
+    leftRequest !== null && rightRequest !== null && !sameConditions
+
+  /** 「조건 B 비우기」 뒤 편집기를 새로 마운트한다 — 면적 입력 원문·브랜드 변경 중 상태가 남지 않게. */
+  const [rightEditorKey, setRightEditorKey] = useState(0)
+  const clearRight = useCallback(() => {
+    right.reset()
+    setRightEditorKey(key => key + 1)
+    // 누른 버튼은 그대로 있지만, 다음에 할 일은 B 의 첫 칸을 고르는 것이다.
+    requestAnimationFrame(() => {
+      document
+        .getElementById(compareFieldDomId(EDITOR_ID_PREFIX.right, 'franchise'))
+        ?.focus()
+    })
+  }, [right])
 
   // 조회의 정본. 편집기가 아니라 **URL** 에서 뽑는다 — 이 둘이 갈라져 있는 것이 이 화면의 요점이다.
   const urlPair = useMemo(
@@ -291,10 +334,18 @@ export default function SimulationComparePage({
     [searchParams],
   )
   const { left: urlLeft, right: urlRight } = urlPair
+  /*
+    URL 의 양쪽이 같은 계산이면 조회하지 않는다. 입력 화면·리포트의 「다른 조건과 비교」가 B 에 A 를 복사해
+    여는 링크(`right: left`)가 바로 그 모양이다 — 사용자는 아직 무엇을 바꿀지 고르지 않았다.
+  */
+  const urlComparable =
+    urlLeft !== null &&
+    urlRight !== null &&
+    !isSameSimulationReportRequest(urlLeft, urlRight)
 
   const query = useQuery({
     queryKey:
-      urlLeft && urlRight
+      urlComparable && urlLeft && urlRight
         ? simulationComparePairQueryKey(urlLeft, urlRight)
         : [SIMULATION_COMPARE_QUERY_SCOPE, 'none'],
     queryFn: async () => {
@@ -317,7 +368,7 @@ export default function SimulationComparePage({
 
       return reports
     },
-    enabled: urlLeft !== null && urlRight !== null,
+    enabled: urlComparable,
     // 래퍼(SimulationPairError)를 벗겨 판정한다 — 그대로 넘기면 5xx·네트워크도 client 로 읽혀 재시도하지 않는다.
     retry: (failureCount, reason) =>
       retryUnlessClientError()(failureCount, unwrapSimulationPairError(reason)),
@@ -417,10 +468,7 @@ export default function SimulationComparePage({
    * `enabled: false` 인 동안 v5 의 `status` 는 계속 `'pending'` 이다 — `isPending` 만 보면
    * 조건을 고르기도 전에 스켈레톤이 깔린다. URL 이 완성됐을 때만 계산 중으로 친다.
    */
-  const isCalculating =
-    urlLeft !== null &&
-    urlRight !== null &&
-    (query.isPending || query.isFetching)
+  const isCalculating = urlComparable && (query.isPending || query.isFetching)
 
   /**
    * 결과가 **지금 편집기 조건**의 결과인가(C2). 편집기를 고치면 URL(결과의 정본)은 그대로라 이전
@@ -554,11 +602,25 @@ export default function SimulationComparePage({
             <EditorCard
               aria-label={`${SIMULATION_COMPARE_SIDE_LABELS.right} 조건`}
             >
-              <h2>{SIMULATION_COMPARE_SIDE_LABELS.right}</h2>
+              <EditorHead>
+                <h2>{SIMULATION_COMPARE_SIDE_LABELS.right}</h2>
+                {/* 한 가지만 바꿔 보는 비교가 대부분이라 B 는 A 복사본으로 연다. 처음부터 고르려는 사람의 출구다. */}
+                <ClearButton
+                  type="button"
+                  size="medium"
+                  variant="ghost"
+                  leftIcon={<Eraser />}
+                  onClick={clearRight}
+                >
+                  {`${SIMULATION_COMPARE_SIDE_LABELS.right} 비우기`}
+                </ClearButton>
+              </EditorHead>
               <SimulationConditionCompactEditor
+                key={rightEditorKey}
                 label={SIMULATION_COMPARE_SIDE_LABELS.right}
                 conditions={right}
                 idPrefix={EDITOR_ID_PREFIX.right}
+                reference={left.state}
               />
             </EditorCard>
           </Editors>
@@ -578,7 +640,9 @@ export default function SimulationComparePage({
             </Button>
             {/* 무엇이 남았는지는 각 편집기가 자기 gap 으로 말한다. 여기서는 "양쪽이 필요하다"만. */}
             {canCalculate ? null : (
-              <SubmitHint>양쪽 조건을 모두 고르면 비교할 수 있어요.</SubmitHint>
+              <SubmitHint>
+                {describeCompareSubmitHint(sameConditions)}
+              </SubmitHint>
             )}
           </Submit>
         </Editing>

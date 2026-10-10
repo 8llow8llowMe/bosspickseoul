@@ -43,6 +43,8 @@ export type SimulationConditionsController = {
     districtCode?: string | null
     serviceCode?: string | null
   }) => void
+  /** 조건을 모두 비운다. 비교 화면의 「조건 B 비우기」용(#567). 고정된 분기는 그대로 둔다. */
+  reset: () => void
 }
 
 /**
@@ -132,6 +134,10 @@ export const useSimulationConditions = (
     [update],
   )
 
+  const reset = useCallback(() => {
+    update(() => createSimulationConditionState())
+  }, [update])
+
   const isSectionComplete = useCallback(
     (section: SimulationConditionSection) =>
       isSimulationSectionComplete(state, section),
@@ -164,5 +170,6 @@ export const useSimulationConditions = (
     setStoreSize,
     setFloorType,
     restoreDistrictAndService,
+    reset,
   }
 }
