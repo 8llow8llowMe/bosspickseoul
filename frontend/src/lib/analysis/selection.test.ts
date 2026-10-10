@@ -14,7 +14,7 @@ import {
   selectAdministrationWithParent,
   selectAnalysisValue,
   selectCommercialWithParents,
-  shouldAutoNavigateToAnalysis,
+  resolveSelectionHistoryMode,
   type AnalysisSelection,
 } from '@/lib/analysis/selection'
 
@@ -45,13 +45,13 @@ describe('analysis period helpers', () => {
 })
 
 describe('analysis selection', () => {
-  it('상위 선택을 바꾸면 하위 선택을 초기화한다', () => {
+  it('상위 지역을 바꾸면 하위 지역은 초기화하고 업종은 유지한다 (#562)', () => {
     expect(selectAnalysisValue(completeSelection, 'district', '11710')).toEqual(
       {
         districtCode: '11710',
         administrationCode: null,
         commercialCode: null,
-        serviceCode: null,
+        serviceCode: 'CS100001',
         periodCode: null,
       },
     )
@@ -61,8 +61,27 @@ describe('analysis selection', () => {
       ...completeSelection,
       administrationCode: '11680645',
       commercialCode: null,
-      serviceCode: null,
     })
+  })
+
+  it('업종이 남아 있어도 다음 활성 단계는 비어 있는 지역 단계다', () => {
+    const next = selectAnalysisValue(completeSelection, 'district', '11710')
+    expect(getActiveAnalysisStep(next)).toBe('administration')
+    expect(isCompleteAnalysisSelection(next)).toBe(false)
+  })
+
+  it('지도로 행정동을 골라도 같은 업종 유지 규칙을 쓴다', () => {
+    const fromList = selectAnalysisValue(
+      completeSelection,
+      'administration',
+      '11215530',
+    )
+    const fromMap = selectAdministrationWithParent(
+      completeSelection,
+      '11215530',
+    )
+    expect(fromList.serviceCode).toBe('CS100001')
+    expect(fromMap.serviceCode).toBe('CS100001')
   })
 
   it('상권만 바꿔도 업종은 유지한다', () => {
@@ -209,6 +228,14 @@ describe('selectAdministrationWithParent', () => {
     expect(r.commercialCode).toBeNull()
     expect(r.serviceCode).toBeNull()
   })
+
+  it('고른 업종은 남긴다 (#562)', () => {
+    const r = selectAdministrationWithParent(
+      { ...createEmptyAnalysisSelection(), serviceCode: 'CS100010' },
+      '11215530',
+    )
+    expect(r.serviceCode).toBe('CS100010')
+  })
 })
 
 describe('selectCommercialWithParents', () => {
@@ -228,28 +255,15 @@ describe('selectCommercialWithParents', () => {
   })
 })
 
-describe('shouldAutoNavigateToAnalysis', () => {
-  it('4개 코드 모두 있으면 true', () => {
-    expect(
-      shouldAutoNavigateToAnalysis({
-        districtCode: '11215',
-        administrationCode: '11215530',
-        commercialCode: '3110954',
-        serviceCode: 'CS100010',
-        periodCode: null,
-      }),
-    ).toBe(true)
+describe('resolveSelectionHistoryMode (#562, map-shell.md D5 히스토리 정책)', () => {
+  it('자치구·행정동·상권 확정은 push 라 뒤로가기가 이전 단계로 간다', () => {
+    expect(resolveSelectionHistoryMode('district')).toBe('push')
+    expect(resolveSelectionHistoryMode('administration')).toBe('push')
+    expect(resolveSelectionHistoryMode('commercial')).toBe('push')
   })
-  it('하나라도 없으면 false', () => {
-    expect(
-      shouldAutoNavigateToAnalysis({
-        districtCode: '11215',
-        administrationCode: '11215530',
-        commercialCode: null,
-        serviceCode: 'CS100010',
-        periodCode: null,
-      }),
-    ).toBe(false)
+
+  it('업종은 마지막 단계의 값 교체라 replace 다', () => {
+    expect(resolveSelectionHistoryMode('service')).toBe('replace')
   })
 })
 

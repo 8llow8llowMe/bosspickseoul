@@ -101,12 +101,18 @@ export const selectAnalysisValue = (
 ): AnalysisSelection => {
   const value = code.trim() || null
 
+  /*
+    자치구·행정동을 바꿔도 **업종은 남긴다**(#562). 같은 업종으로 다른 동네 상권을 보는 것이
+    이 화면의 주된 쓰임인데, 지역을 바꿀 때마다 업종이 사라지면 31개 목록에서 다시 골라야 했다.
+    새 상권에 그 업종이 없으면 업종 목록이 도착한 뒤 `analysis-map-shell` 의 정합성 효과가
+    URL 에서 지운다 — 상권 단계와 같은 방식이다.
+  */
   if (step === 'district') {
     return {
       districtCode: value,
       administrationCode: null,
       commercialCode: null,
-      serviceCode: null,
+      serviceCode: selection.serviceCode,
       periodCode: selection.periodCode,
     }
   }
@@ -116,7 +122,6 @@ export const selectAnalysisValue = (
       ...selection,
       administrationCode: value,
       commercialCode: null,
-      serviceCode: null,
     }
   }
 
@@ -235,7 +240,8 @@ export const selectAdministrationWithParent = (
   districtCode: resolveDistrictCodeFromAdministration(administrationCode),
   administrationCode,
   commercialCode: null,
-  serviceCode: null,
+  // 목록 경로(`selectAnalysisValue`)와 같은 업종 유지 규칙(#562).
+  serviceCode: selection.serviceCode,
   periodCode: selection.periodCode,
 })
 
@@ -256,12 +262,16 @@ export const selectCommercialWithParents = (
   periodCode: selection.periodCode,
 })
 
-export const shouldAutoNavigateToAnalysis = (
-  selection: AnalysisSelection,
-): boolean =>
-  Boolean(
-    selection.districtCode &&
-    selection.administrationCode &&
-    selection.commercialCode &&
-    selection.serviceCode,
-  )
+/**
+ * 단계 선택을 히스토리에 어떻게 남길지(#562, map-shell.md D5 히스토리 정책).
+ *
+ * 자치구·행정동·상권은 **단계를 확정하는 선택**이라 `push` 다 — 브라우저 뒤로가기가 분석
+ * 화면 밖이 아니라 이전 단계로 돌아가야 한다. 업종은 마지막 단계에서 값만 바꾸는 선택이라
+ * `replace` 다. 업종을 바꿀 때마다 히스토리가 쌓이면 뒤로가기로 상권 단계에 닿기까지 여러 번
+ * 눌러야 한다. 카메라 이동·정합성 정리는 이 함수를 거치지 않고 항상 `replace` 다.
+ */
+export type SelectionHistoryMode = 'push' | 'replace'
+
+export const resolveSelectionHistoryMode = (
+  step: AnalysisStep,
+): SelectionHistoryMode => (step === 'service' ? 'replace' : 'push')

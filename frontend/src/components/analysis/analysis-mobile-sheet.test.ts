@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -5,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import AnalysisMobileSheet from '@/components/analysis/analysis-mobile-sheet'
 
 describe('AnalysisMobileSheet', () => {
-  it('기본 접힘 상태와 접근 가능한 토글을 제공한다', () => {
+  it('펼친 채로 시작하고 접근 가능한 토글을 제공한다 (#562)', () => {
     const markup = renderToStaticMarkup(
       createElement(
         AnalysisMobileSheet,
@@ -17,9 +20,26 @@ describe('AnalysisMobileSheet', () => {
       ),
     )
 
-    expect(markup).toContain('aria-expanded="false"')
-    expect(markup).toContain('선택 패널 펼치기')
+    expect(markup).toContain('aria-expanded="true"')
+    expect(markup).toContain('data-sheet-snap="expanded"')
+    expect(markup).toContain('선택 패널 접기')
     expect(markup).toContain('자치구 선택')
+    // 첫 화면부터 본문(인기 상권 지름길·추천 링크가 들어가는 자리)이 보조기술에도 열려 있다.
+    expect(markup).toContain('aria-hidden="false"')
+  })
+
+  it('펼친 높이는 지도에 BOTTOM_SHEET_MINIMUM_MAP_HEIGHT 를 남기는 상한을 쓴다', () => {
+    const source = readFileSync(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        './analysis-mobile-sheet.tsx',
+      ),
+      'utf-8',
+    )
+    expect(source).toContain(
+      'calc(100% - ${BOTTOM_SHEET_MINIMUM_MAP_HEIGHT}px)',
+    )
+    expect(source).toContain("useState<BottomSheetSnap>('expanded')")
   })
 
   it('aiReport가 있으면 선택 뷰에서 진입 칩을 렌더한다', () => {

@@ -147,6 +147,66 @@ describe('지도 셸 배선', () => {
   })
 })
 
+/** `const name` 부터 다음 최상위(2칸 들여쓰기) `const` 직전까지 — 핸들러 하나의 본문. */
+const sliceHandler = (code: string, name: string) => {
+  const start = code.indexOf(`const ${name}`)
+  const rest = code.slice(start + 1)
+  const end = rest.search(/\n {2}const /)
+  return end === -1 ? rest : rest.slice(0, end)
+}
+
+describe('단계 선택의 히스토리 (#562, TC-MS-039)', () => {
+  const code = readCode(`${componentDir}/analysis-map-shell.tsx`)
+
+  it('단계 선택은 한 통로(navigateSelection)로 push/replace 규칙을 탄다', () => {
+    const navigate = sliceHandler(code, 'navigateSelection')
+    expect(navigate).toContain('resolveSelectionHistoryMode(step)')
+    expect(navigate).toContain('router.push(href)')
+    expect(navigate).toContain('router.replace(href)')
+  })
+
+  it('목록·지도·인기 상권 선택이 모두 그 통로를 쓰고 router 를 직접 부르지 않는다', () => {
+    for (const name of [
+      'handleSelect',
+      'handleMapSelect',
+      'handlePopularCommercialJump',
+    ]) {
+      const body = sliceHandler(code, name)
+      expect(body, name).toContain('navigateSelection(')
+      expect(body, name).not.toContain('router.replace(')
+      expect(body, name).not.toContain('router.push(')
+    }
+  })
+
+  it('지도 클릭의 단계 확정은 각 단계 이름으로 넘긴다', () => {
+    const body = sliceHandler(code, 'handleMapSelect')
+    expect(body).toContain("navigateSelection('district'")
+    expect(body).toContain("navigateSelection('administration'")
+    expect(body).toMatch(/navigateSelection\(\s*'commercial'/)
+  })
+
+  it('상권을 고를 때 비어 있는 업종을 마지막으로 쓴 업종으로 채운다', () => {
+    for (const name of [
+      'handleSelect',
+      'handleMapSelect',
+      'handlePopularCommercialJump',
+    ]) {
+      expect(sliceHandler(code, name), name).toContain(
+        'applyRememberedService(',
+      )
+    }
+  })
+
+  it('정합성 정리(없는 코드 지우기)는 히스토리를 늘리지 않는 replace 다', () => {
+    const validation = code.slice(
+      code.indexOf('selection.serviceCode &&\n      services.length > 0'),
+      code.indexOf('selection.serviceCode &&\n      services.length > 0') + 400,
+    )
+    expect(validation).toContain('router.replace(')
+    expect(validation).not.toContain('router.push(')
+  })
+})
+
 describe('결과 레이어 배선 (TC-MS-043)', () => {
   const src = read(`${componentDir}/analysis-result-layer.tsx`)
 

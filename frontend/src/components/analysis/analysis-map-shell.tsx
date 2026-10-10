@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -26,7 +27,6 @@ import AnalysisSelectionPanel, {
 } from '@/components/analysis/analysis-selection-panel'
 import AiReportBody from '@/components/analysis/ai-report-body'
 import AiReportCard from '@/components/analysis/ai-report/ai-report-card'
-import AiReportLockCard from '@/components/analysis/ai-report/ai-report-lock-card'
 import AiReportPanel from '@/components/analysis/ai-report/ai-report-panel'
 import {
   buildAiLevelKey,
@@ -61,8 +61,17 @@ import {
   selectAdministrationWithParent,
   selectAnalysisValue,
   selectCommercialWithParents,
+  resolveSelectionHistoryMode,
+  type AnalysisSelection,
   type AnalysisStep,
 } from '@/lib/analysis/selection'
+import {
+  applyRememberedService,
+  getLastAnalysisServiceSnapshot,
+  parseRememberedAnalysisService,
+  rememberLastAnalysisService,
+  subscribeLastAnalysisService,
+} from '@/lib/analysis/last-service'
 import { resolveMapLayerByZoom, type MapLayer } from '@/lib/analysis/map-layer'
 import {
   CAMERA_LEVEL_BY_DEPTH,
@@ -404,7 +413,6 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
   const openedByPushRef = useRef(false)
 
   const hasHydrated = useAuthStore(state => state.hasHydrated)
-  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
 
   const aiLevel = resolveAiReportLevel(selection)
   const aiCode = aiLevel ? resolveAiReportTargetCode(selection, aiLevel) : null
@@ -421,19 +429,16 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     setAiPanelOpen(false)
   }
 
-  // 로그인 사용자만 카드를 클릭해 패널을 연다. 비로그인은 잠금 카드가 CTA를
-  // 직접 노출하므로 이 핸들러가 호출될 일이 없다. AI 상태·재시도·결과 링크는
-  // 이제 AiReportBody가 selection으로 직접 소유한다.
+  /*
+    로그인 여부와 상관없이 지도 왼쪽 위 「AI 요약 보기」 칩으로 시작하고, 누르면 패널을 연다(#586).
+    예전에는 게스트에게 흐린 가짜 문단 + 로그인 버튼 카드(약 318×560)를 지도 위에 바로 띄워
+    고른 상권 경계를 가렸다. 잠금 안내와 로그인 버튼은 이제 패널 안 `AiReportBody` 의 인사이트
+    칸이 보여 준다(모바일 시트와 같은 구성). AI 상태·재시도·결과 링크도 `AiReportBody` 가
+    selection 으로 직접 소유한다.
+  */
   const handleAiCardOpen = () => {
     setAiPanelOpen(true)
   }
-
-  // 비로그인 잠금 카드의 CTA가 사용할 returnUrl 로그인 링크.
-  const aiLoginHref = (() => {
-    const search = searchParams.toString()
-    const currentHref = search ? `${pathname}?${search}` : pathname
-    return `/login?redirect=${encodeURIComponent(currentHref)}`
-  })()
 
   /*
     탐색 화면의 자치구 목록은 표시용 「최신」이다 — 분기를 생략해 서버가 해석하게 한다
@@ -819,6 +824,20 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     [activeQueryData, activeQueryError],
   )
 
+  /**
+   * 마지막으로 쓴 업종(#562). 서버 렌더에는 없고(`null`) 하이드레이션 뒤 브라우저 저장소에서
+   * 읽는다 — 렌더 중 `localStorage` 를 직접 읽으면 서버·클라이언트 마크업이 어긋난다.
+   */
+  const rememberedServiceRaw = useSyncExternalStore(
+    subscribeLastAnalysisService,
+    getLastAnalysisServiceSnapshot,
+    () => null,
+  )
+  const rememberedService = useMemo(
+    () => parseRememberedAnalysisService(rememberedServiceRaw),
+    [rememberedServiceRaw],
+  )
+
   const selectedNames: Partial<Record<AnalysisStep, string>> = useMemo(
     () => ({
       district: districtCandidates.find(
@@ -830,15 +849,23 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       commercial: commercialCandidates.find(
         item => item.code === selection.commercialCode,
       )?.name,
-      service: serviceCandidates.find(
-        item => item.code === selection.serviceCode,
-      )?.name,
+      /*
+        업종 이름은 상권을 고른 뒤에야 목록으로 온다. 자치구·행정동을 바꾸는 동안 남아 있는
+        업종(#562)은 기억해 둔 이름으로 보여 준다 — 그래야 업종이 유지된다는 게 단계 탭에 보인다.
+      */
+      service:
+        serviceCandidates.find(item => item.code === selection.serviceCode)
+          ?.name ??
+        (rememberedService && rememberedService.code === selection.serviceCode
+          ? rememberedService.name
+          : undefined),
     }),
     [
       districtCandidates,
       administrationCandidates,
       commercialCandidates,
       serviceCandidates,
+      rememberedService,
       selection,
     ],
   )
@@ -863,17 +890,13 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
   const aiTargetName =
     (namedLevel ? selectedNames[namedLevel] : undefined) ?? aiCode ?? ''
 
-  // 로그인 사용자는 카드→패널 흐름을, 비로그인은 잠금 카드(CTA)를 노출한다.
-  const {
-    showCard: showAiCard,
-    showLockCard: showAiLockCard,
-    showPanel: showAiPanel,
-  } = resolveAiReportVisibility({
-    hydrated: hasHydrated,
-    isLoggedIn,
-    levelKey: aiLevelKey,
-    panelOpen: aiPanelOpen,
-  })
+  // 로그인 여부와 상관없이 칩 → 패널 흐름이다(#586). 잠금은 패널 안에서 안내한다.
+  const { showCard: showAiCard, showPanel: showAiPanel } =
+    resolveAiReportVisibility({
+      hydrated: hasHydrated,
+      levelKey: aiLevelKey,
+      panelOpen: aiPanelOpen,
+    })
 
   const mapAreas =
     mapLayer === 'district'
@@ -903,20 +926,43 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
         ? '표시할 지도 영역이 없어요. 목록에서 지역을 선택해 주세요.'
         : null
 
+  /**
+   * 단계 선택을 URL 에 반영한다. 자치구·행정동·상권은 `push`, 업종은 `replace` 다
+   * (`resolveSelectionHistoryMode`, #562) — 뒤로가기가 분석 화면 밖이 아니라 이전 단계로 간다.
+   * 카메라 갱신·정합성 정리는 이 함수를 쓰지 않고 항상 `replace` 다.
+   */
+  const navigateSelection = useCallback(
+    (step: AnalysisStep, next: AnalysisSelection) => {
+      const href = createAnalysisExplorerHref(next, camera)
+      if (resolveSelectionHistoryMode(step) === 'push') router.push(href)
+      else router.replace(href)
+    },
+    [camera, router],
+  )
+
   const handleSelect = useCallback(
     (step: AnalysisStep, code: string) => {
-      const next = selectAnalysisValue(selection, step, code)
-      router.replace(createAnalysisExplorerHref(next, camera))
+      const selected = selectAnalysisValue(selection, step, code)
+      // 상권을 고르는 순간 업종이 비어 있으면 마지막으로 쓴 업종을 기본값으로 둔다(#562).
+      const next =
+        step === 'commercial'
+          ? applyRememberedService(selected, rememberedService)
+          : selected
+      navigateSelection(step, next)
+      if (step === 'service') {
+        const name = serviceCandidates.find(item => item.code === code)?.name
+        if (name) rememberLastAnalysisService({ code, name })
+      }
       setRequestedStep(getNextStep(step))
       setPreviewedCode(null)
     },
-    [camera, selection, router],
+    [navigateSelection, rememberedService, selection, serviceCandidates],
   )
 
   const handleMapSelect = (code: string) => {
     if (mapLayer === 'district') {
       const next = selectAnalysisValue(selection, 'district', code)
-      router.replace(createAnalysisExplorerHref(next, camera))
+      navigateSelection('district', next)
       setRequestedStep('administration')
       setPreviewedCode(null)
       requestFit(code, ADMINISTRATION_ZOOM_LEVEL)
@@ -924,7 +970,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     }
     if (mapLayer === 'administration') {
       const next = selectAdministrationWithParent(selection, code)
-      router.replace(createAnalysisExplorerHref(next, camera))
+      navigateSelection('administration', next)
       setRequestedStep('commercial')
       setPreviewedCode(null)
       requestFit(code, COMMERCIAL_ZOOM_LEVEL)
@@ -940,13 +986,16 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
           allAdministrationAreas,
         )
       : null
-    const next = admin
+    const selected = admin
       ? selectCommercialWithParents(selection, {
           commercialCode: code,
           administrationCode: String(admin.areaCode),
         })
       : selectAnalysisValue(selection, 'commercial', code)
-    router.replace(createAnalysisExplorerHref(next, camera))
+    navigateSelection(
+      'commercial',
+      applyRememberedService(selected, rememberedService),
+    )
     setRequestedStep('service')
     setPreviewedCode(null)
     // 상권 선택 완료 → 다음은 업종 선택. 모바일 시트를 펼쳐 선택을 유도한다.
@@ -964,8 +1013,8 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
 
   /**
    * 인기 상권 지름길. 역조회가 준 상위 코드로 **4단계 중 3개를 한 번에** 채우고
-   * 업종 선택으로 보낸다. 업종은 사용자가 골라야 하므로 결과로 자동 진입하지 않는다
-   * (`shouldAutoNavigateToAnalysis` 도 4개를 요구한다).
+   * 업종 선택으로 보낸다. 업종은 사용자가 확인해야 하므로 결과로 자동 진입하지 않는다.
+   * 마지막으로 쓴 업종이 있으면 기본값으로 채워 두기만 한다(#562).
    *
    * 카메라는 따로 옮겨야 한다. 역조회는 **코드만** 주고, `fitTo.code` 는 이미 로드된
    * 영역에서만 목표를 찾으므로 다른 자치구로 건너뛰면 조용히 아무 일도 일어나지 않는다.
@@ -976,11 +1025,14 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
    */
   const handlePopularCommercialJump = useCallback(
     (target: PopularCommercialJump) => {
-      const next = selectCommercialWithParents(selection, {
-        commercialCode: target.commercialCode,
-        administrationCode: target.administrationCode,
-      })
-      router.replace(createAnalysisExplorerHref(next, camera))
+      const next = applyRememberedService(
+        selectCommercialWithParents(selection, {
+          commercialCode: target.commercialCode,
+          administrationCode: target.administrationCode,
+        }),
+        rememberedService,
+      )
+      navigateSelection('commercial', next)
       setRequestedStep('service')
       setPreviewedCode(null)
 
@@ -1012,7 +1064,13 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
         })
         .catch(() => undefined)
     },
-    [camera, queryClient, requestFitToCenter, router, selection],
+    [
+      navigateSelection,
+      queryClient,
+      rememberedService,
+      requestFitToCenter,
+      selection,
+    ],
   )
 
   // 패널 재시도/제출 콜백 안정화. activeQuery는 매 렌더 새 객체라 latest-ref로 참조.
@@ -1025,14 +1083,22 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     [],
   )
   /**
-   * 결과 레이어 열기. 히스토리 정책상 **유일한 `push`** 다 — 브라우저 뒤로가기로
+   * 결과 레이어 열기. 단계 확정(`navigateSelection`)과 함께 `push` 다 — 브라우저 뒤로가기로
    * 자연스럽게 닫히게 하기 위해서다(D5). 셸이 직접 push 했음을 ref 에 남겨,
    * 닫기가 `back()` 을 쓸 수 있는지 판정한다(D4-5).
    */
+  const submittedServiceName = selectedNames.service
   const handlePanelSubmit = useCallback(() => {
+    // 결과까지 간 업종을 다음 방문의 기본값으로 기억한다(#562).
+    if (selection.serviceCode && submittedServiceName) {
+      rememberLastAnalysisService({
+        code: selection.serviceCode,
+        name: submittedServiceName,
+      })
+    }
     openedByPushRef.current = true
     router.push(createAnalysisResultHref(selection, 'summary', camera))
-  }, [camera, router, selection])
+  }, [camera, router, selection, submittedServiceName])
 
   // 모바일 시트: 데스크탑의 카드→패널 게이팅과 달리, 리포트가 가용한 레벨(aiLevelKey)
   // 이면 진입 칩을 노출하고 리포트 뷰에서 AiReportBody를 직접 렌더한다(미인증 잠금은
@@ -1116,8 +1182,6 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
         aiReportCard={
           showAiCard && aiLevelKey ? (
             <AiReportCard targetName={aiTargetName} onOpen={handleAiCardOpen} />
-          ) : showAiLockCard && aiLevel ? (
-            <AiReportLockCard level={aiLevel} loginHref={aiLoginHref} />
           ) : null
         }
         aiReportPanel={
