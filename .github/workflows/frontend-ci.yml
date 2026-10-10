@@ -7,7 +7,7 @@ name: frontend-ci
 # `frontend-web` 라벨이 붙어야 생기고(`Github label filter`), 결과가 Jenkins 화면에 있다.
 # 이쪽은 라벨과 무관하게 돌고 결과를 PR 에서 바로 보여 준다.
 #
-# `e2e` 는 백엔드 없이 도는 Playwright 슈트(커뮤니티·인증·레이아웃·홈 불변식·상권분석 시트)를 프로덕션 빌드로
+# `e2e` 는 백엔드 없이 도는 Playwright 슈트(커뮤니티·인증·레이아웃·홈 불변식·상권분석 시트·추천 시트)를 프로덕션 빌드로
 # 돈다(#477, #632). Jenkins 빌드 에이전트에는 Chromium 과 시스템 의존성이 없어서, Jenkins 대신
 # 이 워크플로에 붙였다. Actions 러너는 `playwright install --with-deps` 가 바로 된다(`frontend/docs/runbook/qa.md` §2).
 #
@@ -139,9 +139,10 @@ jobs:
   # - `e2e/layout` — 없는 주소의 404·셸 하나·h1, 기능 루트 redirect(응답만 본다)
   # - `e2e/home/invariants.spec.ts` — 홈 가로 넘침·h1·링크·콘솔 오류·합니다체 0·첫 페인트 BFF 호출 ≤3
   # - `e2e/analysis` — 상권분석 모바일 시트 첫 화면 자리(지름길 위치·카드 줄 수·목록 필터 고정, #648)
+  # - `e2e/recommend` — 추천 모바일 시트 목록이 끝까지 스크롤되고 마지막 항목을 누를 수 있다·거터 16px(#647)
   #
   # **백엔드 없이 돈다.** 브라우저가 내보내는 BFF·`/api/auth/*` 호출은 슈트마다 고정 응답으로
-  # 가로채고(`e2e/fixtures/community.ts`·`e2e/fixtures/home.ts`·`e2e/fixtures/analysis.ts`·`e2e/auth/signup-to-login.spec.ts`),
+  # 가로채고(`e2e/fixtures/community.ts`·`e2e/fixtures/home.ts`·`e2e/fixtures/analysis.ts`·`e2e/fixtures/recommend.ts`·`e2e/auth/signup-to-login.spec.ts`),
   # 가로채지 못한 `/api/bff/*` 호출은 501 로 막아 테스트를 실패시킨다. 레이아웃 슈트는 BFF 를 부르지
   # 않는다(세션 쿠키가 없으면 `/api/auth/me` 는 백엔드에 가지 않는다). 그래서 서버에는 자리표시자 env 만 준다.
   #
@@ -246,7 +247,7 @@ jobs:
           exit 1
 
       # `--fail-on-flaky-tests` — 재시도에서 통과한 테스트도 실패로 센다(위 잡 주석).
-      - run: pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts e2e/analysis --fail-on-flaky-tests
+      - run: pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts e2e/analysis e2e/recommend --fail-on-flaky-tests
 
       # **실패했을 때만 올린다.** trace(`test-results/`)로 어느 단언에서 무엇이 그려졌는지 본다.
       # 세션 쿠키는 테스트가 만든 가짜 값이라 실데이터가 담기지 않는다.

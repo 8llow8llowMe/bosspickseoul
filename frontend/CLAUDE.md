@@ -59,7 +59,7 @@ React/Vite → Next.js App Router 마이그레이션 작업 영역이며, **작�
 
 브라우저 실측 회귀는 `pnpm test:e2e` (Playwright) 로 **따로** 돌린다 — 서버와 브라우저가 필요해
 `qa:verify` 에 넣지 않았다. CI 는 GitHub Actions `frontend-ci / e2e` 가 백엔드 없이 도는 슈트
-(커뮤니티·인증·레이아웃·홈 불변식)를 돈다. 홈 래칫·히어로·미니 지도는 로컬 전용이다.
+(커뮤니티·인증·레이아웃·홈 불변식·상권분석 시트·추천 시트)를 돈다. 홈 래칫·히어로·미니 지도는 로컬 전용이다.
 규칙은 `docs/runbook/qa.md` §2.
 
 ## PR 생성 규약
