@@ -20,11 +20,11 @@ import {
   COMMUNITY_COMMENT_ALREADY_DELETED,
   COMMUNITY_COMMENT_DELETE_FAILED,
   countHiddenCommunityComments,
-  createDeferredCommit,
   filterHiddenCommunityComments,
   getCommunityCommentDeleteToastKey,
   undoCommunityCommentDelete,
 } from '@/lib/community/comment-delete'
+import { createDeferredCommit } from '@/lib/ui/deferred-commit'
 import { realCommunitySource } from '@/lib/community/community-data-source'
 import {
   communityMockSource,
@@ -598,7 +598,12 @@ export default function CommunityDetailPage({
   const getCommentDeleteQueue = () => {
     commentDeleteQueueRef.current ??= createDeferredCommit<CommunityId>({
       delayMs: TOAST_ACTION_DURATION_MS,
+      /*
+        되돌리기 기한은 10초로 고정이다. 토스트는 읽는 동안(hover·focus) 멈추지만 기한은 멈추지 않으므로, DELETE 를
+        보내는 순간 그 토스트를 닫는다 — 남겨 두면 되돌릴 것이 없는 「되돌리기」 버튼이 된다(#584).
+      */
       commit: commentId => {
+        dismissToast(getCommunityCommentDeleteToastKey(commentId))
         runCommentDeleteRef.current(commentId)
       },
     })

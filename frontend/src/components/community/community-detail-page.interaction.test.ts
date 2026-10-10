@@ -348,6 +348,31 @@ describe('댓글 지연 삭제 — 되돌리기 기간이 지나면(#581)', () =
     )
   })
 
+  it('토스트를 읽는 동안(hover)에도 기한은 10초로 고정 — 기한이 지나면 DELETE 를 보내고 되돌리기 토스트를 닫는다', async () => {
+    const deleteComment = vi
+      .spyOn(communityMockSource, 'deleteComment')
+      .mockResolvedValue(ok(null))
+    renderPage()
+    await waitForArticle()
+    useSkippableTimers()
+
+    await deleteOwnReply()
+    const undo = button('되돌리기')
+    expect(undo).not.toBeNull()
+    // 버튼 → 본문 → 카드. 포인터가 카드 위에 있으면 토스트의 자동 해제는 멈춘다.
+    fireEvent.pointerEnter(undo!.parentElement!.parentElement!)
+
+    await act(async () => {
+      vi.advanceTimersByTime(TOAST_ACTION_DURATION_MS)
+    })
+
+    await waitFor(() => {
+      expect(deleteComment).toHaveBeenCalledExactlyOnceWith('1', '102')
+    })
+    expect(button('되돌리기')).toBeNull()
+    expect(document.body.textContent).not.toContain('댓글을 삭제했어요.')
+  })
+
   /* 목 소스에서 실제로 지운다 — 이 파일의 마지막 테스트로 둔다. */
   it('지나면 DELETE 를 보내고, 다시 받은 뒤에 숨김을 풀어 지운 댓글이 한 번도 다시 비치지 않는다', async () => {
     const deleteComment = vi.spyOn(communityMockSource, 'deleteComment')

@@ -143,6 +143,25 @@ describe('useUndoableRemoval', () => {
     expect(screen.getByText('a 삭제')).toBeTruthy()
   })
 
+  it('토스트를 읽는 동안(hover) 토스트는 멈추지만 기한은 10초로 고정 — 기한이 지나면 DELETE 를 보내고 토스트도 닫는다', async () => {
+    const commit = vi.fn(async () => undefined)
+    renderHarness(commit)
+
+    fireEvent.click(screen.getByText('a 삭제'))
+    const undo = screen.getByRole('button', { name: UNDO_ACTION_LABEL })
+    // 버튼 → 본문 → 카드. 포인터가 카드 위에 있으면 토스트의 자동 해제는 멈춘다.
+    fireEvent.pointerEnter(undo.parentElement!.parentElement!)
+
+    await act(async () => {
+      vi.advanceTimersByTime(TOAST_ACTION_DURATION_MS)
+    })
+
+    await waitFor(() => expect(commit).toHaveBeenCalledExactlyOnceWith('a'))
+    // 되돌릴 것이 없는 「되돌리기」를 남기지 않는다.
+    expect(screen.queryByRole('button', { name: UNDO_ACTION_LABEL })).toBeNull()
+    expect(text()).not.toContain('항목 a을 삭제했어요.')
+  })
+
   it('화면을 떠나면 기다리던 삭제를 바로 보내고 되돌리기 토스트를 닫는다', async () => {
     const commit = vi.fn(async () => undefined)
 
