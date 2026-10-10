@@ -261,10 +261,22 @@ describe('PopularDistricts — 듀얼 랭킹', () => {
     expect(html).toContain('들지 않았어요')
   })
 
-  it('지표 쪽 변화율에는 부호를 붙인다', () => {
+  /*
+    #600(진단 H12). 판단 흐름 01 단계 「자치구 순위 상위 5곳」이 같은 지표·같은 구를 이미 목록으로
+    보여 준다. 여기서는 목록을 다시 그리지 않고 지도 칠·범례와 인사이트 한 줄이 지표를 말한다.
+  */
+  it('지표 순위를 목록으로 다시 그리지 않는다 — 지도 칠과 인사이트가 맡는다', () => {
     const html = render(rankings, createTopTen())
 
-    expect(html).toContain('+3.2%')
+    // 조회 목록 하나만 있다.
+    expect((html.match(/<ol/g) ?? []).length).toBe(1)
+    expect(html).not.toContain('상위 자치구 순위')
+    // 지표 값·변화율은 이 섹션에 적지 않는다(01 단계·구별현황에 있다).
+    expect(html).not.toContain('+3.2%')
+    // 지표 토글은 지도 머리에 남는다.
+    expect(html).toContain('지도에 칠한 지표')
+    expect(html).toContain('aria-label="지표 선택"')
+    expect(html).toContain('data-legend-item="fill"')
   })
 
   it('조회수 쪽에는 변화율을 붙이지 않는다', () => {
@@ -494,16 +506,17 @@ const createWideTopTen = (): DistrictTopTenResponse => ({
   },
 })
 
-describe('PopularDistricts — 랭킹 우측은 Top5 를 유지한다(R4)', () => {
+describe('PopularDistricts — 지도 칠은 Top5 를 유지한다(R4)', () => {
   /*
-   * 같은 응답을 받아도 01단계는 10행, 여기는 5행이다. 좌측 조회수 8행과의 높이,
-   * 그리고 규칙 B 의 「Top 5 밖」 문장을 지키기 위한 분리다.
+   * 같은 응답을 받아도 지도는 5곳만 칠한다. 규칙 B 의 「Top 5 밖」 문장이 지도 칠과 같은 다섯 곳을
+   * 말해야 한다(지표 목록은 #600 에서 걷어 냈다).
    */
-  it('같은 응답에서도 5행만 그린다', () => {
+  it('같은 응답에서도 5곳만 칠한다', () => {
     const html = render(createResponse(THREE_VIEWS), createWideTopTen())
 
-    const metricSection = html.slice(html.indexOf('상위 자치구'))
-    expect((metricSection.match(/<li/g) ?? []).length).toBe(5)
+    // 시드 코드는 실제 구가 아니라 폴리곤이 없다 — 지도 요약 문장과 범례로 칠한 개수를 본다.
+    expect(html).toContain('유동인구 Top 5 를 표시했어요')
+    expect(html).toContain('유동인구 Top 5 · 진할수록 위')
   })
 })
 
@@ -544,8 +557,23 @@ describe('PopularDistricts — 최소 표본 (TC-HR-010 · ranking-minimum-sampl
     const html = render(two, createTopTen())
 
     expect(html).toContain('자치구 지표 순위')
-    expect(html).toContain('유동인구·매출·개업 수로 자치구를 비교해요.')
+    expect(html).toContain(
+      '유동인구·매출·개업 상위 자치구를 서울 지도에 칠했어요.',
+    )
     expect(html).not.toContain('숫자가 좋은 곳은')
+  })
+
+  /*
+   * #600 리뷰. 지표 목록이 빠진 「지표만」 상태에서 제목은 화면에 실제로 있는 것(지도 칠)을 말하고,
+   * 칠한 구의 이름은 지도 요약이 순위대로 읽어 준다 — 「비교해요」라고 약속하고 숫자를 주지 않으면 거짓이다.
+   */
+  it('지표만 상태는 비교를 약속하지 않고, 칠한 구 이름을 지도 요약에 둔다', () => {
+    const html = render(two, createTopTen())
+
+    expect(html).not.toContain('비교해요')
+    expect(html).toContain(
+      '서울 지도에 유동인구 Top 2 를 진하기로 표시했어요: 중구, 강남구.',
+    )
   })
 
   it('3곳이면 dual 문구와 인사이트 슬롯', () => {
@@ -570,7 +598,9 @@ describe('PopularDistricts — 최소 표본 (TC-HR-010 · ranking-minimum-sampl
 
     expect(html).toContain('aria-busy="true"')
     expect(html).toContain('자치구 지표 순위')
-    expect(html).toContain('유동인구·매출·개업 수로 자치구를 비교해요.')
+    expect(html).toContain(
+      '유동인구·매출·개업 상위 자치구를 서울 지도에 칠했어요.',
+    )
   })
 
   it('제목은 2줄 높이를 예약한다', () => {
@@ -641,21 +671,22 @@ describe('PopularDistricts — 겹침 미니 지도', () => {
 
     expect(html).toContain('role="img"')
     expect(html).toContain(
-      '서울 지도에 많이 본 3곳과 유동인구 Top 2 를 표시했어요. 둘 다 든 곳은 강남구예요.',
+      '서울 지도에 많이 본 3곳과 유동인구 Top 2 를 표시했어요. 유동인구 Top 2: 중구, 강남구. 둘 다 든 곳은 강남구예요.',
     )
     expect(countOf(html, /data-rank="\d"/g)).toBe(2)
     expect(countOf(html, /data-badge-rank="/g)).toBe(3)
   })
 
-  it('지도는 두 목록 사이에 있다 — 넓은 폭의 읽는 순서와 같다', () => {
+  it('조회 목록 다음에 지도가 온다 — 지표 토글은 지도 머리에 있다', () => {
     const html = render(createResponse(THREE_VIEWS), createTopTen())
     const viewAt = html.indexOf('data-rank-column="view"')
+    const toggleAt = html.indexOf('data-map-metric-header')
     const mapAt = html.indexOf('data-ranking-mini-map')
-    const metricAt = html.indexOf('data-rank-column="metric"')
 
     expect(viewAt).toBeGreaterThan(-1)
-    expect(viewAt).toBeLessThan(mapAt)
-    expect(mapAt).toBeLessThan(metricAt)
+    expect(viewAt).toBeLessThan(toggleAt)
+    expect(toggleAt).toBeLessThan(mapAt)
+    expect(html).not.toContain('data-rank-column="metric"')
   })
 
   it('지표만이면 배지 없이 칠만 그린다', () => {
@@ -690,5 +721,49 @@ describe('PopularDistricts — 겹침 미니 지도', () => {
 
   it('섹션이 빠지면 지도도 함께 빠진다', () => {
     expect(render(createResponse([]), createTopTen(false))).toBe('')
+  })
+})
+
+/*
+ * #600(진단 H9). 초기 트래픽 구간에는 「1회」 다섯 곳이 나와 아무도 쓰지 않는 서비스처럼 보였다.
+ * 조회 수가 임계값(`MIN_VISIBLE_VIEW_COUNT`) 아래인 곳이 하나라도 있으면 숫자·막대 없이 순위만 둔다.
+ */
+describe('PopularDistricts — 낮은 조회 수는 숫자로 적지 않는다(#600)', () => {
+  const lowViews = createResponse([
+    { rank: 1, areaCode: '11740', areaName: '강동구', viewCount: 1 },
+    { rank: 2, areaCode: '11500', areaName: '강서구', viewCount: 1 },
+    { rank: 3, areaCode: '11680', areaName: '강남구', viewCount: 1 },
+  ])
+
+  it('임계값 아래면 순위·이름·링크는 두고 조회 수와 막대를 뺀다', () => {
+    const html = render(lowViews, createTopTen())
+
+    expect(html).toContain('강동구')
+    expect(html).toContain('href="/analysis?districtCode=11740"')
+    expect(html).not.toContain('1회')
+    expect(html).not.toContain('조회 1회')
+    expect(html).not.toMatch(/width:\d+%/)
+  })
+
+  it('임계값 이상이면 조회 수와 막대를 그대로 그린다', () => {
+    const html = render(createResponse(THREE_VIEWS), createTopTen())
+
+    expect(html).toContain('1,234회')
+    expect(html).toContain('조회 1,234회')
+    expect(html).toMatch(/width:100%/)
+  })
+
+  it('한 곳이라도 임계값 아래면 목록 전체가 순위만 보인다 — 위 몇 줄만 숫자가 있지 않다', () => {
+    const html = render(
+      createResponse([
+        { rank: 1, areaCode: '11680', areaName: '강남구', viewCount: 120 },
+        { rank: 2, areaCode: '11440', areaName: '마포구', viewCount: 40 },
+        { rank: 3, areaCode: '11110', areaName: '종로구', viewCount: 3 },
+      ]),
+      createTopTen(),
+    )
+
+    expect(html).not.toContain('120회')
+    expect(html).not.toContain('3회')
   })
 })

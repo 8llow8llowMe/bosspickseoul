@@ -13,6 +13,7 @@ import {
   formatViewCount,
   hasEnoughViewSample,
 } from '@/lib/home/popular-districts'
+import { canShowViewCounts } from '@/lib/rankings/ranking-format'
 import {
   toHomeMetricRankings,
   HOME_METRICS,
@@ -23,10 +24,6 @@ import {
 import { buildRankingInsight } from '@/lib/home/ranking-insight'
 import { buildRankingMapLayers } from '@/lib/home/ranking-map'
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
-import {
-  formatStatusValue,
-  toChangeBadge,
-} from '@/lib/status/status-formatters'
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
 import MetricToggleGroup from '@/components/home/metric-toggle-group'
 import RankingMiniMap from '@/components/home/ranking-mini-map'
@@ -40,7 +37,7 @@ const RANKING_SIZE = 8
 
 /*
   행 ↔ 구 강조는 호버가 있는 넓은 폭에서만(ranking-mini-map.md D4-3). 좁은 폭·터치에서는 탭이 hover 를
-  흉내 내 강조가 남으므로 핸들러를 붙이지 않는다. 연결선은 지도가 두 목록 사이에 서는 3칸 배치에서만.
+  흉내 내 강조가 남으므로 핸들러를 붙이지 않는다. 연결선은 목록과 지도가 나란히 서는 두 칸 배치(≥1200)에서만.
 */
 const ROW_HOVER_QUERY =
   '(min-width: 901px) and (hover: hover) and (pointer: fine)'
@@ -123,44 +120,36 @@ const Title = styled.h2`
 type ColumnsLayout = 'dual' | 'metricOnly' | 'viewOnly'
 
 /*
-  폭별 배치(ranking-mini-map.md D4-5). 지도는 두 목록 사이에서 「어디 · 겹침」만 더한다.
+  폭별 배치(ranking-mini-map.md D4-5, #600 으로 지표 목록을 걷어 낸 뒤).
 
-  - ≥1200: 3칸 [많이 본][지도][지표]. 지도 칸만 1.15fr — 1440 에서 목록 424 · 지도 488.
-  - 901~1199: 지도(최대 560px, 가운데)가 위, 두 목록이 아래 두 칸.
-  - ≤900: 1열 — 지도 → 많이 본 → 지표.
+  지표 순위는 **목록으로 다시 그리지 않는다**(#600, 진단 H12). 홈에는 판단 흐름 01 단계 「자치구 순위 상위
+  5곳」이 같은 지표·같은 다섯 구를 이미 보여 줘서, 여기 오른쪽 목록은 같은 강남·관악·송파·성북·강서를
+  한 번 더 읽게 했다. 지표는 지도 칠과 범례(「유동인구 Top 5 · 진할수록 위」)가 맡고, 두 순위의 차이는
+  인사이트 한 줄이 말한다. 지표 토글은 지도 머리에 둔다 — 토글이 바꾸는 것이 지도 칠이다.
 
-  솔로 분기(지표만·조회만)는 ≥1200 에서 [지도][지표] · [많이 본][지도] 두 칸이다(D5-3).
-  DOM 순서는 많이 본 → 지도 → 지표로 둔다 — 넓은 폭의 읽는 순서와 같고, 좁은 폭에서 지도를 맨 위로
-  올리는 일은 grid-area 가 한다. 지도는 포커스되지 않아 Tab 순서가 어긋나지 않는다.
+  - 조회 목록이 있으면(dual·조회만): ≥1200 은 [많이 본][지도] 두 칸(지도 1.15fr), 그 아래는 지도가 위·
+    목록이 아래 한 열이다.
+  - 지표만: 지도 한 칸(최대 560px, 가운데).
+
+  DOM 순서는 많이 본 → 지도다 — 넓은 폭의 읽는 순서와 같고, 좁은 폭에서 지도를 맨 위로 올리는 일은
+  grid-area 가 한다.
 */
 const COLUMNS_AREAS: Record<
   ColumnsLayout,
-  {
-    narrow: string
-    middle: string
-    middleColumns: string
-    wide: string
-    wideColumns: string
-  }
+  { narrow: string; wide: string; wideColumns: string }
 > = {
   dual: {
-    narrow: "'map' 'view' 'metric'",
-    middle: "'map map' 'view metric'",
-    middleColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-    wide: "'view map metric'",
-    wideColumns: 'minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr)',
+    narrow: "'map' 'view'",
+    wide: "'view map'",
+    wideColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)',
   },
   metricOnly: {
-    narrow: "'map' 'metric'",
-    middle: "'map' 'metric'",
-    middleColumns: 'minmax(0, 1fr)',
-    wide: "'map metric'",
-    wideColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)',
+    narrow: "'map'",
+    wide: "'map'",
+    wideColumns: 'minmax(0, 1fr)',
   },
   viewOnly: {
     narrow: "'map' 'view'",
-    middle: "'map' 'view'",
-    middleColumns: 'minmax(0, 1fr)',
     wide: "'view map'",
     wideColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)',
   },
@@ -175,11 +164,6 @@ const Columns = styled.div<{ $layout: ColumnsLayout }>`
   gap: 24px;
   align-items: start;
 
-  @media (min-width: 901px) and (max-width: 1199px) {
-    grid-template-columns: ${p => COLUMNS_AREAS[p.$layout].middleColumns};
-    grid-template-areas: ${p => COLUMNS_AREAS[p.$layout].middle};
-  }
-
   @media (min-width: 1200px) {
     grid-template-columns: ${p => COLUMNS_AREAS[p.$layout].wideColumns};
     grid-template-areas: ${p => COLUMNS_AREAS[p.$layout].wide};
@@ -187,7 +171,7 @@ const Columns = styled.div<{ $layout: ColumnsLayout }>`
   }
 `
 
-const Column = styled.div<{ $area: 'view' | 'metric' }>`
+const Column = styled.div<{ $area: 'view' }>`
   grid-area: ${p => p.$area};
   min-width: 0;
   display: grid;
@@ -195,19 +179,20 @@ const Column = styled.div<{ $area: 'view' | 'metric' }>`
 `
 
 /*
-  지도 칸. 901~1199 에서는 두 목록 위에 최대 560px 로 가운데 서고, 3칸 배치에서는 목록 높이 안에서
-  세로 가운데에 선다. 상자는 800:620 비율로 자리를 먼저 잡는다(MapSvg aspect-ratio) — 스켈레톤
-  실루엣과 크기가 같아 데이터가 와도 튀지 않는다(D2-9).
+  지도 칸. 어느 배치에서나 최대 560px 로 제 칸 가운데에 선다 — 지표 목록이 빠진 두 칸 배치(#600)에서
+  1.15fr 칸을 다 쓰면 1440 에서 지도가 약 730×590px 로 커져 옆 목록(약 200px)보다 세 배 높았다.
+  두 칸 배치에서는 목록 높이 안에서 세로 가운데에 선다. 상자는 800:620 비율로 자리를 먼저 잡는다
+  (MapSvg aspect-ratio) — 스켈레톤 실루엣과 크기가 같아 데이터가 와도 튀지 않는다(D2-9). 지표 토글이
+  있으면 지도 머리에 둔다(#600).
 */
 const MapCell = styled.div`
   grid-area: map;
   min-width: 0;
   width: 100%;
-
-  @media (min-width: 901px) and (max-width: 1199px) {
-    max-width: 560px;
-    justify-self: center;
-  }
+  max-width: 560px;
+  justify-self: center;
+  display: grid;
+  gap: 12px;
 
   @media (min-width: 1200px) {
     align-self: center;
@@ -287,9 +272,9 @@ const InsightSlot = styled.p<{ $visible: boolean }>`
 
 /*
   스켈레톤 목록 자리. 머리 줄(32) + 간격(12) + 행 52px x 개수 + 구분선·테두리 — 최종 목록과 같은
-  높이를 잡아 데이터가 와도 아래 섹션을 밀지 않는다. 많이 본 8행 · 지표 5행이다.
+  높이를 잡아 데이터가 와도 아래 섹션을 밀지 않는다. 많이 본 8행이다.
 */
-const SkeletonPanel = styled.div<{ $area: 'view' | 'metric'; $rows: number }>`
+const SkeletonPanel = styled.div<{ $area: 'view'; $rows: number }>`
   grid-area: ${p => p.$area};
   min-height: ${p => 44 + p.$rows * 52 + (p.$rows - 1) + 2}px;
   border: 1px solid var(--color-border-200);
@@ -300,6 +285,10 @@ const SkeletonPanel = styled.div<{ $area: 'view' | 'metric'; $rows: number }>`
 /*
   상태별 두 줄 문구(ranking-minimum-sample D4-2). 각 상태에서 **참인 문장**만 쓴다 —
   좌측 열이 없는데 「많이 본」을 약속하지 않는다.
+
+  「지표만」 제목은 #600 에서 「…수로 자치구를 비교해요」 → 「…상위 자치구를 서울 지도에 칠했어요」로 바꿨다.
+  지표 목록을 걷어 내 이 상태에 남는 것은 지도 칠과 토글뿐이다 — 비교할 숫자가 화면에 없는데 「비교해요」는
+  거짓이다. 새 문장은 dual 에서도 참이라(dual 도 같은 지도 칠을 갖는다) 스켈레톤 문구로도 그대로 쓴다.
 */
 const COPY = {
   dual: {
@@ -308,7 +297,7 @@ const COPY = {
   },
   metricOnly: {
     eyebrow: '자치구 지표 순위',
-    title: '유동인구·매출·개업 수로 자치구를 비교해요.',
+    title: '유동인구·매출·개업 상위 자치구를 서울 지도에 칠했어요.',
   },
   viewOnly: {
     eyebrow: '지금 많이 본 지역',
@@ -335,9 +324,10 @@ function RankingSkeleton() {
         <Columns $layout="dual" aria-hidden="true">
           <SkeletonPanel $area="view" $rows={RANKING_SIZE} />
           <MapCell>
+            {/* 지도 머리(지표 토글) 자리 — 최종 듀얼 배치와 높이를 맞춘다. */}
+            <ColumnHeader />
             <RankingMiniMap layers={null} />
           </MapCell>
-          <SkeletonPanel $area="metric" $rows={RANKING_METRIC_TOP_N} />
         </Columns>
       </Inner>
     </Section>
@@ -469,25 +459,21 @@ export default function PopularDistricts() {
     return metricPending ? <RankingSkeleton /> : null
   }
 
+  /*
+    조회 수가 임계값(`MIN_VISIBLE_VIEW_COUNT`) 아래인 곳이 있으면 숫자·막대 없이 순위만 보인다(#600).
+    「1회」 다섯 곳은 아무도 쓰지 않는 서비스처럼 읽히고, 그 막대는 모두 100% 라 아무것도 말하지 않는다.
+  */
+  const showViewCounts = view ? canShowViewCounts(view.items) : false
   const viewRows: RankBarRow[] = (view?.items ?? []).map(item => ({
     key: item.districtCode,
     rank: item.rank,
     name: item.name,
     value: item.viewCount,
-    valueLabel: formatViewCount(item.viewCount),
+    valueLabel: showViewCounts ? formatViewCount(item.viewCount) : '',
     href: item.href,
-    ariaLabel: `${item.rank}위 ${item.name}, 조회 ${item.viewCount.toLocaleString('ko-KR')}회${
-      view?.windowLabel ? ` (${view.windowLabel})` : ''
-    }. 이 자치구로 상권분석 시작하기`,
-  }))
-
-  const metricRows: RankBarRow[] = (activeMetric?.items ?? []).map(item => ({
-    key: item.districtCode,
-    rank: item.rank,
-    name: item.districtName,
-    value: item.value,
-    valueLabel: formatStatusValue(activeMetric!.metric, item.value),
-    ...toChangeBadge(item.changeRate),
+    ariaLabel: `${item.rank}위 ${item.name}${
+      showViewCounts ? `, 조회 ${item.viewCount.toLocaleString('ko-KR')}회` : ''
+    }${view?.windowLabel ? ` (${view.windowLabel})` : ''}. 이 자치구로 상권분석 시작하기`,
   }))
 
   /* 호버·포커스 > 인사이트가 가리키는 구 > 없음. 양쪽 목록과 지도가 이 한 값을 본다(D5-1). */
@@ -515,19 +501,20 @@ export default function PopularDistricts() {
         highlightKey={highlightKey}
         currentKey={currentKey}
         variant="card"
+        showBars={showViewCounts}
         {...rowHoverProps}
       />
     </Column>
   ) : null
 
-  // A. 세 지표 중 하나라도 데이터가 있으면 토글은 항상 낸다 — 선택된 지표만
-  // 비었을 때는 토글이 아니라 그 자리에 짧은 안내만 낸다.
-  const metricColumn = hasMetricData ? (
-    <Column $area="metric" data-rank-column="metric">
-      <ColumnHeader>
-        <ColumnHeading>
-          {activeMetric?.label ?? homeMetricLabel(metric)} 상위 자치구
-        </ColumnHeading>
+  /*
+    A. 세 지표 중 하나라도 데이터가 있으면 토글은 항상 낸다 — 선택된 지표만 비었을 때는 그 자리에 짧은
+    안내만 낸다. 토글은 지도 머리에 있다 — 지표 순위는 목록이 아니라 지도 칠로 보인다(#600, H12).
+  */
+  const metricHeader = hasMetricData ? (
+    <>
+      <ColumnHeader data-map-metric-header="">
+        <ColumnHeading>지도에 칠한 지표</ColumnHeading>
         <MetricToggleGroup
           options={HOME_METRICS}
           value={metric}
@@ -536,23 +523,14 @@ export default function PopularDistricts() {
           ariaLabel="지표 선택"
         />
       </ColumnHeader>
-      {activeMetric && activeMetric.items.length > 0 ? (
-        <RankBarList
-          rows={metricRows}
-          ariaLabel={`${activeMetric.label} 상위 자치구 순위`}
-          highlightKey={highlightKey}
-          currentKey={currentKey}
-          variant="card"
-          {...rowHoverProps}
-        />
-      ) : (
+      {activeMetric && activeMetric.items.length > 0 ? null : (
         <MetricEmptyNotice>이 지표는 아직 집계가 없어요.</MetricEmptyNotice>
       )}
-    </Column>
+    </>
   ) : null
 
   const layout: ColumnsLayout =
-    viewColumn && metricColumn ? 'dual' : viewColumn ? 'viewOnly' : 'metricOnly'
+    viewColumn && metricHeader ? 'dual' : viewColumn ? 'viewOnly' : 'metricOnly'
   const copy = COPY[layout]
 
   /*
@@ -578,7 +556,7 @@ export default function PopularDistricts() {
         두 열이 다 있을 때만 둔다 — 인사이트는 두 순위의 차이를 말하는 문장이라
         솔로 분기에서는 영원히 비어 있을 자리가 된다.
       */}
-        {viewColumn && metricColumn ? (
+        {viewColumn && metricHeader ? (
           <InsightSlot $visible={insight !== null} aria-live="polite">
             {insight?.sentence ?? null}
           </InsightSlot>
@@ -586,6 +564,7 @@ export default function PopularDistricts() {
         <Columns ref={columnsRef} $layout={layout}>
           {viewColumn}
           <MapCell>
+            {metricHeader}
             <RankingMiniMap
               layers={mapLayers}
               metricLabel={activeMetric?.label ?? null}
@@ -600,17 +579,14 @@ export default function PopularDistricts() {
                 : {})}
             />
           </MapCell>
-          {metricColumn}
           <RankingConnector
             containerRef={columnsRef}
             mapSvgRef={mapSvgRef}
             activeCode={activeCode}
             enabled={connectorAllowed && mapIntroDone}
-            revision={[
-              metric,
-              viewRows.map(row => row.key).join(','),
-              metricRows.map(row => row.key).join(','),
-            ].join('|')}
+            revision={[metric, viewRows.map(row => row.key).join(',')].join(
+              '|',
+            )}
             badgeCodes={mapLayers.badges.map(badge => badge.code)}
           />
         </Columns>

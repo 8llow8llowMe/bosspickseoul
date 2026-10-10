@@ -80,6 +80,9 @@ NowDoBoss → BossPickSeoul 리브랜딩과 함께 프론트엔드를 React/Vite
 **세부 명세**
 
 - [mini-demo — 상권 분석 미니데모](./mini-demo.md)
+- [hero-value-map — 첫 화면 값 지도 · 낮은 조회 수 · 중복 순위 정리](./hero-value-map.md)
+
+**조회 수 임계값(#600).** 「많이 본」 순위의 조회 수는 목록의 모든 항목이 `MIN_VISIBLE_VIEW_COUNT`(10, `lib/rankings/ranking-format.ts`) 이상일 때만 숫자로 적고, 아니면 숫자·막대 없이 순위·이름만 둔다 — 홈 「지금 많이 본 지역」·추천 「실시간 많이 본 상권」·상권분석 「지금 많이 본 상권」 지름길이 같은 값을 쓴다.
 
 ## S5. 테스트케이스
 

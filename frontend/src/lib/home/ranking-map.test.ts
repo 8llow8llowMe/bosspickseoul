@@ -71,7 +71,7 @@ describe('buildRankingMapLayers', () => {
     ])
     expect(layers.overlap).toEqual(['11680'])
     expect(layers.summary).toBe(
-      '서울 지도에 많이 본 3곳과 유동인구 Top 5 를 표시했어요. 둘 다 든 곳은 강남구예요.',
+      '서울 지도에 많이 본 3곳과 유동인구 Top 5 를 표시했어요. 유동인구 Top 5: 강남구, 관악구, 송파구, 성북구, 강서구. 둘 다 든 곳은 강남구예요.',
     )
   })
 
@@ -87,7 +87,19 @@ describe('buildRankingMapLayers', () => {
 
     expect(layers.overlap).toEqual([])
     expect(layers.summary).toBe(
-      '서울 지도에 많이 본 3곳과 유동인구 Top 5 를 표시했어요. 겹치는 곳은 없어요.',
+      '서울 지도에 많이 본 3곳과 유동인구 Top 5 를 표시했어요. 유동인구 Top 5: 강남구, 관악구, 송파구, 성북구, 강서구. 겹치는 곳은 없어요.',
+    )
+  })
+
+  /*
+   * #600 으로 「지금 많이 본 지역」의 지표 목록을 걷어 냈다. 듀얼에서도 지표 Top 5 의 이름은 지도 요약이
+   * 말해야 한다 — 그렇지 않으면 스크린리더 사용자에게 이 섹션의 지표 순위가 통째로 사라진다.
+   */
+  it('듀얼 요약에도 지표 Top 5 의 이름을 순위대로 넣는다(#600)', () => {
+    const layers = buildRankingMapLayers(VIEW, METRIC)
+
+    expect(layers.summary).toContain(
+      '유동인구 Top 5: 강남구, 관악구, 송파구, 성북구, 강서구.',
     )
   })
 
