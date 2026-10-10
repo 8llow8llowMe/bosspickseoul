@@ -179,6 +179,43 @@ const DesktopAuthLink = styled(ActionLink)`
   }
 `
 
+/*
+ * 세션 확인 전 자리(#579). 로그인 여부를 모르는 동안 「로그인·회원가입」도 아바타도 그리지 않는다 —
+ * 회원에게 새로고침마다 비로그인 버튼이 깜빡였다. 대신 비로그인 버튼 두 개와 **같은 상자**
+ * (높이·여백·글자 폭)를 회색 면으로 잡아 둔다. 대부분인 비로그인 방문자는 확인이 끝나도 폭이 그대로다.
+ * 글자는 폭을 재려고만 넣고 숨긴다(visibility). 데스크톱 전용인 것도 버튼과 같다.
+ */
+const SessionPending = styled.span`
+  display: inline-flex;
+  gap: 8px;
+
+  @media (max-width: 960px) {
+    display: none;
+  }
+`
+
+const SessionPendingBlock = styled.span`
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  font-size: 14px;
+  font-weight: 600;
+
+  > span {
+    visibility: hidden;
+  }
+
+  > span:first-child {
+    width: 18px;
+    height: 18px;
+  }
+`
+
 const AvatarButton = styled.button`
   min-height: 40px;
   display: inline-flex;
@@ -632,6 +669,17 @@ export default function SiteHeader() {
                 </DropdownMenu>
               ) : null}
             </DropdownWrap>
+          ) : !hasHydrated ? (
+            <SessionPending aria-hidden="true" data-session-pending="">
+              <SessionPendingBlock>
+                <span />
+                <span>로그인</span>
+              </SessionPendingBlock>
+              <SessionPendingBlock>
+                <span />
+                <span>회원가입</span>
+              </SessionPendingBlock>
+            </SessionPending>
           ) : (
             <>
               <DesktopAuthLink
@@ -671,7 +719,10 @@ export default function SiteHeader() {
                   {item.label}
                 </MobileLink>
               ))}
-              <MobileDivider />
+              {/* 세션 확인 전에는 아래 계정 항목이 비므로 구분선도 두지 않는다(#579). */}
+              {hasHydrated ? (
+                <MobileDivider data-mobile-account-divider="" />
+              ) : null}
               {hasHydrated && isLoggedIn && memberInfo ? (
                 <>
                   <MobileAccount>
@@ -706,7 +757,8 @@ export default function SiteHeader() {
                     {logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
                   </DropdownItem>
                 </>
-              ) : (
+              ) : !hasHydrated ? null : (
+                // 세션 확인 전에는 계정 항목을 비워 둔다 — 잘못된 상태를 비추지 않는다(#579).
                 <>
                   <MobileLink
                     href="/login"
