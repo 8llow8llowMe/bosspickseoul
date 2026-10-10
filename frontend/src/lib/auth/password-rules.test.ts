@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { PASSWORD_PATTERN as REGISTER_PASSWORD_PATTERN } from '@/components/auth/register-machine'
-import { PASSWORD_PATTERN, isValidPassword } from '@/lib/auth/password-rules'
+import {
+  PASSWORD_PATTERN,
+  PASSWORD_RULES,
+  isValidPassword,
+} from '@/lib/auth/password-rules'
 
 describe('비밀번호 규칙 정본', () => {
   /**
@@ -28,5 +32,38 @@ describe('비밀번호 규칙 정본', () => {
     expect(isValidPassword('password1234')).toBe(false) // 특수문자 없음
     expect(isValidPassword('pass word1!')).toBe(false) // 공백
     expect(isValidPassword('')).toBe(false)
+  })
+})
+
+describe('비밀번호 규칙 체크리스트(#578)', () => {
+  const allMet = (value: string) =>
+    PASSWORD_RULES.every(rule => rule.test(value))
+
+  it.each([
+    'Passw0rd!',
+    'abcdefg1@',
+    'A1!aaaaa',
+    'A1!' + 'a'.repeat(17),
+    'A1!' + 'a'.repeat(18),
+    'password1',
+    'PASSWORD!!',
+    '12345678!',
+    'Pass 0rd!',
+    'Pa0!',
+    "a1'bbbbb",
+    'a1\\bbbbb',
+    'a1~bbbbb',
+    '',
+  ])('항목을 모두 지킨 것과 PASSWORD_PATTERN 통과가 같다: %j', value => {
+    expect(allMet(value)).toBe(PASSWORD_PATTERN.test(value))
+  })
+
+  it('항목 순서와 라벨이 고정돼 있다', () => {
+    expect(PASSWORD_RULES.map(rule => rule.label)).toEqual([
+      '영문자',
+      '숫자',
+      '특수문자',
+      '공백 없이 8~20자',
+    ])
   })
 })
