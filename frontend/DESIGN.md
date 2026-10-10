@@ -81,6 +81,9 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 - **Blue Text** (`#1a5fcc`): `blue700`. 텍스트를 싣는 파란 채움(주 버튼·순위 배지)과,
   밝은 배경 위의 파란 글자에 쓴다. blue500·blue600 은 흰 글자와 각각 2.77 / 4.49 로
   AA(4.5:1)를 넘지 못한다. blue700 은 흰 글자와 **5.91:1**, blue50 위 글자로 **5.26:1**.
+  **글자색(과 의미 아이콘)에 `--color-primary-700`·`--color-primary-600` 을 쓰지 않는다** —
+  blue600 글자도 흰 바탕 4.49 · blue50 위 4.00 으로 미달이다. hover·활성·선택 글자도
+  `--color-text-primary-on-light` 다(`global-styles.test.ts` 가 소스를 스캔해 막는다, #639).
 - **Blue Text Hover** (`#1757bf`): `blue800`. blue700 채움의 hover/pressed 전용.
   흰 글자와 6.66:1. **blue600 을 이 자리에 쓰지 않는다** — blue700 보다 밝아 역전된다.
   토큰은 프리미티브 `--color-blue-700`·`--color-blue-800`, 시맨틱은 쓰임새로 나눈다 —

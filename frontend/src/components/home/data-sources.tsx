@@ -353,7 +353,7 @@ const SourceLink = styled.a`
   }
 
   &:hover {
-    color: var(--color-primary-600);
+    color: var(--color-text-primary-on-light);
   }
 
   &:focus-visible {

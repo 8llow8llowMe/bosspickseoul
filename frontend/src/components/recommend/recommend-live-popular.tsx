@@ -103,7 +103,7 @@ const Line = styled.p`
 
 const Rank = styled.span`
   flex: none;
-  color: var(--color-primary-600);
+  color: var(--color-text-primary-on-light);
   font-size: 13px;
   font-weight: 700;
 `

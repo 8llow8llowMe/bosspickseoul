@@ -58,7 +58,7 @@ export const MapControlButton = styled.button`
 
   &:hover:not(:disabled) {
     border-color: var(--color-primary-600);
-    color: var(--color-primary-600);
+    color: var(--color-text-primary-on-light);
   }
 
   &:focus-visible {
@@ -76,7 +76,7 @@ export const MapControlButton = styled.button`
   }
 
   &[data-active='true'] {
-    color: var(--color-primary-600);
+    color: var(--color-text-primary-on-light);
   }
 `
 
