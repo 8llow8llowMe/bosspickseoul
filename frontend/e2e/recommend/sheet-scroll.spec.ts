@@ -64,6 +64,52 @@ const openServicePicker = async (page: Page) => {
 test.describe('상권 추천 모바일 시트 스크롤', () => {
   test.skip(({ isMobile }) => !isMobile, '바텀시트는 1024px 미만에서만 그린다')
 
+  test('조건 화면은 내용 높이만큼 낮게 열리고, 선택 목록으로 넘어가면 시트가 더 올라온다', async ({
+    page,
+    context,
+  }) => {
+    await routeRecommendApi(context)
+    await page.goto('/recommend')
+    await expandSheet(page)
+
+    const sheet = page.locator(SHEET)
+    const submit = page
+      .locator(SHEET_BODY)
+      .getByRole('button', { name: '상권 추천받기' })
+    // 높이 전환(250ms)이 끝난 뒤에 잰다 — 두 번 재어 같으면 멈춘 것이다.
+    const settledHeight = async () => {
+      let previous = -1
+      await expect(async () => {
+        const current = (await sheet.boundingBox())?.height ?? 0
+        const last = previous
+        previous = current
+        expect(current).toBe(last)
+      }).toPass({ intervals: [100], timeout: 5_000 })
+      return previous
+    }
+
+    const criteriaHeight = await settledHeight()
+    const sheetBox = await sheet.boundingBox()
+    const submitBox = await submit.boundingBox()
+    if (!sheetBox || !submitBox) throw new Error('시트를 잴 수 없습니다.')
+
+    // 제출 버튼 아래로 남는 자리는 패널 아래 여백(16px)뿐이다 — 빈 공간으로 지도를 가리지 않는다.
+    const below =
+      sheetBox.y + sheetBox.height - (submitBox.y + submitBox.height)
+    expect(below).toBeGreaterThanOrEqual(MOBILE_GUTTER - 0.5)
+    expect(below).toBeLessThanOrEqual(MOBILE_GUTTER + 2)
+
+    await page.locator(`${SHEET_BODY} [data-step="service"]`).click()
+    const pickerHeight = await settledHeight()
+    expect(pickerHeight).toBeGreaterThan(criteriaHeight)
+
+    await page
+      .locator(SHEET_BODY)
+      .getByRole('button', { name: '조건으로 돌아가기' })
+      .click()
+    expect(await settledHeight()).toBe(criteriaHeight)
+  })
+
   test('업종 목록을 휠로 끝까지 내리면 마지막 항목이 시트 안에 들어오고 누를 수 있다', async ({
     page,
     context,

@@ -1930,6 +1930,8 @@ function RecommendPageBody() {
         </DesktopPanelSlot>
 
         <RecommendMobileSheet
+          // 조건 화면만 내용에 맞춰 낮게 연다. 선택 목록·결과로 넘어가면 시트가 더 올라온다.
+          fitContent={state.view === 'criteria'}
           snap={state.sheetSnap}
           summary={sheetHeadline.summary}
           title={sheetHeadline.title}
