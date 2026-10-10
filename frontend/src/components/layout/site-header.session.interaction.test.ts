@@ -98,8 +98,9 @@ describe('SiteHeader — 세션 확인 전(#579)', () => {
     expect(
       document.querySelector('[data-mobile-account-divider]'),
     ).not.toBeNull()
-    // 데스크톱 버튼 두 개 + 열린 모바일 패널의 두 개.
+    // 모바일 헤더 로그인(#601) + 데스크톱 버튼 두 개 + 열린 모바일 패널의 두 개.
     expect(authLinks().map(anchor => anchor.getAttribute('href'))).toEqual([
+      '/login',
       '/login',
       '/register',
       '/login',
@@ -120,7 +121,9 @@ describe('SiteHeader — 세션 확인 전(#579)', () => {
     })
 
     expect(pending()).toBeNull()
+    // 모바일 헤더 로그인(#601, ≤960 에서만 보인다) + 데스크톱 버튼 두 개.
     expect(authLinks().map(anchor => anchor.getAttribute('href'))).toEqual([
+      '/login',
       '/login',
       '/register',
     ])
