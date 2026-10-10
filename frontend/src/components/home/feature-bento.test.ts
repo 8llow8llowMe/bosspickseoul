@@ -33,9 +33,9 @@ describe('FeatureBento', () => {
     it('로그인 없이 시작할 수 있다고 말하고, 개발중 배지와 채팅 언급이 없다', () => {
       const html = render()
 
-      expect(html).toContain('분석은 로그인 없이 바로 시작할 수 있습니다.')
+      expect(html).toContain('분석은 로그인 없이 바로 시작할 수 있어요.')
       expect(html).toContain(
-        '북마크, 분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기도 이용할 수 있습니다.',
+        '북마크, 분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기도 이용할 수 있어요.',
       )
       expect(html).not.toContain('개발중')
       expect(html).not.toContain('채팅')
@@ -61,7 +61,7 @@ describe('FeatureBento', () => {
     it('제목은 그대로 둔다', () => {
       const html = render()
 
-      expect(html).toContain('분석 이후의 판단까지, 한 곳에서 이어집니다.')
+      expect(html).toContain('분석 이후의 판단까지, 한 곳에서 이어져요.')
     })
   })
 })

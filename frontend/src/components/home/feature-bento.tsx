@@ -227,7 +227,7 @@ export default function FeatureBento() {
       <Inner>
         <Header>
           <Eyebrow>더 많은 기능</Eyebrow>
-          <Title>분석 이후의 판단까지, 한 곳에서 이어집니다.</Title>
+          <Title>분석 이후의 판단까지, 한 곳에서 이어져요.</Title>
         </Header>
 
         <Bento>
@@ -238,7 +238,7 @@ export default function FeatureBento() {
             </CardHead>
             <CardBody>
               분석한 화면을 그대로 저장해 두고, 링크 하나로 다른 사람에게 공유할
-              수 있습니다.
+              수 있어요.
             </CardBody>
           </Hero>
 
@@ -248,7 +248,7 @@ export default function FeatureBento() {
               <CardTitle>커뮤니티</CardTitle>
             </CardHead>
             <CardBody>
-              예비 창업자와 상권 정보를 나누고 댓글로 이야기할 수 있습니다.
+              예비 창업자와 상권 정보를 나누고 댓글로 이야기할 수 있어요.
             </CardBody>
           </Card>
 
@@ -257,7 +257,7 @@ export default function FeatureBento() {
               <Columns3 aria-hidden="true" />
               <CardTitle>상권 비교</CardTitle>
             </CardHead>
-            <CardBody>후보 상권을 나란히 놓고 지표로 비교합니다.</CardBody>
+            <CardBody>후보 상권을 나란히 놓고 지표로 비교해요.</CardBody>
           </Card>
         </Bento>
 
@@ -265,9 +265,9 @@ export default function FeatureBento() {
           <div>
             <CtaTitle>지금 내 상권을 분석해 보세요.</CtaTitle>
             <CtaBody>
-              분석은 로그인 없이 바로 시작할 수 있습니다. 회원가입하면 북마크,
+              분석은 로그인 없이 바로 시작할 수 있어요. 회원가입하면 북마크,
               분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기도 이용할 수
-              있습니다.
+              있어요.
             </CtaBody>
           </div>
           <Actions>
