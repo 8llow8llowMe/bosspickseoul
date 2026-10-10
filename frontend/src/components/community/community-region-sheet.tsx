@@ -31,6 +31,7 @@ import {
 } from '@/lib/community/community-location'
 import { districts } from '@/data/districts'
 import { communityOutlinedField } from '@/lib/community/field-styles'
+import { touchHitArea } from '@/styles/touch-target'
 import {
   filterRegionSheetOptions,
   getRegionSheetAllRow,
@@ -256,6 +257,7 @@ const Breadcrumb = styled.nav`
   }
 `
 
+/* 보이는 높이 40, 모바일 히트 영역만 44(#633). 이웃 경로 버튼과는 꺾쇠(14)+간격(4·4)만큼 떨어져 있다. */
 const CrumbButton = styled.button`
   min-height: 40px;
   padding: 0 8px;
@@ -267,6 +269,8 @@ const CrumbButton = styled.button`
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+
+  ${touchHitArea()}
 `
 
 const CrumbCurrent = styled.span`

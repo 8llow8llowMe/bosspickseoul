@@ -42,6 +42,7 @@ import {
 } from '@/lib/community/list-heading'
 import type { CommunityPostSummary } from '@/types/community'
 import { centeredColumn } from '@/styles/layout'
+import { touchHitArea } from '@/styles/touch-target'
 
 export type CommunityListStatus = 'loading' | 'error' | 'empty' | 'ready'
 export type CommunityEmptyCause =
@@ -212,6 +213,7 @@ const Subtitle = styled.p`
   line-height: 1.5;
 `
 
+/* 보이는 높이 40, 모바일 히트 영역만 44(#633). 위는 제목 글자, 아래는 검색칸까지 툴바 간격이 있다. */
 const AllPostsLink = styled(Link)`
   width: fit-content;
   min-height: 40px;
@@ -224,6 +226,8 @@ const AllPostsLink = styled(Link)`
   &:focus-visible {
     border-radius: var(--radius-control);
   }
+
+  ${touchHitArea()}
 `
 
 const WriteLink = styled(Link)`
@@ -382,6 +386,12 @@ const SearchClearButton = styled.button`
   color: var(--color-text-600);
   cursor: pointer;
   transform: translateY(-50%);
+
+  /*
+    보이는 크기 40, 모바일 히트 영역만 44(#633). 검색칸(48) 안 오른쪽 4 에 붙어 있어 2씩 늘어도 칸 밖으로
+    나가지 않는다 — 넓어진 영역은 칸 오른쪽 안쪽 여백(48)이라 입력 탭을 빼앗지 않는다.
+  */
+  ${touchHitArea({ keepPosition: true })}
 `
 
 const TabRow = styled.div<{ $replacedByNav: boolean }>`

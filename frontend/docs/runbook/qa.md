@@ -164,16 +164,17 @@ PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e e2e/community
 - 커뮤니티 spec 은 `@playwright/test` 가 아니라 `./test` 에서 `test`·`expect` 를 가져온다.
   고정 응답이 그 `test` 의 자동 fixture 다.
 
-| 파일                                 | 무엇(잠그는 TC, `docs/features/community/community.md` S5)                                                                                                                  |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `e2e/fixtures/community.ts`          | 커뮤니티·지역 BFF 와 `/api/auth/me` 고정 응답(목 데이터 소스 재사용), 가로채지 못한 호출 기록                                                                               |
-| `e2e/community/test.ts`              | 위 고정 응답을 자동으로 까는 `test`, 끝나면 가로채지 못한 호출 0 을 단언                                                                                                    |
-| `e2e/community/measure.ts`           | 목록·상세 진입·콘솔/BFF 기록·스크롤(rAF 두 프레임 대기) 헬퍼                                                                                                                |
-| `e2e/community/invariants.spec.ts`   | 목록·상세·글쓰기 가로 넘침·그려진 h1 하나·콘솔 오류 0(CM-014), 모바일 첫 화면 글 행 ≥3(CM-015)                                                                              |
-| `e2e/community/list.spec.ts`         | 폭별 골격 3단·2단·1단(CM-037·038), 숨는 헤더(CM-043), 뒤로 가기 스크롤 복원(CM-030)                                                                                         |
-| `e2e/community/region-sheet.spec.ts` | 지역 시트 Esc 는 URL 그대로·칩 포커스(CM-016), `강남구 전체` 확정(CM-017)                                                                                                   |
-| `e2e/community/detail.spec.ts`       | 본문·레일 간격 ≤24(CM-020), 모바일 하단 바 두 갈래·입력칸 포커스(CM-027·028), 답글 접기(CM-026), 라이트박스 2장·3장 `→`·스와이프(CM-041), 모바일 사진 줄 점·지금 장(CM-042) |
-| `e2e/community/register.spec.ts`     | 새로고침을 건넌 임시 저장 `이어 쓰기`(CM-034)                                                                                                                               |
+| 파일                                  | 무엇(잠그는 TC, `docs/features/community/community.md` S5)                                                                                                                  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/fixtures/community.ts`           | 커뮤니티·지역 BFF 와 `/api/auth/me` 고정 응답(목 데이터 소스 재사용), 가로채지 못한 호출 기록                                                                               |
+| `e2e/community/test.ts`               | 위 고정 응답을 자동으로 까는 `test`, 끝나면 가로채지 못한 호출 0 을 단언                                                                                                    |
+| `e2e/community/measure.ts`            | 목록·상세 진입·콘솔/BFF 기록·스크롤(rAF 두 프레임 대기) 헬퍼                                                                                                                |
+| `e2e/community/invariants.spec.ts`    | 목록·상세·글쓰기 가로 넘침·그려진 h1 하나·콘솔 오류 0(CM-014), 모바일 첫 화면 글 행 ≥3(CM-015)                                                                              |
+| `e2e/community/list.spec.ts`          | 폭별 골격 3단·2단·1단(CM-037·038), 숨는 헤더(CM-043), 뒤로 가기 스크롤 복원(CM-030)                                                                                         |
+| `e2e/community/region-sheet.spec.ts`  | 지역 시트 Esc 는 URL 그대로·칩 포커스(CM-016), `강남구 전체` 확정(CM-017)                                                                                                   |
+| `e2e/community/detail.spec.ts`        | 본문·레일 간격 ≤24(CM-020), 모바일 하단 바 두 갈래·입력칸 포커스(CM-027·028), 답글 접기(CM-026), 라이트박스 2장·3장 `→`·스와이프(CM-041), 모바일 사진 줄 점·지금 장(CM-042) |
+| `e2e/community/register.spec.ts`      | 새로고침을 건넌 임시 저장 `이어 쓰기`(CM-034)                                                                                                                               |
+| `e2e/community/touch-targets.spec.ts` | 모바일에서 44 미만 로컬 컨트롤(댓글 행 동작·반응 바·지역 경로·검색 지우기·`전체 글 보기`)의 히트 영역 ≥44, 이웃 히트 영역과 겹치지 않음(#633)                               |
 
 - **e2e 는 matchMedia 판정·그리드 배치·IntersectionObserver·포커스 이동·실제 history 이동처럼 렌더
   결과가 있어야 아는 것만** 본다. 문구·URL 조립·저장 키·분기·CSS 문자열(브레이크포인트 479 등)은

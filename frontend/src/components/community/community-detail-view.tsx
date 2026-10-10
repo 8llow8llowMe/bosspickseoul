@@ -66,6 +66,7 @@ import type {
   CommunityReportCreateRequest,
 } from '@/types/community'
 import { shellWidth } from '@/styles/layout'
+import { touchHitArea } from '@/styles/touch-target'
 
 type LoadStatus = 'loading' | 'error' | 'empty' | 'ready'
 
@@ -467,6 +468,7 @@ const ReactionBar = styled.div`
   flex-wrap: wrap;
 `
 
+/* 보이는 높이 40, 모바일 히트 영역만 44(#633). 가로·줄바꿈 간격이 8 이라 위아래 2씩 늘어도 겹치지 않는다. */
 const ReactionButton = styled.button<{ $active?: boolean }>`
   min-height: 40px;
   display: inline-flex;
@@ -505,6 +507,8 @@ const ReactionButton = styled.button<{ $active?: boolean }>`
     cursor: progress;
     opacity: 1;
   }
+
+  ${touchHitArea()}
 `
 
 const ReactionCount = styled.span`
