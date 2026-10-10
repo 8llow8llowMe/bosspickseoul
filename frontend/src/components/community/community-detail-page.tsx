@@ -12,19 +12,18 @@ import {
 import { isAxiosError } from 'axios'
 import CommunityDetailView from '@/components/community/community-detail-view'
 import ConfirmSheet from '@/components/ui/confirm-sheet'
-import { useToast } from '@/components/ui/toast'
 import { useCommunityViewerReady } from '@/hooks/use-community-viewer-ready'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 import { readAdjacentPosts } from '@/lib/community/adjacent-posts'
 import {
-  COMMUNITY_COMMENT_ALREADY_DELETED,
+  COMMUNITY_COMMENT_DELETE_BATCH_COPY,
+  COMMUNITY_COMMENT_DELETE_COPY,
   COMMUNITY_COMMENT_DELETE_FAILED,
+  COMMUNITY_COMMENT_DELETE_TOAST_KEY,
   countHiddenCommunityComments,
   filterHiddenCommunityComments,
-  getCommunityCommentDeleteToastKey,
-  undoCommunityCommentDelete,
 } from '@/lib/community/comment-delete'
-import { createDeferredCommit } from '@/lib/ui/deferred-commit'
+import { useUndoBatch } from '@/components/ui/use-undo-batch'
 import { realCommunitySource } from '@/lib/community/community-data-source'
 import {
   communityMockSource,
@@ -57,7 +56,6 @@ import {
   type CommunityReportInputField,
   type CommunityReportReasonPayload,
 } from '@/lib/community/report-reason'
-import { TOAST_ACTION_DURATION_MS } from '@/lib/ui/toast-state'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ApiResponse } from '@/types/api'
 import type {
@@ -571,7 +569,6 @@ export default function CommunityDetailPage({
   const [reportStatusMessage, setReportStatusMessage] = useState<string | null>(
     null,
   )
-  const { showToast, dismissToast } = useToast()
   /* 글 삭제 확인 시트(#581 — window.confirm 대신). */
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   /*
@@ -591,47 +588,27 @@ export default function CommunityDetailPage({
   const runCommentDeleteRef = useRef<(commentId: CommunityId) => void>(
     () => undefined,
   )
-  const commentDeleteQueueRef = useRef<ReturnType<
-    typeof createDeferredCommit<CommunityId>
-  > | null>(null)
-  /* 이벤트 핸들러에서만 부른다 — 처음 지울 때 만든다. */
-  const getCommentDeleteQueue = () => {
-    commentDeleteQueueRef.current ??= createDeferredCommit<CommunityId>({
-      delayMs: TOAST_ACTION_DURATION_MS,
-      /*
-        되돌리기 기한은 10초로 고정이다. 토스트는 읽는 동안(hover·focus) 멈추지만 기한은 멈추지 않으므로, DELETE 를
-        보내는 순간 그 토스트를 닫는다 — 남겨 두면 되돌릴 것이 없는 「되돌리기」 버튼이 된다(#584).
-      */
-      commit: commentId => {
-        dismissToast(getCommunityCommentDeleteToastKey(commentId))
-        runCommentDeleteRef.current(commentId)
-      },
-    })
-    return commentDeleteQueueRef.current
-  }
-
   /*
-    페이지를 떠나면 기다리던 삭제를 바로 보낸다 — 사용자는 이미 지웠다고 봤다. 탭 닫기·새로고침(pagehide)도
-    같은 일을 시도하지만 브라우저가 요청을 끊을 수 있다(그러면 댓글이 남는다 — 안전한 쪽 실패).
+    연달아 지운 댓글은 되돌리기 토스트 하나로 묶는다(#631 — 프로필 보관함과 같은 components/ui/use-undo-batch).
+    기한(10초)은 댓글마다 따로 재고, 기한이 지난 댓글만 DELETE 를 보낸다. 페이지를 떠나면(언마운트·pagehide) 기다리던
+    삭제를 바로 보내고 묶음 토스트를 닫는다 — 사용자는 이미 지웠다고 봤고, 떠난 뒤 누르면 되돌릴 것이 없다. 탭 닫기·
+    새로고침은 브라우저가 요청을 끊을 수 있다(그러면 댓글이 남는다 — 안전한 쪽 실패).
   */
-  useEffect(() => {
-    const queueRef = commentDeleteQueueRef
-    /*
-      보낸 댓글의 되돌리기 토스트도 함께 닫는다 — 토스트는 페이지 밖(앱 전역)에 남는데, 떠난 뒤 누르면 되돌릴 것이
-      없다. 닫지 않으면 아무 일도 없이 성공처럼 닫히는 버튼이 된다.
-    */
-    const flush = () => {
-      queueRef.current?.flush().forEach(commentId => {
-        dismissToast(getCommunityCommentDeleteToastKey(commentId))
+  const commentDeleteBatch = useUndoBatch<
+    CommunityId,
+    typeof COMMUNITY_COMMENT_DELETE_COPY
+  >({
+    scope: COMMUNITY_COMMENT_DELETE_TOAST_KEY,
+    batchCopy: COMMUNITY_COMMENT_DELETE_BATCH_COPY,
+    commit: commentId => runCommentDeleteRef.current(commentId),
+    restore: commentIds => {
+      setHiddenCommentIds(current => {
+        const next = new Set(current)
+        commentIds.forEach(commentId => next.delete(commentId))
+        return next
       })
-    }
-
-    window.addEventListener('pagehide', flush)
-    return () => {
-      window.removeEventListener('pagehide', flush)
-      flush()
-    }
-  }, [dismissToast])
+    },
+  })
 
   useEffect(() => {
     let active = true
@@ -1286,28 +1263,7 @@ export default function CommunityDetailPage({
           // 확인 창 대신 숨기고 되돌리기 토스트를 띄운다(#581). 실제 삭제는 토스트가 사라질 무렵이다.
           setCommentMutationError(null)
           setHiddenCommentIds(current => new Set(current).add(commentId))
-          getCommentDeleteQueue().schedule(commentId)
-          showToast({
-            message: '댓글을 삭제했어요.',
-            dedupeKey: getCommunityCommentDeleteToastKey(commentId),
-            action: {
-              label: '되돌리기',
-              onAction: () => {
-                undoCommunityCommentDelete({
-                  undo: () => getCommentDeleteQueue().undo(commentId),
-                  onRestored: () => {
-                    unhideComment(commentId)
-                  },
-                  onAlreadyDeleted: () => {
-                    showToast({
-                      message: COMMUNITY_COMMENT_ALREADY_DELETED,
-                      tone: 'info',
-                    })
-                  },
-                })
-              },
-            },
-          })
+          commentDeleteBatch.remove(commentId, COMMUNITY_COMMENT_DELETE_COPY)
           return true
         }}
         onToggleCommentLike={async (commentId, desired, current) => {

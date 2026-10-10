@@ -16,10 +16,12 @@ import styled, { keyframes } from 'styled-components'
 import { touchHitArea } from '@/styles/touch-target'
 
 import {
+  announcementOf,
   appendToast,
   dismissToast,
   dismissToastByKey,
   toastDurationMs,
+  updateToastByKey,
   type Toast,
   type ToastTone,
 } from '@/lib/ui/toast-state'
@@ -36,6 +38,15 @@ type ToastContextValue = {
   showToast: (input: ShowToastInput) => void
   /** 같은 `dedupeKey` 의 토스트를 닫는다(동작이 더는 뜻이 없을 때). 없으면 아무 일도 없다. */
   dismissToast: (dedupeKey: string) => void
+  /**
+   * 같은 `dedupeKey` 의 토스트 문구·동작만 바꾼다. **수명은 이어서 재고, 스크린리더는 다시 읽지 않는다**(사용자가 한
+   * 일이 아니다). 이미 닫혔으면 아무 일도 없다 — 닫힌 토스트를 되살리지 않는다. 묶음 되돌리기 토스트(#631)가 기한이 지난
+   * 항목을 뺄 때 쓴다.
+   */
+  updateToast: (
+    dedupeKey: string,
+    input: Pick<ShowToastInput, 'message' | 'action'>,
+  ) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -339,14 +350,8 @@ function ToastTimer({
   )
 }
 
-/**
- * 스크린리더가 읽는 문장. 동작 버튼이 달렸으면 그 버튼이 있다는 것을 끝에 붙인다 — 문구만 읽으면 되돌릴 수 있다는
- * 것을 모른 채 지나간다. 버튼 이름은 카드의 버튼과 같다.
- */
-export const announcementOf = (toast: Toast): string =>
-  toast.action
-    ? `${toast.message} 알림에 「${toast.action.label}」 버튼이 있어요.`
-    : toast.message
+/* 읽는 문장 규칙은 순수 상태(`lib/ui/toast-state`)에 있다 — 문구만 고친 토스트를 다시 읽지 않는 판정이 거기서 정해진다. */
+export { announcementOf }
 
 /**
  * 스크린리더용 live region 두 개. **처음부터 비어 있는 채로 DOM 에 있고 내용만 바뀐다**(#584).
@@ -391,7 +396,7 @@ export default function ToastProvider({
 }: {
   children: React.ReactNode
 }) {
-  const [toasts, setToasts] = useState<Toast[]>([])
+  const [toasts, setToasts] = useState<readonly Toast[]>([])
   const [mounted, setMounted] = useState(false)
   // 렌더마다 새 값이 나오면 안 되므로 카운터를 ref 로 든다.
   // (Math.random·Date.now 는 SSR 과 클라이언트가 달라 하이드레이션이 어긋난다.)
@@ -458,9 +463,25 @@ export default function ToastProvider({
     setToasts(current => dismissToastByKey(current, dedupeKey))
   }, [])
 
+  const updateByKey = useCallback(
+    (dedupeKey: string, input: Pick<ShowToastInput, 'message' | 'action'>) => {
+      setToasts(current =>
+        updateToastByKey(current, dedupeKey, {
+          message: input.message,
+          action: input.action,
+        }),
+      )
+    },
+    [],
+  )
+
   const value = useMemo(
-    () => ({ showToast, dismissToast: dismissByKey }),
-    [showToast, dismissByKey],
+    () => ({
+      showToast,
+      dismissToast: dismissByKey,
+      updateToast: updateByKey,
+    }),
+    [showToast, dismissByKey, updateByKey],
   )
 
   return (
@@ -501,7 +522,11 @@ export default function ToastProvider({
 export function useToast(): ToastContextValue {
   const context = useContext(ToastContext)
   const fallback = useMemo<ToastContextValue>(
-    () => ({ showToast: () => undefined, dismissToast: () => undefined }),
+    () => ({
+      showToast: () => undefined,
+      dismissToast: () => undefined,
+      updateToast: () => undefined,
+    }),
     [],
   )
 

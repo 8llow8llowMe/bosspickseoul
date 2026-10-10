@@ -1,6 +1,10 @@
+import type { UndoBatchCopy, UndoItemCopy } from '@/lib/ui/undo-batch'
 import type { CommunityComment, CommunityId } from '@/types/community'
 
-/* 지연 실행 큐 `createDeferredCommit` 는 프로필 북마크 삭제도 쓰므로 `lib/ui/deferred-commit` 에 있다. */
+/*
+  지연 삭제와 묶음 되돌리기 토스트는 프로필 보관함 삭제도 쓰므로 `lib/ui/undo-batch`(그 아래 `lib/ui/deferred-commit`)에
+  있다. 여기는 댓글 쪽 문구와 숨김 계산만 둔다.
+*/
 
 /*
   댓글 삭제 — 확인 창 대신 「낙관적 숨김 + 지연 삭제 + 되돌리기」(#581, community.md §S4 「댓글 삭제 되돌리기」).
@@ -63,27 +67,24 @@ export const COMMUNITY_COMMENT_DELETE_FAILED =
 /** 되돌리기를 눌렀는데 이미 서버로 보냈다(시간이 지났거나 페이지 이탈로 보냈다). */
 export const COMMUNITY_COMMENT_ALREADY_DELETED = '댓글이 이미 삭제됐어요.'
 
-export const getCommunityCommentDeleteToastKey = (commentId: CommunityId) =>
-  `community-comment-delete:${commentId}`
-
 /**
- * 「되돌리기」 눌림. 예약이 남아 있으면 숨김을 풀고, 이미 보냈으면 그렇다고 알린다 — 아무 일도 없는데
- * 토스트만 성공처럼 닫히면 사용자는 댓글이 돌아온 줄 안다.
+ * 댓글 삭제 되돌리기 토스트의 키. 댓글마다가 아니라 **상세 화면 하나에 하나**다 — 연달아 지운 댓글을 토스트 하나로
+ * 묶는다(#631). 댓글마다 토스트를 띄우면 상한(3)에 밀려난 토스트의 댓글은 되돌릴 수 없었다.
  */
-export const undoCommunityCommentDelete = ({
-  undo,
-  onRestored,
-  onAlreadyDeleted,
-}: {
-  undo: () => boolean
-  onRestored: () => void
-  onAlreadyDeleted: () => void
-}) => {
-  if (undo()) {
-    onRestored()
-    return true
-  }
+export const COMMUNITY_COMMENT_DELETE_TOAST_KEY = 'community-comment-delete'
 
-  onAlreadyDeleted()
-  return false
+/** 댓글 하나를 지웠을 때. 댓글은 이름이 없어 모든 댓글이 같은 문구다. */
+export const COMMUNITY_COMMENT_DELETE_COPY: UndoItemCopy = {
+  removed: '댓글을 삭제했어요.',
+  /* 댓글은 이름이 없어 하나여도 개수로 말한다 — 「댓글은 아직…」은 어느 댓글인지 모호하다. */
+  pending: '댓글 1개는 아직 되돌릴 수 있어요.',
+  alreadyDone: COMMUNITY_COMMENT_ALREADY_DELETED,
+}
+
+/** 연달아 지운 댓글이 둘 이상 기다리고 있을 때. */
+export const COMMUNITY_COMMENT_DELETE_BATCH_COPY: UndoBatchCopy = {
+  removedMany: count => `댓글 ${count}개를 삭제했어요.`,
+  pendingMany: count => `댓글 ${count}개는 아직 되돌릴 수 있어요.`,
+  restoredMany: count => `댓글 ${count}개를 되살렸어요.`,
+  alreadyDoneMany: count => `댓글 ${count}개는 이미 삭제됐어요.`,
 }

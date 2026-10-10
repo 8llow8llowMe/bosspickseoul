@@ -32,6 +32,7 @@ import {
   excludeHiddenItems,
   requestRemoval,
 } from '@/lib/profile/removal-request'
+import { SESSION_REVOKE_BATCH_COPY } from '@/lib/profile/removal-batch-copy'
 import {
   CURRENT_SESSION_NOTICE,
   canRevokeSession,
@@ -134,6 +135,7 @@ export default function ProfileSessionsPage() {
 
   const removal = useUndoableRemoval({
     scope: 'profile-session-revoke',
+    batchCopy: SESSION_REVOKE_BATCH_COPY,
     commit: async sessionId => {
       try {
         await requestRemoval(
@@ -195,6 +197,7 @@ export default function ProfileSessionsPage() {
               removed: `${label} 기기의 로그인을 해제했어요.`,
               restored: `${label} 기기의 로그인을 해제하지 못해 다시 보여 드려요.`,
               failed: `${label} 기기의 로그인을 해제하지 못했어요.`,
+              pending: `${label} 기기의 로그인 해제는 아직 되돌릴 수 있어요.`,
               alreadyDone: `${label} 기기는 이미 해제됐어요.`,
             })
           }}

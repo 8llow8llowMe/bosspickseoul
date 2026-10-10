@@ -1,9 +1,8 @@
 /*
   「지금은 예약만, 시간이 지나면 실행」 큐 — 되돌리기 토스트가 붙는 삭제의 공용 바탕.
 
-  화면에서 먼저 숨기고 되돌리기 시간이 지나면 그때 서버로 보낸다. 커뮤니티 댓글 삭제(#581,
-  `lib/community/comment-delete`)와 프로필 북마크 해제(`components/profile/use-undoable-removal`)가 쓴다.
-  React 를 모르는 순수 모듈이다.
+  화면에서 먼저 숨기고 되돌리기 시간이 지나면 그때 서버로 보낸다. 묶음 되돌리기 토스트(#631, `lib/ui/undo-batch`)가
+  이 위에 올라가고, 커뮤니티 댓글 삭제(#581)와 프로필 보관함 삭제(#574)가 그것을 쓴다. React 를 모르는 순수 모듈이다.
 */
 
 type Timer = ReturnType<typeof setTimeout>

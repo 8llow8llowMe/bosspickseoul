@@ -63,3 +63,25 @@ export const excludeHiddenItems = <Item>(
   hiddenKeys.size === 0
     ? items
     : items.filter(item => !hiddenKeys.has(getKey(item)))
+
+/**
+ * 짧은 시간 안에 이어진 실패 수를 센다. 실패 토스트를 한 장으로 묶을 때 「몇 건이 실패했는지」를 말하려고 쓴다 — 마지막
+ * 실패에서 `windowMs`(오류 토스트 수명)가 지나면 그 토스트는 닫혔으므로 다시 1 부터 센다.
+ */
+export const createFailureTally = (
+  windowMs: number,
+  now: () => number = () => Date.now(),
+) => {
+  let count = 0
+  let until = 0
+
+  return {
+    /** 실패 하나를 더하고, 지금 떠 있는 실패 토스트가 말해야 할 수를 돌려준다. */
+    add: () => {
+      const at = now()
+      count = at > until ? 1 : count + 1
+      until = at + windowMs
+      return count
+    },
+  }
+}

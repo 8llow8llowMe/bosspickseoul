@@ -4,10 +4,12 @@ import {
   TOAST_ACTION_DURATION_MS,
   TOAST_DURATION_MS,
   TOAST_LIMIT,
+  announcementOf,
   appendToast,
   dismissToast,
   dismissToastByKey,
   toastDurationMs,
+  updateToastByKey,
   type Toast,
 } from '@/lib/ui/toast-state'
 
@@ -88,6 +90,52 @@ describe('dismissToastByKey', () => {
     )
 
     expect(next.map(item => item.id)).toEqual(['b', 'c'])
+  })
+})
+
+describe('updateToastByKey', () => {
+  it('같은 키의 토스트 문구·동작만 바꾸고 id·자리는 그대로 둔다(수명 타이머를 다시 재지 않는다)', () => {
+    const next = updateToastByKey(
+      [toast({ id: 'a', dedupeKey: 'batch' }), toast({ id: 'b' })],
+      'batch',
+      { message: '북마크 2개를 해제했어요.' },
+    )
+
+    expect(next.map(item => [item.id, item.message])).toEqual([
+      ['a', '북마크 2개를 해제했어요.'],
+      ['b', '저장했어요'],
+    ])
+  })
+
+  it('스크린리더가 읽을 문장은 처음 것 그대로 둔다 — 고친 문구를 새 알림처럼 다시 읽지 않는다', () => {
+    const first = toast({
+      id: 'a',
+      dedupeKey: 'batch',
+      message: '북마크 3개를 해제했어요.',
+      action: { label: '모두 되돌리기', onAction: () => undefined },
+    })
+    const once = updateToastByKey([first], 'batch', {
+      message: '북마크 2개는 아직 되돌릴 수 있어요.',
+      action: first.action,
+    })
+    const twice = updateToastByKey(once, 'batch', {
+      message: '북마크 1개는 아직 되돌릴 수 있어요.',
+    })
+
+    expect(twice[0]?.message).toBe('북마크 1개는 아직 되돌릴 수 있어요.')
+    expect(announcementOf(twice[0]!)).toBe(
+      '북마크 3개를 해제했어요. 알림에 「모두 되돌리기」 버튼이 있어요.',
+    )
+    // 새로 띄운 토스트(appendToast)는 문구 그대로 읽는다.
+    expect(announcementOf(first)).toBe(
+      '북마크 3개를 해제했어요. 알림에 「모두 되돌리기」 버튼이 있어요.',
+    )
+  })
+
+  it('그 키의 토스트가 없으면 같은 배열을 돌려준다 — 닫힌 토스트를 되살리지 않는다', () => {
+    const before = [toast({ id: 'a' })]
+
+    expect(updateToastByKey(before, 'batch', { message: '다시' })).toBe(before)
   })
 })
 

@@ -23,6 +23,7 @@ import {
   excludeHiddenItems,
   requestRemoval,
 } from '@/lib/profile/removal-request'
+import { SIMULATION_HISTORY_REMOVAL_BATCH_COPY } from '@/lib/profile/removal-batch-copy'
 import { describeSimulationHistoryCondition } from '@/lib/simulation/history-presentation'
 import {
   SIMULATION_HISTORY_QUERY_SCOPE,
@@ -124,6 +125,7 @@ export default function ProfileSimulationBookmarksPage() {
 
   const removal = useUndoableRemoval({
     scope: 'profile-simulation-history-delete',
+    batchCopy: SIMULATION_HISTORY_REMOVAL_BATCH_COPY,
     // ⚠️ 문자열. 경로 세그먼트라 숫자로 바꿀 이유가 없고, 바꾸면 큰 값에서 손상된다.
     commit: async historyId => {
       await requestRemoval(
@@ -181,6 +183,7 @@ export default function ProfileSimulationBookmarksPage() {
               removed: `${condition} 기록을 삭제했어요.`,
               restored: `${condition} 기록을 삭제하지 못해 다시 보여 드려요.`,
               failed: `${condition} 기록을 삭제하지 못했어요.`,
+              pending: `${condition} 기록은 아직 되돌릴 수 있어요.`,
               alreadyDone: `${condition} 기록은 이미 삭제됐어요.`,
             })
           }}
