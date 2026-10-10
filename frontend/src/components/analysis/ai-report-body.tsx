@@ -11,6 +11,7 @@ import { useAiReport, type AiReportState } from '@/hooks/use-ai-report'
 import { useResolvedAnalysisPeriod } from '@/hooks/use-resolved-analysis-period'
 import {
   resolveAiReportLevel,
+  resolveAiReportServiceCode,
   resolveAiReportTargetCode,
 } from '@/lib/analysis/ai-report-presentation'
 import { selectSalesGrowth } from '@/lib/analysis/commercial-chart-selectors'
@@ -205,10 +206,12 @@ export default function AiReportBody({
   // 느린 층: AI 리포트는 로그인 사용자에게만, 전용 페이지에서는 항상 활성으로 조회한다.
   const level = resolveAiReportLevel(selection)
   const code = level ? resolveAiReportTargetCode(selection, level) : null
+  /* 자치구·행정동 리포트에는 남아 있는 업종(#562)을 싣지 않는다 — 쿼리 키가 업종별로 갈린다. */
+  const reportServiceCode = resolveAiReportServiceCode(level, serviceCode)
   const { state: reportState, retry: retryReport } = useAiReport({
     level,
     code,
-    serviceCode,
+    serviceCode: reportServiceCode,
     periodCode: resolvedPeriodCode,
     active: true,
     enabled: hasHydrated && isLoggedIn,
@@ -254,8 +257,8 @@ export default function AiReportBody({
       {variant !== 'compact' ? (
         <Header>
           <Title>{title ?? profile?.commercialName ?? '상권 리포트'}</Title>
-          {serviceCode ? (
-            <SubLabel>업종 · {serviceName ?? serviceCode}</SubLabel>
+          {reportServiceCode ? (
+            <SubLabel>업종 · {serviceName ?? reportServiceCode}</SubLabel>
           ) : null}
         </Header>
       ) : null}
@@ -279,6 +282,7 @@ export default function AiReportBody({
           loginHref={loginHref}
           onRetry={retry}
           variant={variant}
+          level={level}
         />
       </InsightSection>
       <Footer>

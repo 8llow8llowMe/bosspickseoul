@@ -14,6 +14,11 @@ import {
 } from '@/lib/analysis/ai-report-samples'
 import type { AiReportLevel } from '@/types/ai-report'
 
+/*
+  게스트용 AI 잠금 안내. **패널 안에서만 쓴다**(#586) — 지도 셸은 이 카드를 지도 위에 직접
+  띄우지 않고 「AI 요약 보기」 칩 → `AiReportPanel` → `AiReportBody` 인사이트 칸 순서로 닿게 한다.
+  모바일 시트의 리포트 뷰도 같은 경로다.
+*/
 const Wrap = styled.div`
   position: relative;
   border: 1px solid var(--color-border-200);
@@ -51,6 +56,7 @@ const Cta = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 44px;
   padding: 10px 16px;
   border-radius: var(--radius-control);
   background: var(--color-fill-primary-text);

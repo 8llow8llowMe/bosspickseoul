@@ -33,6 +33,18 @@ export const resolveAiReportTargetCode = (
   return selection.districtCode
 }
 
+/**
+ * AI 리포트 요청·표시에 쓸 업종. **상권 레벨에서만** 업종이 의미가 있다.
+ *
+ * 지역을 바꿔도 업종을 URL 에 남기므로(#562) 자치구·행정동 선택에도 `serviceCode` 가 있을 수
+ * 있다. 그대로 넘기면 지역 리포트 쿼리 키가 업종별로 갈려 같은 리포트를 캐시에서 못 찾고,
+ * 화면에는 지역 리포트인데 「업종 · …」 이 붙는다. `buildAiLevelKey` 와 같은 정규화다.
+ */
+export const resolveAiReportServiceCode = (
+  level: AiReportLevel | null,
+  serviceCode: string | null,
+): string | null => (level === 'commercial' ? serviceCode : null)
+
 export const buildAiLevelKey = (
   level: AiReportLevel | null,
   code: string | null,
@@ -50,22 +62,24 @@ export const isAiReportActive = (
   activeKey: string | null,
 ): boolean => Boolean(levelKey) && activeKey === levelKey
 
+/**
+ * 지도 셸의 AI 진입 노출(#586). 로그인 여부와 상관없이 「AI 요약 보기」 칩 → 패널이다.
+ * 게스트의 잠금 안내·로그인 버튼은 패널 안 `AiReportBody` 인사이트 칸이 보여 준다 —
+ * 지도 위에 잠금 카드를 바로 띄우면 상권을 확인하려는 순간 로그인 요구가 먼저 보인다.
+ */
 export const resolveAiReportVisibility = ({
   hydrated,
-  isLoggedIn,
   levelKey,
   panelOpen,
 }: {
   hydrated: boolean
-  isLoggedIn: boolean
   levelKey: string | null
   panelOpen: boolean
-}): { showCard: boolean; showLockCard: boolean; showPanel: boolean } => {
+}): { showCard: boolean; showPanel: boolean } => {
   const hasLevel = hydrated && Boolean(levelKey)
   return {
-    showCard: hasLevel && isLoggedIn && !panelOpen,
-    showLockCard: hasLevel && !isLoggedIn,
-    showPanel: hasLevel && isLoggedIn && panelOpen,
+    showCard: hasLevel && !panelOpen,
+    showPanel: hasLevel && panelOpen,
   }
 }
 
