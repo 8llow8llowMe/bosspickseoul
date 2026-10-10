@@ -95,14 +95,11 @@ describe('SiteHeader — 세션 확인 전(#579)', () => {
     act(() => {
       useAuthStore.getState().clearSession()
     })
-    expect(
-      document.querySelector('[data-mobile-account-divider]'),
-    ).not.toBeNull()
-    // 모바일 헤더 로그인(#601) + 데스크톱 버튼 두 개 + 열린 모바일 패널의 두 개.
+    // 게스트도 패널에는 계정 항목이 없다 — 입구는 햄버거 옆 「로그인」이다(#601).
+    expect(document.querySelector('[data-mobile-account-divider]')).toBeNull()
+    // 모바일 헤더 로그인(#601) + 데스크톱 버튼 두 개. 열린 패널은 더하지 않는다.
     expect(authLinks().map(anchor => anchor.getAttribute('href'))).toEqual([
       '/login',
-      '/login',
-      '/register',
       '/login',
       '/register',
     ])

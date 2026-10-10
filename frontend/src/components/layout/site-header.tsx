@@ -56,6 +56,15 @@ const Header = styled.header<{ $isScrolled: boolean }>`
     }
   }
 
+  /*
+    햄버거 메뉴가 열려 있는 동안은 화면에서 가장 위 레이어다(토스트 1200 아래). 헤더는 평소 20 이라
+    같은 20 을 쓰는 지도 화면 바텀시트(상권분석·상권추천)가 DOM 상 뒤에 와서 메뉴 패널을 덮었다.
+    패널(30)은 헤더의 쌓임 맥락 안에 있어 패널만 올려서는 소용이 없다 — 헤더째 올린다.
+  */
+  &[${SITE_HEADER_MENU_OPEN_ATTRIBUTE}='true'] {
+    z-index: 1100;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
@@ -181,8 +190,8 @@ const DesktopAuthLink = styled(ActionLink)`
 
 /*
  * 모바일·태블릿(≤960) 게스트의 로그인 입구(#601). 예전에는 로그인·회원가입이 모두 햄버거 뒤에 있어
- * 게스트가 입구를 찾아야 했다. 「로그인」 한 개만 햄버거 옆에 꺼낸다 — 회원가입은 로그인 화면과 패널이
- * 잇는다. 넓은 폭에서는 데스크톱 버튼(DesktopAuthLink)이 같은 일을 해서 숨긴다.
+ * 게스트가 입구를 찾아야 했다. 「로그인」 한 개만 햄버거 옆에 꺼낸다 — 회원가입은 로그인 화면이
+ * 잇는다(햄버거 패널에는 계정 입구를 다시 두지 않는다). 넓은 폭에서는 데스크톱 버튼(DesktopAuthLink)이 같은 일을 해서 숨긴다.
  * 테두리 없는 글자 버튼이다 — 햄버거(테두리 상자)와 나란히 서도 버튼 두 개가 겨루지 않는다.
  * 터치 영역은 44px 이다(DESIGN.md §8).
  */
@@ -419,20 +428,56 @@ const MobileList = styled.div`
   box-shadow: var(--shadow-level-3);
 `
 
-const MobileAccount = styled.div`
+/*
+ * 계정 항목은 한 줄로 묶는다. 예전에는 아바타·이름 줄 아래에 북마크·개인 정보 설정·로그아웃이 늘 펼쳐져
+ * 있어 회원의 메뉴가 9줄이었다 — 화면 이동(5줄)보다 계정 줄이 더 많았다. 이름 줄을 눌러야 펼친다.
+ */
+const MobileAccountToggle = styled.button<{ $isOpen: boolean }>`
+  width: 100%;
+  min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px 10px;
+  gap: 8px;
+  padding: 0 8px 0 6px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: ${props =>
+    props.$isOpen ? 'var(--color-surface-muted)' : 'transparent'};
   color: var(--color-text-800);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-primary-100);
+    color: var(--color-text-primary-on-light);
+  }
+
+  > [data-chevron] {
+    margin-left: auto;
+    transform: rotate(${props => (props.$isOpen ? '180deg' : '0deg')});
+    transition: transform var(--motion-fast) var(--ease-standard);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    > [data-chevron] {
+      transition: none;
+    }
+  }
 `
 
 const MobileAccountName = styled.span`
+  min-width: 0;
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+`
+
+const MobileAccountMenu = styled.div`
+  display: grid;
+  gap: 4px;
+  padding-left: 8px;
 `
 
 const MobileDivider = styled.div`
@@ -512,6 +557,7 @@ export default function SiteHeader() {
   const clearSession = useAuthStore(state => state.clearSession)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isMobileAccountOpen, setIsMobileAccountOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(() => !isHome)
 
   const logoutMutation = useMutation<Response, Error, string | null>({
@@ -663,7 +709,11 @@ export default function SiteHeader() {
             aria-expanded={isMobileOpen}
             aria-label={isMobileOpen ? '메뉴 닫기' : '메뉴 열기'}
             type="button"
-            onClick={() => setIsMobileOpen(current => !current)}
+            onClick={() => {
+              setIsMobileOpen(current => !current)
+              // 메뉴를 열 때마다 계정 줄은 접힌 채로 시작한다. 계정 화면에 있을 때만 펼쳐 둔다.
+              setIsMobileAccountOpen(pathname.startsWith('/profile'))
+            }}
           >
             {isMobileOpen ? <X /> : <Menu />}
           </MobileToggle>
@@ -756,7 +806,7 @@ export default function SiteHeader() {
           )}
         </Actions>
         {isMobileOpen ? (
-          <MobilePanel>
+          <MobilePanel data-mobile-menu-panel="">
             <MobileList>
               {navigationItems.map(item => (
                 <MobileLink
@@ -768,61 +818,66 @@ export default function SiteHeader() {
                   {item.label}
                 </MobileLink>
               ))}
-              {/* 세션 확인 전에는 아래 계정 항목이 비므로 구분선도 두지 않는다(#579). */}
-              {hasHydrated ? (
-                <MobileDivider data-mobile-account-divider="" />
-              ) : null}
+              {/*
+               * 계정 항목은 회원에게만 있다. 세션 확인 전(#579)에는 상태를 모르니 비우고, 게스트는
+               * 햄버거 옆 「로그인」(#601)이 입구라 패널에 다시 두지 않는다 — 화면 이동 5줄만 남는다.
+               * 회원가입은 로그인 화면이 잇는다. 아래가 빌 때는 구분선도 두지 않는다.
+               */}
               {hasHydrated && isLoggedIn && memberInfo ? (
                 <>
-                  <MobileAccount>
+                  <MobileDivider data-mobile-account-divider="" />
+                  <MobileAccountToggle
+                    $isOpen={isMobileAccountOpen}
+                    aria-controls="site-header-mobile-account"
+                    aria-expanded={isMobileAccountOpen}
+                    data-mobile-account-toggle=""
+                    type="button"
+                    onClick={() => setIsMobileAccountOpen(current => !current)}
+                  >
                     <Avatar $image={memberInfo.profileImageUrl}>
                       {memberInfo.profileImageUrl ? null : avatarLabel}
                     </Avatar>
                     <MobileAccountName>{memberInfo.nickname}</MobileAccountName>
-                  </MobileAccount>
-                  {profileMenuItems.map(item => {
-                    const ItemIcon = item.icon
+                    <IconSlot aria-hidden="true" data-chevron="">
+                      <ChevronDown />
+                    </IconSlot>
+                  </MobileAccountToggle>
+                  {isMobileAccountOpen ? (
+                    <MobileAccountMenu id="site-header-mobile-account">
+                      {profileMenuItems.map(item => {
+                        const ItemIcon = item.icon
 
-                    return (
-                      <MobileLink
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setIsMobileOpen(false)}
+                        return (
+                          <MobileLink
+                            key={item.href}
+                            href={item.href}
+                            $active={isPathActive(pathname, item.href)}
+                            onClick={() => setIsMobileOpen(false)}
+                          >
+                            <IconSlot aria-hidden="true">
+                              <ItemIcon />
+                            </IconSlot>
+                            {item.label}
+                          </MobileLink>
+                        )
+                      })}
+                      <DropdownItem
+                        type="button"
+                        onClick={() =>
+                          logoutMutation.mutate(memberInfo.memberId)
+                        }
                       >
                         <IconSlot aria-hidden="true">
-                          <ItemIcon />
+                          <LogOut />
                         </IconSlot>
-                        {item.label}
-                      </MobileLink>
-                    )
-                  })}
-                  <DropdownItem
-                    type="button"
-                    onClick={() => logoutMutation.mutate(memberInfo.memberId)}
-                  >
-                    <IconSlot aria-hidden="true">
-                      <LogOut />
-                    </IconSlot>
-                    {logoutMutation.isPending ? '로그아웃 중...' : '로그아웃'}
-                  </DropdownItem>
+                        {logoutMutation.isPending
+                          ? '로그아웃 중...'
+                          : '로그아웃'}
+                      </DropdownItem>
+                    </MobileAccountMenu>
+                  ) : null}
                 </>
-              ) : !hasHydrated ? null : (
-                // 세션 확인 전에는 계정 항목을 비워 둔다 — 잘못된 상태를 비추지 않는다(#579).
-                <>
-                  <MobileLink
-                    href="/login"
-                    onClick={() => setIsMobileOpen(false)}
-                  >
-                    로그인
-                  </MobileLink>
-                  <MobileLink
-                    href="/register"
-                    onClick={() => setIsMobileOpen(false)}
-                  >
-                    회원가입
-                  </MobileLink>
-                </>
-              )}
+              ) : null}
             </MobileList>
           </MobilePanel>
         ) : null}
