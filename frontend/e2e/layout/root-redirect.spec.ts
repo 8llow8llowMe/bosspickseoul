@@ -37,13 +37,19 @@ test.describe('기능 루트 redirect', () => {
     })
   }
 
-  test('/chatting — 307 로 /chatting/list (비로그인은 이어서 로그인)', async ({
-    request,
-  }) => {
-    const response = await request.get('/chatting', { maxRedirects: 0 })
-    expect(response.status()).toBe(307)
-    expect(new URL(response.headers()['location'], 'http://x').pathname).toBe(
-      '/chatting/list',
-    )
-  })
+  // 둘 다 미들웨어 보호 경로다. redirects 가 먼저 돌므로 첫 응답은 목적지로 가는 307 이다.
+  for (const [path, destination] of [
+    ['/chatting', '/chatting/list'],
+    ['/profile', '/profile/bookmarks/analysis'],
+  ]) {
+    test(`${path} — 307 로 ${destination} (비로그인은 이어서 로그인)`, async ({
+      request,
+    }) => {
+      const response = await request.get(path, { maxRedirects: 0 })
+      expect(response.status()).toBe(307)
+      expect(new URL(response.headers()['location'], 'http://x').pathname).toBe(
+        destination,
+      )
+    })
+  }
 })

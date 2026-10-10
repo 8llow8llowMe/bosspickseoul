@@ -25,5 +25,5 @@
 
 - `src/components/layout/status-screens.test.ts` — 문구·링크·h1·오류 상세 비노출·재시도 호출.
 - `e2e/layout/not-found.spec.ts` — `/nope-xyz`·`/community/abc` 404, 셸 1개, h1.
-- `e2e/layout/root-redirect.spec.ts` — `/community`·`/chatting` 은 404 가 아니라 `next.config.ts` redirects 로 `/community/list`·`/chatting/list` 307(임시, 쿼리 유지, 끝 슬래시는 Next 가 308 로 먼저 떼고 이어 받음, #636). `/profile` 은 목적지가 갈려 404 로 둔다.
+- `e2e/layout/root-redirect.spec.ts` — `/community`·`/chatting`·`/profile` 은 404 가 아니라 `next.config.ts` redirects 로 `/community/list`·`/chatting/list`·`/profile/bookmarks/analysis`(헤더 「북마크」와 같은 곳) 307(임시, 쿼리 유지, 끝 슬래시는 Next 가 308 로 먼저 떼고 이어 받음, #636). `/profile` 은 북마크로 보낸다(사용자 결정, 2026-10-10).
 - 실측: `curl -w '%{http_code}' /nope-xyz` → 404, 응답에 한국어 제목.

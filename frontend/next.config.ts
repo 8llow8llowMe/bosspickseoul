@@ -43,7 +43,8 @@ const nextConfig: NextConfig = {
   // page 없이 하위 경로만 있는 기능 루트를 목록으로 보낸다. 주소를 줄여 치거나 외부 링크로 오면
   // 404 를 보던 곳이다(#636). `/community/` 끝 슬래시도 같은 규칙이 받고 쿼리는 그대로 이어진다.
   // 임시(307)로 둔다 — 나중에 루트가 랜딩이 될 수 있어 브라우저가 영구 캐시하지 않게 한다.
-  // `/profile` 은 가야 할 곳(북마크·설정)이 갈려 여기서 정하지 않는다.
+  // `/profile` 은 헤더 메뉴의 「북마크」와 같은 곳으로 보낸다(`/profile/bookmarks` 를 거치면 한 번 더 튄다).
+  // `/chatting`·`/profile` 은 미들웨어 보호 경로지만 redirects 가 먼저 돌아, 비로그인은 목적지에서 로그인으로 이어진다.
   async redirects() {
     return [
       {
@@ -52,6 +53,11 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       { source: '/chatting', destination: '/chatting/list', permanent: false },
+      {
+        source: '/profile',
+        destination: '/profile/bookmarks/analysis',
+        permanent: false,
+      },
     ]
   },
 }
