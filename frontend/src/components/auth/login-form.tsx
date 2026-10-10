@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import styled from 'styled-components'
@@ -15,12 +15,19 @@ import AuthShell, {
   PrimaryButton,
   TextInput,
 } from '@/components/auth/auth-shell'
+import {
+  SIGNUP_COMPLETE_PARAM,
+  buildRegisterHref,
+  getBrowserSessionStorage,
+  takeSignupEmail,
+} from '@/components/auth/auth-flow'
 import GuestOnly from '@/components/auth/guest-only'
 import { EMAIL_PATTERN } from '@/components/auth/register-machine'
 import SocialLogin from '@/components/auth/social-login'
 import { safeReturnPath } from '@/lib/auth/return-path'
 import { socialLoginErrorMessage } from '@/lib/auth/social-errors'
 import { useAuthStore } from '@/stores/auth-store'
+import { PASSWORD_REVEAL_LABEL } from '@/components/ui/text-field'
 import { touchHitArea } from '@/styles/touch-target'
 
 const PasswordFieldWrapper = styled.div`
@@ -60,10 +67,18 @@ type LoginFormError = {
   message: string
 } | null
 
-export default function LoginForm() {
+export type LoginFormProps = {
+  /** 서버가 세션 쿠키가 없다고 확인했다 — `GuestOnly` 참고(#579). */
+  assumeGuest?: boolean
+}
+
+export default function LoginForm({ assumeGuest = false }: LoginFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [form, setForm] = useState({ email: '', password: '' })
+  const passwordRef = useRef<HTMLInputElement | null>(null)
+  // 세션 쿠키가 남아 있으면 `GuestOnly` 가 확인을 마칠 때까지 폼이 아직 없다. 그때는 칸이 붙는 순간 옮긴다.
+  const focusPasswordOnMount = useRef(false)
   // 어느 칸을 고쳐야 하는지 아는 실패는 그 칸에 붙인다(DESIGN.md §Error (inline field)).
   // 자격증명 불일치는 이메일·비밀번호 중 어느 쪽인지 서버가 알려주지 않으므로 배너로 둔다.
   const [error, setError] = useState<LoginFormError>(null)
@@ -80,6 +95,31 @@ export default function LoginForm() {
   // 이메일 로그인과 카카오 로그인이 **같은 판정**을 쓴다 (`@/lib/auth/return-path`).
   // 한쪽만 느슨하면 그쪽이 오픈 리다이렉트 구멍이 된다.
   const returnTo = safeReturnPath(searchParams.get('redirect'))
+  /*
+   * 가입 화면이 성공 후 `?signup=1` 로 보낸다(#576). 가입 응답이 세션을 주지 않아(BE #595 전)
+   * 로그인을 한 번 더 해야 한다 — 말없이 빈 폼을 보이면 가입이 실패한 것처럼 읽힌다.
+   */
+  const isSignupComplete = searchParams.get(SIGNUP_COMPLETE_PARAM) === '1'
+
+  // 가입한 이메일을 미리 채우고 남은 칸(비밀번호)으로 포커스를 옮긴다. 이메일은 URL 이 아니라
+  // 탭 저장소로 넘어온다(`auth-flow.ts`). 한 번 꺼내면 지워지므로 새로고침하면 다시 비어 있다.
+  useEffect(() => {
+    if (!isSignupComplete) return
+    const email = takeSignupEmail(getBrowserSessionStorage())
+    if (!email) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 후 1회, 탭 저장소라는 외부 값을 반영한다. 첫 렌더에서 읽으면 서버 HTML(빈 칸)과 어긋난다.
+    setForm(current => (current.email ? current : { ...current, email }))
+    if (passwordRef.current) passwordRef.current.focus()
+    else focusPasswordOnMount.current = true
+  }, [isSignupComplete])
+
+  const attachPasswordInput = (node: HTMLInputElement | null) => {
+    passwordRef.current = node
+    if (node && focusPasswordOnMount.current) {
+      focusPasswordOnMount.current = false
+      node.focus()
+    }
+  }
 
   const handleChange =
     (key: 'email' | 'password') =>
@@ -134,35 +174,46 @@ export default function LoginForm() {
   }
 
   return (
-    <GuestOnly>
+    <GuestOnly assumeGuest={assumeGuest} redirectTo={returnTo}>
       <AuthShell
         eyebrow="로그인"
         title="다시 돌아오신 것을 환영합니다."
         description="분석과 추천은 로그인 없이 쓸 수 있습니다. 로그인하면 AI 리포트, 북마크, 분석 화면 보관함, 시뮬레이션 저장, 커뮤니티 글쓰기와 댓글도 이용할 수 있습니다."
       >
+        {isSignupComplete ? (
+          <Notice $tone="success">
+            가입을 마쳤어요. 방금 만든 비밀번호로 로그인해 주세요.
+          </Notice>
+        ) : null}
+        {isPasswordReset ? (
+          <Notice $tone="success">
+            비밀번호를 재설정했어요. 새 비밀번호로 로그인해 주세요.
+          </Notice>
+        ) : null}
+        {socialErrorMessage ? (
+          <Notice $tone="error">
+            {socialErrorMessage}
+            {/* 신규 카카오 회원은 가입 화면에서 동의부터 받아야 한다(계약 §0-2). */}
+            {socialErrorKind === 'social_signup' ? (
+              <>
+                {' '}
+                <FooterLink href={buildRegisterHref(returnTo)}>
+                  회원가입하기
+                </FooterLink>
+              </>
+            ) : null}
+          </Notice>
+        ) : null}
+
+        {/* 카카오를 맨 위에 둔다(#577). 375px 에서도 스크롤 없이 보이고, 아래에 「또는 이메일로」 구분선이 붙는다. */}
+        <SocialLogin returnTo={returnTo} />
+
         {/* 브라우저 기본 검증을 끈다. type="email" 이 켜져 있으면 크롬이 자체
             말풍선을 띄우며 제출을 가로채, 아래 EMAIL_PATTERN 검사와 DESIGN.md
             §Error (inline field) 규격의 인라인 에러가 아예 도달하지 못한다.
             type="email" 자체는 모바일 키보드 힌트 때문에 유지한다.
             (community-editor-form 도 같은 이유로 noValidate 다) */}
         <AuthForm noValidate onSubmit={handleSubmit}>
-          {isPasswordReset ? (
-            <Notice $tone="success">
-              비밀번호를 재설정했어요. 새 비밀번호로 로그인해 주세요.
-            </Notice>
-          ) : null}
-          {socialErrorMessage ? (
-            <Notice $tone="error">
-              {socialErrorMessage}
-              {/* 신규 카카오 회원은 가입 화면에서 동의부터 받아야 한다(계약 §0-2). */}
-              {socialErrorKind === 'social_signup' ? (
-                <>
-                  {' '}
-                  <FooterLink href="/register">회원가입하기</FooterLink>
-                </>
-              ) : null}
-            </Notice>
-          ) : null}
           {error?.field === 'general' ? (
             <Notice $tone="error">{error.message}</Notice>
           ) : null}
@@ -188,6 +239,7 @@ export default function LoginForm() {
             <FieldLabel>비밀번호</FieldLabel>
             <PasswordFieldWrapper>
               <PasswordInput
+                ref={attachPasswordInput}
                 type={showPassword ? 'text' : 'password'}
                 name="password"
                 autoComplete="current-password"
@@ -201,10 +253,13 @@ export default function LoginForm() {
                     : undefined
                 }
               />
+              {/* 공용 `TextField revealable` 과 같은 동작(#583) — 누를 때 포커스를 입력칸에 남긴다. */}
               <PasswordToggle
                 type="button"
+                onPointerDown={event => event.preventDefault()}
+                onMouseDown={event => event.preventDefault()}
                 onClick={() => setShowPassword(current => !current)}
-                aria-label="비밀번호 표시"
+                aria-label={PASSWORD_REVEAL_LABEL}
                 aria-pressed={showPassword}
               >
                 {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
@@ -219,8 +274,6 @@ export default function LoginForm() {
           </PrimaryButton>
         </AuthForm>
 
-        <SocialLogin returnTo={returnTo} />
-
         <FooterRow>
           <span>비밀번호를 잊으셨나요?</span>
           <FooterLink href="/password-reset">비밀번호 재설정</FooterLink>
@@ -228,7 +281,8 @@ export default function LoginForm() {
 
         <FooterRow>
           <span>계정이 아직 없나요?</span>
-          <FooterLink href="/register">회원가입</FooterLink>
+          {/* 원래 가려던 화면을 가입 화면에도 들고 간다(#576). */}
+          <FooterLink href={buildRegisterHref(returnTo)}>회원가입</FooterLink>
         </FooterRow>
       </AuthShell>
     </GuestOnly>

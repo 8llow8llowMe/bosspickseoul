@@ -140,15 +140,26 @@ describe('RegisterForm — 가입 동의 (#495)', () => {
     )
   })
 
-  it('동의 전에는 가입 버튼이 꺼져 있고, 동의하면 켜진다', async () => {
+  it('동의 전에 가입을 누르면 보내지 않고, 빠진 동의를 강조해 첫 항목으로 포커스한다(#578)', async () => {
     render(createElement(RegisterForm))
     await reachVerified()
+    const seen = recordInvalidOnFocus('termsAgreed')
+    const callsBefore = fetchMock.mock.calls.length
 
-    expect(button(/^회원가입$/).disabled).toBe(true)
-
-    fireEvent.click(document.getElementById(`${PREFIX}-all`) as HTMLElement)
-
+    // 버튼은 잠그지 않는다 — 눌렀을 때 무엇이 빠졌는지 말한다.
     expect(button(/^회원가입$/).disabled).toBe(false)
+    await click(button(/^회원가입$/))
+
+    expect(fetchMock.mock.calls.length).toBe(callsBefore)
+    for (const key of [
+      'termsAgreed',
+      'privacyAgreed',
+      'ageOver14Confirmed',
+    ] as const) {
+      expect(consentBox(key).getAttribute('aria-invalid')).toBe('true')
+    }
+    expect(document.activeElement).toBe(consentBox('termsAgreed'))
+    expect(seen).toEqual(['true'])
   })
 
   it('가입 바디에 동의 세 값을 싣고 판(version)은 싣지 않는다', async () => {
@@ -172,7 +183,8 @@ describe('RegisterForm — 가입 동의 (#495)', () => {
       ageOver14Confirmed: true,
     })
     expect(JSON.stringify(body)).not.toMatch(/version/i)
-    expect(replace).toHaveBeenCalledWith('/login')
+    // 가입을 마쳤다는 안내와 함께 로그인으로 잇는다(#576). 복귀 경로가 홈이면 redirect 는 붙지 않는다.
+    expect(replace).toHaveBeenCalledWith('/login?signup=1')
   })
 
   it('MEMBER_116 이면 만 14세 체크박스를 강조하고 포커스를 옮기며, 인증 상태는 그대로 둔다', async () => {
