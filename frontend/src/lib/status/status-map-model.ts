@@ -56,6 +56,28 @@ export function createStatusMapLabels(
 
 export const STATUS_MAP_STEP_COUNT = 5
 
+/*
+ * 단계 색. 25개 구를 현재 지표 값의 5분위로 칠한다(`resolveStatusMapValueSteps`, #542). 예전에는
+ * Top10 응답에 10개 구 값만 있어 순위 두 칸씩 10개만 칠하고 15개 구는 회색이었다.
+ * 새 토큰 없이 primary-600 을 흰 바탕에 섞는다(비율은 그때와 같다). 가장 옅은 단계(11%)와 데이터
+ * 없는 회색(grey100)은 명도 대비가 1.05:1 뿐이라 **색조로만** 갈린다 — 툴팁과 목록이 값을 함께
+ * 주므로 색만으로 전달하지 않는다.
+ *
+ * 구별현황 지도·홈 히어로 지도(#588)·홈 미니 지도가 같은 다섯 칸을 쓴다 — 「같은 농도 = 같은 단계」.
+ * 그래서 컴포넌트가 아니라 여기에 둔다.
+ */
+export const STATUS_MAP_VALUE_STEPS = [
+  { step: 1, mixPercent: 60 },
+  { step: 2, mixPercent: 46 },
+  { step: 3, mixPercent: 33 },
+  { step: 4, mixPercent: 21 },
+  { step: 5, mixPercent: 11 },
+] as const satisfies ReadonlyArray<{ step: number; mixPercent: number }>
+
+/** 단계 칸의 칠. CSS `fill`·`background` 어디에나 쓴다. */
+export const statusMapValueStepFill = (mixPercent: number): string =>
+  `color-mix(in srgb, var(--color-primary-600) ${mixPercent}%, var(--color-surface))`
+
 /**
  * 지도 단계 색. 현재 지표 값으로 구를 **5분위**(같은 개수씩 다섯 묶음)로 나눈다. 1 이 가장 많다.
  *

@@ -18,7 +18,8 @@ test.describe('홈 히어로', () => {
 
     // 강남구는 카드가 지도 위에 떠 있을 때 카드에 가려 호버할 수 없었다. 좌우 분할 뒤로는
     // 가리는 것이 없다 — 이 구가 호버된다는 것이 그 증거다(hero-split-layout.md D7 #2).
-    const gangnam = page.locator('main path[aria-label="강남구"]')
+    // 이름표는 값 칠(#588)이 오면 「강남구, 유동인구 1위」다 — 이름 접두로 찾는다.
+    const gangnam = page.locator('main path[aria-label^="강남구"]')
     await expect(gangnam).toHaveCount(1)
     await gangnam.hover()
 
@@ -69,7 +70,7 @@ test.describe('홈 히어로', () => {
     test.skip(test.info().project.name !== 'mobile', '모바일 탭 동작.')
 
     await openHome(page)
-    await page.locator('path[aria-label="마포구"]').click()
+    await page.locator('path[aria-label^="마포구"]').click()
 
     await expect(
       page.getByRole('combobox', { name: '창업할 자치구' }),
@@ -86,12 +87,12 @@ test.describe('홈 히어로', () => {
     test.skip(test.info().project.name !== 'desktop', '데스크톱 클릭 동작.')
 
     await openHome(page)
-    await page.locator('path[aria-label="강남구"]').click()
+    await page.locator('path[aria-label^="강남구"]').click()
 
     await expect(
       page.getByRole('combobox', { name: '창업할 자치구' }),
     ).toHaveValue('11680')
-    await expect(page.locator('path[aria-label="강남구"]')).toHaveAttribute(
+    await expect(page.locator('path[aria-label^="강남구"]')).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -167,5 +168,27 @@ test.describe('홈 히어로', () => {
     await expect(
       page.getByRole('link', { name: '내 상권 분석하기' }),
     ).toHaveAttribute('href', '/analysis')
+  })
+
+  /*
+   * 첫 화면 지도를 유동인구 5분위로 칠한다(#588). 단계 계산은 vitest 가 보고, 여기서는 실제 응답으로
+   * 25개 구가 다섯 단계에 고르게 칠해지고 지도 아래 범례가 기준 분기를 말하는지만 본다.
+   */
+  test('지도를 값 다섯 단계로 칠하고 기준 분기 범례를 단다', async ({
+    page,
+  }) => {
+    await openHome(page)
+
+    const steps = page.locator('main path[data-value-step]')
+    await expect(steps).toHaveCount(25)
+    for (const step of ['1', '2', '3', '4', '5']) {
+      await expect(
+        page.locator(`main path[data-value-step="${step}"]`),
+      ).toHaveCount(5)
+    }
+    const legend = page.locator('[data-hero-map-legend]')
+    await expect(legend).toContainText(/\d{4}년 [1-4]분기 유동인구/)
+    await expect(legend).toContainText('많음')
+    await expect(legend).toContainText('적음')
   })
 })

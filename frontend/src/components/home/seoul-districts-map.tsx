@@ -33,7 +33,17 @@ import {
   HERO_TABLET_MEDIA,
 } from '@/components/home/layout-constants'
 import { useDistrictDetail } from '@/hooks/use-district-detail'
+import { useHomeDistrictRankings } from '@/hooks/use-home-district-rankings'
 import { trackEvent } from '@/lib/analytics/events'
+import { isApiSuccess } from '@/lib/api/response'
+import {
+  describeHeroMapDistrict,
+  toHeroMapChoropleth,
+} from '@/lib/home/hero-map'
+import {
+  STATUS_MAP_VALUE_STEPS,
+  statusMapValueStepFill,
+} from '@/lib/status/status-map-model'
 
 const districtNameByCode = new Map(
   districts.map(district => [String(district.gooCode), district.gooName]),
@@ -89,31 +99,42 @@ const MapSvg = styled.svg`
      좌우 분할에서는 툴팁이 viewBox 안에 클램프되므로 영향이 없다. */
   overflow: visible;
 
-  /* 좌우 두 칸: 히어로 한 화면(100dvh - 헤더 - 아래 여백 48px)에서 캡션 한 줄(28px)을 뺀 높이까지. */
+  /* 좌우 두 칸: 히어로 한 화면(100dvh - 헤더 - 아래 여백 48px)에서 범례 한 줄과 캡션 한 줄
+     (28px 씩, #588)을 뺀 높이까지. */
   @media ${HERO_SPLIT_MEDIA} {
-    max-height: calc(100dvh - ${HEADER_HEIGHT} - 48px - 28px);
+    max-height: calc(100dvh - ${HEADER_HEIGHT} - 48px - 56px);
   }
 
   /* 지도 중심 배치는 제목·피커 바까지 한 화면에 담는다 — 지도 위아래 몫(제목 두 줄·피커·보조
-     링크 ≈ 280px)을 뺀 높이를 넘지 않는다. 폭이 남으면 meet 이 가운데에 그린다(D4-3). */
+     링크 ≈ 280px)과 범례 한 줄(28px, #588)을 뺀 높이를 넘지 않는다. 폭이 남으면 meet 이 가운데에
+     그린다(D4-3). */
   @media ${HERO_TABLET_MEDIA} {
-    max-height: max(320px, calc(100dvh - ${HEADER_HEIGHT} - 280px));
+    max-height: max(320px, calc(100dvh - ${HEADER_HEIGHT} - 308px));
   }
 `
 
 /*
   예전엔 강남·마포·송파 세 곳이 무한 펄스로 깜빡였다. 근거였던 「대표 예시」 수치가 실데이터
-  툴팁으로 바뀌며 사라져 기준 없는 강조만 남았기에 걷어냈다(D0-2). 지금 채워지는 칸은
-  방문자가 고른 구 하나뿐이다 — 로고의 「여러 칸 중 하나를 골랐다」가 화면에서 일어난다.
+  툴팁으로 바뀌며 사라져 기준 없는 강조만 남았기에 걷어냈다(D0-2).
+
+  지금은 25개 구를 유동인구 5분위로 칠한다(#588) — 구별현황 지도와 같은 다섯 칸이다. 고른 구와
+  hover·키보드 포커스한 구는 그 위에 primary-700 으로 채운다. 5분위 가장 진한 칸(primary-600 60%)보다
+  한 단계 진하고 채도가 같아 「고른 칸」으로 읽힌다. 값을 못 받으면 예전처럼 모두 회색이다.
 */
+const valueStepRules = STATUS_MAP_VALUE_STEPS.map(
+  ({ step, mixPercent }) => `
+    &[data-value-step='${step}'] {
+      fill: ${statusMapValueStepFill(mixPercent)};
+    }
+  `,
+).join('')
 
 const DistrictPath = styled.path<{
   $index: number
   $appear: boolean
-  $selected: boolean
 }>`
-  fill: ${p =>
-    p.$selected ? 'var(--color-primary-700)' : 'var(--color-surface-muted)'};
+  fill: var(--color-surface-muted);
+  ${valueStepRules}
   stroke: var(--color-border-200);
   stroke-width: 1px;
   vector-effect: non-scaling-stroke;
@@ -122,6 +143,11 @@ const DistrictPath = styled.path<{
   transition:
     opacity var(--motion-standard) var(--ease-standard) ${p => p.$index * 24}ms,
     fill var(--motion-slow) var(--ease-standard);
+
+  /* 단계 칠(속성 선택자)보다 뒤에 둬야 같은 명시도에서 이긴다. */
+  &[data-selected='true'] {
+    fill: var(--color-primary-700);
+  }
 
   &:hover {
     fill: var(--color-primary-700);
@@ -187,6 +213,53 @@ const MapCaption = styled.p`
   }
 `
 
+/*
+  범례와 기준(#588). 지도 바로 아래 한 줄이다 — 무엇을 칠했는지(「2026년 1분기 유동인구」)와
+  농도의 방향(많음 → 적음)을 같이 말한다. 칸 모양은 구별현황 범례와 같다(status-map.tsx).
+  값이 오기 전·실패에도 자리(20px)를 잡아 둬 캡션이 튀지 않는다. 지도 중심 배치에서 캡션은
+  눈에서 치우지만 범례는 남긴다 — 칠의 뜻은 여기서만 말한다.
+*/
+const MapLegend = styled.p`
+  min-height: 20px;
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 12px;
+  color: var(--color-text-600);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  word-break: keep-all;
+
+  @media (max-width: 640px) {
+    justify-content: flex-start;
+  }
+`
+
+const LegendGroup = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-caption);
+  font-weight: 500;
+`
+
+const LegendScale = styled.span`
+  display: inline-flex;
+  gap: 2px;
+`
+
+const LegendSwatch = styled.span<{ $fill: string }>`
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-compact);
+  background: ${props => props.$fill};
+`
+
 const DesktopOnly = styled.span`
   @media (max-width: 640px) {
     display: none;
@@ -239,6 +312,16 @@ export default function SeoulDistrictsMap({
   const [demo, setDemo] = useState<{ code: string; x: number } | null>(null)
   const demoScheduledRef = useRef(false)
   const svgRef = useRef<SVGSVGElement>(null)
+  const legendId = useId()
+  /* 값 칠(#588). 실패·빈 응답이면 null 이고 지도는 예전처럼 회색이다. */
+  const rankingsQuery = useHomeDistrictRankings()
+  const choropleth = useMemo(
+    () =>
+      rankingsQuery.data && isApiSuccess(rankingsQuery.data)
+        ? toHeroMapChoropleth(rankingsQuery.data.dataBody)
+        : null,
+    [rankingsQuery.data],
+  )
   /* 지도가 화면에 그려지는 배율(viewBox 1 = px). 툴팁을 설계 크기 아래로 줄이지 않는 데 쓴다. */
   const [screenScale, setScreenScale] = useState(1)
 
@@ -415,7 +498,7 @@ export default function SeoulDistrictsMap({
         ref={svgRef}
         viewBox={SEOUL_STATUS_VIEW_BOX}
         preserveAspectRatio="xMidYMid meet"
-        aria-describedby={captionId}
+        aria-describedby={choropleth ? `${legendId} ${captionId}` : captionId}
       >
         {SEOUL_STATUS_FEATURES.map((feature, index) => {
           const name = districtNameByCode.get(feature.districtCode)
@@ -427,10 +510,14 @@ export default function SeoulDistrictsMap({
               role={onDistrictActivate ? 'button' : 'link'}
               aria-pressed={onDistrictActivate ? selected : undefined}
               tabIndex={0}
-              aria-label={name || '자치구'}
+              aria-label={describeHeroMapDistrict(
+                name || '자치구',
+                choropleth?.itemsByCode.get(feature.districtCode),
+              )}
+              data-value-step={choropleth?.steps.get(feature.districtCode)}
+              data-selected={selected ? 'true' : undefined}
               $index={index}
               $appear={mounted}
-              $selected={selected}
               {...(tooltipEnabled
                 ? hoverHandlers(feature.districtCode)
                 : { onFocus: () => setInteracted(true) })}
@@ -452,6 +539,34 @@ export default function SeoulDistrictsMap({
           </TooltipGroup>
         ) : null}
       </MapSvg>
+      <MapLegend id={legendId} data-hero-map-legend="">
+        {choropleth ? (
+          <>
+            <span>{choropleth.basisLabel}</span>
+            <LegendGroup>
+              많음
+              <LegendScale aria-hidden="true">
+                {STATUS_MAP_VALUE_STEPS.map(({ step, mixPercent }) => (
+                  <LegendSwatch
+                    key={step}
+                    $fill={statusMapValueStepFill(mixPercent)}
+                  />
+                ))}
+              </LegendScale>
+              적음
+            </LegendGroup>
+            {choropleth.hasDistrictWithoutStep ? (
+              <LegendGroup>
+                <LegendSwatch
+                  aria-hidden="true"
+                  $fill="var(--color-surface-muted)"
+                />
+                데이터 없음
+              </LegendGroup>
+            ) : null}
+          </>
+        ) : null}
+      </MapLegend>
       <MapCaption id={captionId}>
         <DesktopOnly>
           자치구 위에 올리면 시간대별 유동인구가 보이고, 누르면 그 구가 바로

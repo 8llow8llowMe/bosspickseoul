@@ -1,21 +1,21 @@
 {
-  "measuredAt": "2026-10-02",
+  "measuredAt": "2026-10-10",
   "viewport": {
     "width": 1440,
     "height": 900
   },
   "docHeightScreens": 7.49,
-  "stickyTrackShare": 0.473,
-  "h1Screen": 0.35,
-  "firstCtaScreen": 0.49,
-  "contrastCombinations": 46,
-  "contrastFailures": 6,
+  "stickyTrackShare": 0.468,
+  "h1Screen": 0.32,
+  "firstCtaScreen": 0.46,
+  "contrastCombinations": 42,
+  "contrastFailures": 3,
   "smallTapTargets": 6,
   "offScaleFontSizes": 2,
   "offScaleFontSizeList": [15, 18],
   "sentenceEndings": {
-    "formal": 5,
-    "polite": 14
+    "formal": 0,
+    "polite": 15
   },
-  "bffRequests": 2
+  "bffRequests": 3
 }
