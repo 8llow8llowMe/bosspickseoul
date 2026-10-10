@@ -582,6 +582,24 @@ describe('RecommendPanel', () => {
     expect(link).toContain('tab=summary')
   })
 
+  it('추천 카드에서 자치구·업종을 채운 창업 비용 계산으로 보낸다 (#566)', () => {
+    const markup = renderPanel({
+      ...baseProps,
+      results: [result],
+      view: 'results',
+    })
+
+    const link =
+      markup.match(/<a[^>]*data-simulation-link="true"[^>]*>/)?.[0] ?? ''
+    expect(markup).toContain('창업 비용 계산')
+    // 입력 화면이 `parseSimulationConditionState` 로 그대로 읽는 키다(report-route.test.ts).
+    expect(link).toContain(
+      'href="/simulation?districtCode=11680&amp;serviceCode=CS100010"',
+    )
+    // 접근성 이름은 상권명이 아니라 링크가 채우는 조건이다 — 카드마다 같은 계산이다.
+    expect(link).toContain('aria-label="강남구 커피-음료 창업 비용 계산"')
+  })
+
   it('renders the submitted result snapshot and edit action', () => {
     const markup = renderPanel({
       ...baseProps,

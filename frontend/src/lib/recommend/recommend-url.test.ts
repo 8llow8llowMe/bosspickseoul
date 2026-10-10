@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { serializeMapCamera, type MapCamera } from '@/lib/analysis/map-camera'
+import { SIMULATION_SERVICE_TYPES } from '@/data/simulation-service-types'
 
 import {
   createRecommendHref,
@@ -378,4 +379,37 @@ describe('카메라 c', () => {
       parse(serializeState({ ...filled, view: 'results' }, CAMERA)).camera,
     ).toEqual(CAMERA)
   })
+})
+
+/*
+  시뮬레이션 리포트의 「이 구에서 상권 추천받기」(#566). 리포트 조건은 자치구·업종뿐이라 행정동 없이 넘어간다.
+  시뮬레이션이 고를 수 있는 업종은 전부 추천 쪽 카탈로그에도 있어야 한다 — 없으면 업종이 조용히 빠진다.
+*/
+describe('시뮬레이션 리포트 → 추천', () => {
+  it('자치구·업종을 채운 조건 화면으로 연다', () => {
+    const href = createRecommendHrefFromCodes({
+      districtCode: GANGNAM.code,
+      serviceCode: HANSIK.code,
+    })
+
+    expect(href).toBe('/recommend?districtCode=11680&serviceCode=CS100001')
+    expect(parse(href.slice(href.indexOf('?') + 1))).toMatchObject({
+      district: GANGNAM,
+      administration: null,
+      service: HANSIK,
+      isResultsView: false,
+    })
+  })
+
+  it.each(SIMULATION_SERVICE_TYPES.map(item => [item.code, item.name]))(
+    '시뮬레이션 업종 %s 는 추천에서도 복원된다',
+    code => {
+      const href = createRecommendHrefFromCodes({
+        districtCode: GANGNAM.code,
+        serviceCode: code,
+      })
+
+      expect(parse(href.slice(href.indexOf('?') + 1)).service?.code).toBe(code)
+    },
+  )
 })
