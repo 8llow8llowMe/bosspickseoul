@@ -7,18 +7,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ActionRow,
   CheckboxRow,
-  Field,
-  FieldLabel,
   Form,
-  HelperText,
   SectionBody,
   SectionNotice,
   SectionPanel,
   SectionStack,
   SectionTitle,
-  TextInput,
 } from '@/components/profile/profile-ui'
 import { Button } from '@/components/ui/button'
+import { TextField } from '@/components/ui/text-field'
 import { useToast } from '@/components/ui/toast'
 import {
   MemberPasswordError,
@@ -54,24 +51,64 @@ export const SOCIAL_ONLY_CONSEQUENCES = [
   '나중에 이 화면에서 비밀번호를 다시 설정할 수 있어요.',
 ] as const
 
+export const NEW_PASSWORD_RULE_ERROR = '새 비밀번호가 위 규칙에 맞지 않아요.'
+
+export const NEW_PASSWORD_MISMATCH_ERROR = '새 비밀번호가 서로 달라요.'
+
+export type NewPasswordFieldErrors = {
+  newPassword: string | null
+  confirmation: string | null
+}
+
 /**
- * 새 비밀번호가 아직 제출할 수 없는 이유. 없으면 `null`.
+ * 새 비밀번호 두 칸의 오류. 없으면 칸마다 `null`.
  *
- * 버튼만 비활성으로 두면 사용자는 **왜** 안 눌리는지 모른 채 같은 값을 다시 넣는다.
- * 그래서 비활성과 이유를 한 함수에서 낸다 — 둘이 갈라지면 "이유는 없는데 안 눌리는"
- * 상태가 생긴다.
+ * 버튼만 비활성으로 두면 사용자는 **왜** 안 눌리는지 모른 채 같은 값을 다시 넣는다. 그래서 오류를 **틀린 칸에**
+ * 붙인다(#583) — 예전에는 규칙 문구 자리를 오류가 갈아 치워, 틀린 순간 요구사항이 사라지고 어느 칸이 틀렸는지도
+ * 보이지 않았다. 규칙 문구는 새 비밀번호 칸 도움말로 늘 남는다.
+ *
+ * 비어 있는 칸은 나무라지 않는다. 확인 칸은 새 비밀번호와 다를 때만 오류다.
  */
-export const describeNewPasswordIssue = (
+export const describeNewPasswordFieldErrors = (
   newPassword: string,
   confirmation: string,
-): string | null => {
-  if (!newPassword) return null
-  if (!PASSWORD_PATTERN.test(newPassword)) return PASSWORD_RULE_TEXT
-  if (confirmation && newPassword !== confirmation) {
-    return '새 비밀번호가 서로 달라요.'
-  }
-  return null
-}
+): NewPasswordFieldErrors => ({
+  newPassword:
+    newPassword && !PASSWORD_PATTERN.test(newPassword)
+      ? NEW_PASSWORD_RULE_ERROR
+      : null,
+  confirmation:
+    confirmation && newPassword !== confirmation
+      ? NEW_PASSWORD_MISMATCH_ERROR
+      : null,
+})
+
+/**
+ * 오류를 **언제부터** 보여 줄지. 첫 글자부터 빨갛게 칠하면 쓰는 중인 사람을 나무라게 된다.
+ *
+ * - 새 비밀번호: 칸을 떠난 뒤부터
+ * - 확인: 칸을 떠났거나, 새 비밀번호만큼 다 쳤을 때부터 — 다 쳤는데 버튼이 안 눌리면 이유가 바로 보여야 한다
+ */
+export const visibleNewPasswordFieldErrors = (
+  errors: NewPasswordFieldErrors,
+  {
+    newPasswordTouched,
+    confirmationTouched,
+    newPasswordLength,
+    confirmationLength,
+  }: {
+    newPasswordTouched: boolean
+    confirmationTouched: boolean
+    newPasswordLength: number
+    confirmationLength: number
+  },
+): NewPasswordFieldErrors => ({
+  newPassword: newPasswordTouched ? errors.newPassword : null,
+  confirmation:
+    confirmationTouched || confirmationLength >= newPasswordLength
+      ? errors.confirmation
+      : null,
+})
 
 export const canSubmitNewPassword = (
   newPassword: string,
@@ -92,10 +129,22 @@ export default function ProfileChangePasswordPage() {
   const [confirmation, setConfirmation] = useState('')
   const [agreedToSocialOnly, setAgreedToSocialOnly] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [touched, setTouched] = useState({
+    newPassword: false,
+    confirmation: false,
+  })
 
   const memberId = memberInfo?.memberId ?? null
   const mode = resolveMemberPasswordMode(memberInfo)
-  const issue = describeNewPasswordIssue(newPassword, confirmation)
+  const fieldErrors = visibleNewPasswordFieldErrors(
+    describeNewPasswordFieldErrors(newPassword, confirmation),
+    {
+      newPasswordTouched: touched.newPassword,
+      confirmationTouched: touched.confirmation,
+      newPasswordLength: newPassword.length,
+      confirmationLength: confirmation.length,
+    },
+  )
   const canSubmit = canSubmitNewPassword(newPassword, confirmation)
 
   /** 로그아웃과 같은 순서: 회원 캐시 → 스토어 → 이동. 토스트는 이동 뒤에도 살아 있다. */
@@ -158,6 +207,7 @@ export default function ProfileChangePasswordPage() {
        */
       setNewPassword('')
       setConfirmation('')
+      setTouched({ newPassword: false, confirmation: false })
       if (memberId) await clearMemberInfoQuery(queryClient, memberId)
       await hydrate()
       showToast({ message: '비밀번호를 설정했어요.', tone: 'success' })
@@ -182,6 +232,38 @@ export default function ProfileChangePasswordPage() {
     changeMutation.isPending ||
     setupMutation.isPending ||
     removalMutation.isPending
+
+  /* 새 비밀번호 두 칸 — 설정·변경 폼이 같이 쓴다. 규칙은 도움말로 늘 남고 오류는 그 아래 따로 붙는다(#583). */
+  const newPasswordFields = (
+    <>
+      <TextField
+        label="새 비밀번호"
+        type="password"
+        revealable
+        value={newPassword}
+        onChange={event => setNewPassword(event.target.value)}
+        onBlur={() =>
+          setTouched(current => ({ ...current, newPassword: true }))
+        }
+        autoComplete="new-password"
+        helperText={PASSWORD_RULE_TEXT}
+        errorText={fieldErrors.newPassword}
+      />
+
+      <TextField
+        label="새 비밀번호 확인"
+        type="password"
+        revealable
+        value={confirmation}
+        onChange={event => setConfirmation(event.target.value)}
+        onBlur={() =>
+          setTouched(current => ({ ...current, confirmation: true }))
+        }
+        autoComplete="new-password"
+        errorText={fieldErrors.confirmation}
+      />
+    </>
+  )
 
   const errorNotice = errorMessage ? (
     <SectionNotice $tone="error" role="alert">
@@ -235,29 +317,7 @@ export default function ProfileChangePasswordPage() {
               if (canSubmit && !isBusy) setupMutation.mutate()
             }}
           >
-            <Field>
-              <FieldLabel>새 비밀번호</FieldLabel>
-              <TextInput
-                type="password"
-                value={newPassword}
-                onChange={event => setNewPassword(event.target.value)}
-                autoComplete="new-password"
-                aria-label="새 비밀번호"
-              />
-            </Field>
-
-            <Field>
-              <FieldLabel>새 비밀번호 확인</FieldLabel>
-              <TextInput
-                type="password"
-                value={confirmation}
-                onChange={event => setConfirmation(event.target.value)}
-                autoComplete="new-password"
-                aria-label="새 비밀번호 확인"
-              />
-            </Field>
-
-            <HelperText>{issue ?? PASSWORD_RULE_TEXT}</HelperText>
+            {newPasswordFields}
             {errorNotice}
 
             <ActionRow>
@@ -290,40 +350,16 @@ export default function ProfileChangePasswordPage() {
             }
           }}
         >
-          <Field>
-            <FieldLabel>현재 비밀번호</FieldLabel>
-            <TextInput
-              type="password"
-              value={currentPassword}
-              onChange={event => setCurrentPassword(event.target.value)}
-              autoComplete="current-password"
-              aria-label="현재 비밀번호"
-            />
-          </Field>
+          <TextField
+            label="현재 비밀번호"
+            type="password"
+            revealable
+            value={currentPassword}
+            onChange={event => setCurrentPassword(event.target.value)}
+            autoComplete="current-password"
+          />
 
-          <Field>
-            <FieldLabel>새 비밀번호</FieldLabel>
-            <TextInput
-              type="password"
-              value={newPassword}
-              onChange={event => setNewPassword(event.target.value)}
-              autoComplete="new-password"
-              aria-label="새 비밀번호"
-            />
-          </Field>
-
-          <Field>
-            <FieldLabel>새 비밀번호 확인</FieldLabel>
-            <TextInput
-              type="password"
-              value={confirmation}
-              onChange={event => setConfirmation(event.target.value)}
-              autoComplete="new-password"
-              aria-label="새 비밀번호 확인"
-            />
-          </Field>
-
-          <HelperText>{issue ?? PASSWORD_RULE_TEXT}</HelperText>
+          {newPasswordFields}
           {errorNotice}
 
           <ActionRow>

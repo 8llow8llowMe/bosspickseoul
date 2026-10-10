@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
-import { TextField } from './text-field'
+import { joinDescribedBy, PASSWORD_REVEAL_LABEL, TextField } from './text-field'
 
 /** prettier 가 color-mix() 를 여러 줄로 감싸면 방출 CSS 의 공백이 달라진다. */
 const squeeze = (css: string): string => css.replace(/\s+/g, '')
@@ -135,5 +135,101 @@ describe('TextField 포커스 신호', () => {
     const styles = squeeze(renderStyles(createElement(TextField, {})))
 
     expect(styles).toContain('border-color:var(--color-primary-700)')
+  })
+})
+
+/**
+ * 오류와 도움말을 입력칸에 **잇는다**(#583). 시각으로만 붙어 있으면 스크린리더는 칸에 들어가도
+ * 규칙도 오류도 읽지 않는다. 오류가 생겨도 규칙 문구는 남아야 한다 — 틀린 순간 요구사항이
+ * 사라지면 무엇을 고칠지 읽을 곳이 없다.
+ */
+describe('TextField 설명 연결', () => {
+  const describedIds = (markup: string): string[] =>
+    /aria-describedby="([^"]+)"/.exec(markup)?.[1].split(' ') ?? []
+
+  it('도움말과 오류를 함께 두고 둘 다 aria-describedby 로 잇는다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(TextField, {
+        helperText: '8~20자로 입력해 주세요.',
+        errorText: '규칙에 맞지 않아요.',
+      }),
+    )
+
+    expect(markup).toContain('8~20자로 입력해 주세요.')
+    expect(markup).toContain('규칙에 맞지 않아요.')
+    const ids = describedIds(markup)
+    expect(ids).toHaveLength(2)
+    ids.forEach(id => expect(markup).toContain(`id="${id}"`))
+    // 도움말이 먼저, 오류가 뒤다(읽는 순서 = 보이는 순서).
+    expect(markup.indexOf('8~20자')).toBeLessThan(
+      markup.indexOf('규칙에 맞지 않아요.'),
+    )
+  })
+
+  it('호출부가 넘긴 aria-describedby 를 지우지 않고 앞에 둔다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(TextField, {
+        'aria-describedby': 'outer-count',
+        helperText: '도움말',
+      }),
+    )
+
+    expect(describedIds(markup)[0]).toBe('outer-count')
+    expect(describedIds(markup)).toHaveLength(2)
+  })
+
+  it('설명이 없으면 aria-describedby 를 붙이지 않는다', () => {
+    const markup = renderToStaticMarkup(createElement(TextField, {}))
+
+    expect(markup).not.toContain('aria-describedby')
+  })
+
+  it('오류만 있으면 예전처럼 한 줄이다 — 기존 사용처가 바뀌지 않는다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(TextField, { errorText: '다시 확인해주세요.' }),
+    )
+
+    expect(describedIds(markup)).toHaveLength(1)
+    expect(markup.match(/다시 확인해주세요\./g)).toHaveLength(1)
+  })
+})
+
+describe('joinDescribedBy', () => {
+  it('빈 값은 빼고 공백으로 잇는다', () => {
+    expect(joinDescribedBy('a', null, undefined, false, 'b')).toBe('a b')
+  })
+
+  it('남는 것이 없으면 undefined 다 — 빈 속성을 남기지 않는다', () => {
+    expect(joinDescribedBy(null, undefined)).toBeUndefined()
+  })
+})
+
+describe('TextField 비밀번호 표시 토글', () => {
+  it('revealable 인 password 칸에만 토글을 둔다', () => {
+    const withToggle = renderToStaticMarkup(
+      createElement(TextField, { type: 'password', revealable: true }),
+    )
+    const plain = renderToStaticMarkup(
+      createElement(TextField, { type: 'password' }),
+    )
+    const notPassword = renderToStaticMarkup(
+      createElement(TextField, { type: 'text', revealable: true }),
+    )
+
+    expect(withToggle).toContain(`aria-label="${PASSWORD_REVEAL_LABEL}"`)
+    expect(withToggle).toContain('aria-pressed="false"')
+    expect(withToggle).toContain('type="password"')
+    expect(plain).not.toContain(PASSWORD_REVEAL_LABEL)
+    expect(notPassword).not.toContain(PASSWORD_REVEAL_LABEL)
+  })
+
+  it('토글의 모바일 히트 영역은 44px 다', () => {
+    const styles = squeeze(
+      renderStyles(
+        createElement(TextField, { type: 'password', revealable: true }),
+      ),
+    )
+
+    expect(styles).toContain('height:max(100%,44px)')
   })
 })
