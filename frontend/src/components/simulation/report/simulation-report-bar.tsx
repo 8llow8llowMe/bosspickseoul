@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Scale } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -9,6 +10,7 @@ import SimulationSaveButton, {
 import {
   SimulationBottomBarAmount,
   SimulationBottomBarFrame,
+  SimulationBottomBarSpacer,
 } from '@/components/simulation/simulation-bottom-bar'
 import { ButtonLink } from '@/components/ui/button'
 import { formatLargeWon } from '@/lib/format'
@@ -65,31 +67,37 @@ export default function SimulationReportBar({
   currentHref,
   compareHref,
 }: SimulationReportBarProps) {
+  // 문서 끝에 바 높이만큼 자리를 두려고 바를 잰다(#605). 저장 결과 한 줄이 붙으면 바가 커진다.
+  const [bar, setBar] = useState<HTMLDivElement | null>(null)
+
   return (
-    <Root role="region" aria-label="리포트 요약">
-      <SimulationSaveFeedback state={save} offset="bottom" />
-      <Row>
-        <SimulationBottomBarAmount>
-          <span>예상 총 창업 비용</span>
-          <strong>{formatLargeWon(totalPrice)}</strong>
-        </SimulationBottomBarAmount>
-        <Actions>
-          <SimulationSaveButton
-            state={save}
-            currentHref={currentHref}
-            size="medium"
-            compact
-          />
-          <IconLink
-            href={compareHref}
-            size="medium"
-            variant="secondary"
-            leftIcon={<Scale />}
-            aria-label="다른 조건과 비교"
-            title="다른 조건과 비교"
-          />
-        </Actions>
-      </Row>
-    </Root>
+    <>
+      <Root ref={setBar} role="region" aria-label="리포트 요약">
+        <SimulationSaveFeedback state={save} offset="bottom" />
+        <Row>
+          <SimulationBottomBarAmount>
+            <span>예상 총 창업 비용</span>
+            <strong>{formatLargeWon(totalPrice)}</strong>
+          </SimulationBottomBarAmount>
+          <Actions>
+            <SimulationSaveButton
+              state={save}
+              currentHref={currentHref}
+              size="medium"
+              compact
+            />
+            <IconLink
+              href={compareHref}
+              size="medium"
+              variant="secondary"
+              leftIcon={<Scale />}
+              aria-label="다른 조건과 비교"
+              title="다른 조건과 비교"
+            />
+          </Actions>
+        </Row>
+      </Root>
+      <SimulationBottomBarSpacer bar={bar} />
+    </>
   )
 }
