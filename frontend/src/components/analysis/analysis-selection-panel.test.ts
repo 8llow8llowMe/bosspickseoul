@@ -366,3 +366,94 @@ describe('AnalysisSelectionPanel — 분석 기준 분기 안내', () => {
     )
   })
 })
+
+describe('단계 탭은 고른 값을 보여 준다 (#591)', () => {
+  const selection = {
+    ...createEmptyAnalysisSelection(),
+    districtCode: '11440',
+    administrationCode: '11440660',
+    commercialCode: '3110565',
+  }
+  const markup = renderPanel({
+    activeStep: 'service',
+    selection,
+    selectedNames: {
+      district: '마포구',
+      administration: '서교동',
+      commercial: '홍대 걷고싶은거리',
+    },
+  })
+  const stepList = markup.slice(
+    markup.indexOf('aria-label="분석 조건 단계"'),
+    markup.indexOf('</ol>'),
+  )
+
+  it('「N단계」 번호 글자를 내지 않는다', () => {
+    expect(stepList).not.toMatch(/\d단계/)
+  })
+
+  it('고른 단계는 값을, 안 고른 단계는 단계 이름만 쓴다', () => {
+    expect(stepList).toContain('>마포구<')
+    expect(stepList).toContain('>홍대 걷고싶은거리<')
+    expect(stepList).toContain('>업종<')
+    expect(stepList).not.toContain('>자치구<')
+  })
+
+  it('접근 이름은 단계와 값을 함께 읽고 title 툴팁에 기대지 않는다', () => {
+    expect(stepList).toContain('aria-label="상권: 홍대 걷고싶은거리"')
+    expect(stepList).toContain('aria-label="업종"')
+    expect(stepList).not.toContain('title=')
+  })
+
+  it('현재 단계만 aria-current="step" 이다', () => {
+    expect(stepList.match(/aria-current="step"/g)).toHaveLength(1)
+    expect(stepList).toMatch(/aria-current="step"[^>]*aria-label="업종"/)
+  })
+
+  it('코드는 있어도 이름을 아직 모르면(목록 로딩 중) 단계 이름으로 둔다', () => {
+    const loading = renderPanel({
+      activeStep: 'administration',
+      selection: { ...createEmptyAnalysisSelection(), districtCode: '11440' },
+      selectedNames: {},
+    })
+    expect(loading).toContain('aria-label="자치구"')
+  })
+})
+
+describe('데스크톱 업종은 2열 선택지다 (#587)', () => {
+  const serviceItems = [
+    { code: 'CS100001', name: '한식음식점', description: '외식업' },
+    { code: 'CS100010', name: '커피-음료', description: '외식업' },
+    { code: 'CS200028', name: '미용실', description: '서비스업' },
+  ]
+  const selection = {
+    ...createEmptyAnalysisSelection(),
+    districtCode: '11440',
+    administrationCode: '11440660',
+    commercialCode: '3110565',
+    serviceCode: 'CS100001',
+  }
+
+  it('패널에서는 chevron 없이 선택 체크만 두고 분류 머리를 남긴다', () => {
+    const markup = renderPanel({
+      activeStep: 'service',
+      selection,
+      items: serviceItems,
+    })
+    // lucide 아이콘 클래스로 판별한다 — 하위 화면 신호인 chevron 이 없다.
+    expect(markup).not.toContain('lucide-chevron-right')
+    expect(markup).toContain('lucide-check')
+    expect(markup).toContain('외식업')
+    expect(markup).toContain('서비스업')
+  })
+
+  it('모바일 시트는 기존 여러 열 목록을 그대로 쓴다', () => {
+    const markup = renderPanel({
+      activeStep: 'service',
+      selection,
+      items: serviceItems,
+      variant: 'sheet',
+    })
+    expect(markup).toContain('lucide-chevron-right')
+  })
+})
