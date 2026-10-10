@@ -88,4 +88,27 @@ describe('RegisterForm — 비밀번호 표시 토글', () => {
     expect(toggle.getAttribute('aria-pressed')).toBe('false')
     expect(input('password').type).toBe('password')
   })
+
+  it('누를 때 포커스를 입력칸에 남긴다 — 공용 TextField revealable 과 같은 동작(#583)', async () => {
+    const { getByRole } = render(createElement(RegisterForm))
+
+    fireEvent.change(input('email'), { target: { value: 'a@b.com' } })
+    fetchMock.mockResolvedValueOnce(ok())
+    await click(button(/인증코드 발송/))
+    fireEvent.change(input('code'), { target: { value: '123456' } })
+    fetchMock.mockResolvedValueOnce(ok())
+    await click(button(/인증 확인/))
+
+    const password = input('password')
+    password.focus()
+    const toggle = getByRole('button', { name: '비밀번호 표시' })
+
+    // fireEvent 는 기본 동작을 막았으면 false 를 돌려준다.
+    expect(fireEvent.pointerDown(toggle)).toBe(false)
+    expect(fireEvent.mouseDown(toggle)).toBe(false)
+    await click(toggle)
+
+    expect(document.activeElement).toBe(password)
+    expect(password.type).toBe('text')
+  })
 })
