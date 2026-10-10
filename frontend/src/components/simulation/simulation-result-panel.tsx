@@ -7,6 +7,7 @@ import SimulationErrorNotice from '@/components/simulation/simulation-error-noti
 import SimulationResultPreview from '@/components/simulation/simulation-result-preview'
 import { Button } from '@/components/ui/button'
 import type { NormalizedApiError } from '@/lib/api/api-error'
+import { SIMULATION_CALCULATING_MESSAGE } from '@/lib/simulation/auto-calculate'
 import {
   SIMULATION_CONDITION_SECTION_LABELS,
   describeSimulationSectionValue,
@@ -31,6 +32,11 @@ export type SimulationResultPanelProps = {
   compareHref: string | null
   error: NormalizedApiError | null
   isPending: boolean
+  /**
+   * 계산 버튼 라벨. 조건이 모두 정해지면 화면이 스스로 계산하므로(#604) 이미 보낸 조건이면 「다시 계산」이다.
+   * 기본은 「계산하기」.
+   */
+  calculateLabel?: string
   onCalculate: () => void
   /** 오류가 지목한 조건 섹션으로 데려간다. */
   onReselect: (section: SimulationConditionSection) => void
@@ -182,6 +188,7 @@ export default function SimulationResultPanel({
   compareHref,
   error,
   isPending,
+  calculateLabel = '계산하기',
   onCalculate,
   onReselect,
 }: SimulationResultPanelProps) {
@@ -241,7 +248,7 @@ export default function SimulationResultPanel({
             loadingLabel="계산 중"
             onClick={onCalculate}
           >
-            계산하기
+            {calculateLabel}
           </Button>
           <Helper>
             {gap ? (
@@ -250,6 +257,8 @@ export default function SimulationResultPanel({
                 <VisuallyHidden>{`${progress.total}단계 중 ${progress.done}단계 완료.`}</VisuallyHidden>
                 {gap}
               </>
+            ) : isPending ? (
+              SIMULATION_CALCULATING_MESSAGE
             ) : (
               '지금 조건으로 계산할 수 있어요'
             )}

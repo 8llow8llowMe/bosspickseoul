@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { ArrowRight, Calculator } from 'lucide-react'
 import styled from 'styled-components'
 
@@ -7,6 +8,7 @@ import { Button, ButtonLink } from '@/components/ui/button'
 import {
   SimulationBottomBarAmount,
   SimulationBottomBarFrame,
+  SimulationBottomBarSpacer,
 } from '@/components/simulation/simulation-bottom-bar'
 import { formatLargeWon } from '@/lib/format'
 
@@ -20,6 +22,8 @@ export type SimulationSummaryBarProps = {
   /** 진행도. total 은 지금 화면에 놓인 섹션 수(개인 4 · 프랜차이즈 5). */
   progress: { done: number; total: number }
   isPending: boolean
+  /** 계산 버튼 라벨. 이미 보낸 조건이면 「다시 계산」(#604). 기본은 「계산하기」. */
+  calculateLabel?: string
   onCalculate: () => void
   /** 결과 패널로 데려간다. 결과가 있을 때만 쓰인다. */
   onViewResult: () => void
@@ -90,64 +94,72 @@ export default function SimulationSummaryBar({
   gap,
   progress,
   isPending,
+  calculateLabel = '계산하기',
   onCalculate,
   onViewResult,
 }: SimulationSummaryBarProps) {
   const calculated = totalPrice !== null
+  // 문서 끝에 바 높이만큼 자리를 두려고 바를 잰다(#605).
+  const [bar, setBar] = useState<HTMLDivElement | null>(null)
 
   return (
-    // 역할 없는 div 의 aria-label 은 낭독기가 무시한다(ARIA 1.2). 바 전체를 이름 있는 영역으로 둔다.
-    <Root role="region" aria-label="시뮬레이션 요약">
-      {calculated ? (
-        <SimulationBottomBarAmount>
-          <span>예상 총 창업 비용</span>
-          <strong>{formatLargeWon(totalPrice)}</strong>
-        </SimulationBottomBarAmount>
-      ) : (
-        <Pending>
-          {gap ? (
-            <>
-              <Progress aria-hidden="true">{`${progress.done}/${progress.total}`}</Progress>
-              <VisuallyHidden>{`${progress.total}단계 중 ${progress.done}단계 완료.`}</VisuallyHidden>
-              <span>{gap}</span>
-            </>
-          ) : (
-            '조건을 다 골랐어요. 계산해 보세요'
-          )}
-        </Pending>
-      )}
-      <Action>
-        {calculated && reportHref ? (
-          <ButtonLink
-            href={reportHref}
-            size="medium"
-            variant="secondary"
-            rightIcon={<ArrowRight />}
-          >
-            리포트 보기
-          </ButtonLink>
-        ) : calculated ? (
-          <Button
-            size="medium"
-            variant="secondary"
-            rightIcon={<ArrowRight />}
-            onClick={onViewResult}
-          >
-            결과 보기
-          </Button>
+    <>
+      {/* 역할 없는 div 의 aria-label 은 낭독기가 무시한다(ARIA 1.2). 바 전체를 이름 있는 영역으로 둔다. */}
+      <Root ref={setBar} role="region" aria-label="시뮬레이션 요약">
+        {calculated ? (
+          <SimulationBottomBarAmount>
+            <span>예상 총 창업 비용</span>
+            <strong>{formatLargeWon(totalPrice)}</strong>
+          </SimulationBottomBarAmount>
         ) : (
-          <Button
-            size="medium"
-            leftIcon={<Calculator />}
-            disabled={gap !== null}
-            isLoading={isPending}
-            loadingLabel="계산 중"
-            onClick={onCalculate}
-          >
-            계산하기
-          </Button>
+          <Pending>
+            {gap ? (
+              <>
+                <Progress aria-hidden="true">{`${progress.done}/${progress.total}`}</Progress>
+                <VisuallyHidden>{`${progress.total}단계 중 ${progress.done}단계 완료.`}</VisuallyHidden>
+                <span>{gap}</span>
+              </>
+            ) : isPending ? (
+              '조건을 다 골랐어요. 비용을 계산하고 있어요'
+            ) : (
+              '조건을 다 골랐어요. 계산해 보세요'
+            )}
+          </Pending>
         )}
-      </Action>
-    </Root>
+        <Action>
+          {calculated && reportHref ? (
+            <ButtonLink
+              href={reportHref}
+              size="medium"
+              variant="secondary"
+              rightIcon={<ArrowRight />}
+            >
+              리포트 보기
+            </ButtonLink>
+          ) : calculated ? (
+            <Button
+              size="medium"
+              variant="secondary"
+              rightIcon={<ArrowRight />}
+              onClick={onViewResult}
+            >
+              결과 보기
+            </Button>
+          ) : (
+            <Button
+              size="medium"
+              leftIcon={<Calculator />}
+              disabled={gap !== null}
+              isLoading={isPending}
+              loadingLabel="계산 중"
+              onClick={onCalculate}
+            >
+              {calculateLabel}
+            </Button>
+          )}
+        </Action>
+      </Root>
+      <SimulationBottomBarSpacer bar={bar} />
+    </>
   )
 }

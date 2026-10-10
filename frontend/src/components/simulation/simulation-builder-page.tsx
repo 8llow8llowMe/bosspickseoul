@@ -40,7 +40,15 @@ import {
   type SimulationConditionSection,
   type StoreSizeUnit,
 } from '@/lib/simulation/conditions'
-import { buildSimulationCompareHref } from '@/lib/simulation/compare-route'
+import {
+  describeSimulationCalculateLabel,
+  describeSimulationCalculationStatus,
+  shouldAutoCalculate,
+  simulationConditionKey,
+  SIMULATION_AUTO_CALCULATE_DELAY_MS,
+} from '@/lib/simulation/auto-calculate'
+import { mirrorSimulationConditionsToUrl } from '@/lib/simulation/builder-url'
+import { buildSimulationCompareHrefFromReport } from '@/lib/simulation/compare-route'
 import { simulationReportQueryKey } from '@/lib/simulation/report-query'
 import {
   buildSimulationReportHref,
@@ -67,9 +75,12 @@ const Page = styled.main`
   padding: 32px 0 64px;
   background: var(--color-background-muted);
 
-  /* 모바일·태블릿은 하단 고정 요약 바에 가리지 않게 여백을 더 준다. */
+  /*
+    하단 고정 요약 바의 자리는 문서 끝(푸터 뒤)에 따로 둔다(SimulationBottomBarSpacer, #605). 본문에 바
+    높이만큼 여백을 주면 본문만 지키고 그 뒤의 푸터는 바 뒤에 깔린다. 여기는 비교 화면과 같은 여백이다.
+  */
   @media ${SIMULATION_MEDIA.belowDesktop} {
-    padding: 24px 0 96px;
+    padding: 24px 0 48px;
   }
 `
 
@@ -173,6 +184,22 @@ const ResultColumn = styled.div<{ $hideOnNarrow: boolean }>`
     position: sticky;
     top: 96px;
   }
+`
+
+/*
+  자동 계산(#604)의 시작·완료를 낭독기에 알리는 영역. 늘 그려 두고 글자만 바꾼다 — 새로 붙는 live 영역은
+  첫 내용을 읽지 않는 낭독기가 있다. 결과 열은 ≤1023 에서 계산 전에 숨으므로 그 밖에 둔다.
+*/
+const LiveStatus = styled.p`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 `
 
 const EmptyText = styled.p`
@@ -333,6 +360,8 @@ export default function SimulationBuilderPage({
     conditions.reportRequest,
   )
   const report = getResponseBody(reportMutation.data)
+  // 지금 조건으로 이미 계산을 보냈으면(오류 뒤 등) 버튼은 「다시 계산」이다(#604).
+  const calculateLabel = describeSimulationCalculateLabel(isCurrent)
   const currentError = isCurrent ? error : null
   const currentReport = isCurrent && !error ? report : null
   const reportHref =
@@ -344,23 +373,74 @@ export default function SimulationBuilderPage({
           conditions.state.brandName,
         )
       : null
-  // 리포트 화면의 「비교에 추가」와 같은 링크다 — 이 조건을 A 에, B 는 빈 편집기로.
+  // 리포트 화면의 「다른 조건과 비교」와 같은 링크다 — 이 조건을 A 에, 그 복사본을 B 에(#567).
   const compareHref =
     currentReport && reportMutation.variables
-      ? buildSimulationCompareHref(
-          { left: reportMutation.variables, right: null },
+      ? buildSimulationCompareHrefFromReport(
+          reportMutation.variables,
           variant,
-          { left: conditions.state.brandName },
+          conditions.state.brandName,
         )
       : null
 
   const resultRef = useRef<HTMLDivElement | null>(null)
+  const conditionState = conditions.state
 
+  /*
+    마지막으로 계산을 보낸 조건의 키(#604). 첫 값은 **진입 때의 조건**이다 — 이미 완성된 채 들어오면
+    (리포트에서 되돌아옴·새로고침·링크) 그 조건을 보낸 것으로 쳐서 진입만으로 POST 를 보내지 않는다.
+    useRef 의 초기값은 첫 렌더에서만 쓰인다.
+  */
+  const conditionKey = simulationConditionKey(conditionState)
+  const lastRequestedKey = useRef<string | null>(conditionKey)
+
+  /*
+    `mutate` 는 안정된 참조이고 `reportRequest` 는 훅이 메모한다 — 그래서 calculate 는 조건이 바뀔 때만
+    새로 만들어지고, 아래 자동 계산 effect 가 렌더마다 타이머를 다시 걸지 않는다.
+  */
+  const { mutate: mutateReport } = reportMutation
+  const reportRequest = conditions.reportRequest
   const calculate = useCallback(() => {
-    const request = conditions.reportRequest
-    if (!request) return
-    reportMutation.mutate(request)
-  }, [conditions.reportRequest, reportMutation])
+    if (!reportRequest) return
+    lastRequestedKey.current = conditionKey
+    mutateReport(reportRequest)
+  }, [reportRequest, conditionKey, mutateReport])
+
+  /*
+    조건이 모두 정해지면 계산한다(#604). 판정은 `shouldAutoCalculate` 한 곳 — 펼친 단계가 없고(입력이
+    끝났고), 마지막으로 보낸 조건과 다르고, 요청 중이 아닐 때다. 요청 중에 조건이 바뀌면 끝난 뒤 이
+    effect 가 다시 돌아 그때 보낸다.
+
+    짧게 미뤄(디바운스) 연달아 고치는 동안 요청이 겹치지 않게 한다. 미루는 사이 사용자가 「계산하기」를
+    눌렀으면 키가 이미 같아져 보내지 않는다 — 같은 조건으로 두 번 POST 하지 않는다.
+  */
+  const isCalculating = reportMutation.isPending
+  useEffect(() => {
+    if (
+      !shouldAutoCalculate({
+        conditionKey,
+        lastRequestedKey: lastRequestedKey.current,
+        openSection,
+        isPending: isCalculating,
+      })
+    ) {
+      return
+    }
+    const timer = window.setTimeout(() => {
+      if (lastRequestedKey.current === conditionKey) return
+      calculate()
+    }, SIMULATION_AUTO_CALCULATE_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [conditionKey, openSection, isCalculating, calculate])
+
+  /*
+    입력 중인 조건을 주소창에 보존한다(#568). 새로고침하거나 「저장한 결과」를 보고 돌아와도, 계산 전
+    조건을 링크로 보내도 같은 조건으로 열린다. `replaceState` 라 히스토리가 쌓이지 않는다.
+    분석 경유 화면은 분석 컨텍스트 키(자치구·업종·행정동·상권)를 진입 값 그대로 둔다 — 컨텍스트 카드의 정본이다.
+  */
+  useEffect(() => {
+    mirrorSimulationConditionsToUrl(conditionState, variant)
+  }, [conditionState, variant])
 
   const scrollToResult = useCallback(() => {
     resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -636,6 +716,7 @@ export default function SimulationBuilderPage({
               compareHref={compareHref}
               error={currentError}
               isPending={reportMutation.isPending}
+              calculateLabel={calculateLabel}
               onCalculate={calculate}
               onReselect={reselectSection}
             />
@@ -643,12 +724,20 @@ export default function SimulationBuilderPage({
         </Layout>
       </Container>
 
+      <LiveStatus role="status" aria-live="polite">
+        {describeSimulationCalculationStatus({
+          isPending: reportMutation.isPending,
+          totalPrice: currentReport?.totalPrice ?? null,
+        })}
+      </LiveStatus>
+
       <SimulationSummaryBar
         totalPrice={currentReport?.totalPrice ?? null}
         reportHref={reportHref}
         gap={conditions.gap}
         progress={progress}
         isPending={reportMutation.isPending}
+        calculateLabel={calculateLabel}
         onCalculate={calculate}
         onViewResult={scrollToResult}
       />
