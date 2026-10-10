@@ -174,6 +174,7 @@ import { useScrollSpy } from '@/lib/analysis/use-scroll-spy'
 import { useResolvedAnalysisPeriod } from '@/hooks/use-resolved-analysis-period'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
+import { buildSimulationAnalysisHref } from '@/lib/simulation/analysis-context'
 import { useCommercialBookmarks } from '@/hooks/use-commercial-bookmarks'
 import { useToast } from '@/components/ui/toast'
 import {
@@ -2158,16 +2159,16 @@ export default function AnalysisResultView({
                   <Button
                     size="medium"
                     onClick={() =>
-                      // V2 계약은 코드로 받는다. 예전에는 `gugun`(자치구 *이름*)과 빈
-                      // `serviceCodeName` 을 보내는 V1 형태였는데, `districtCode` 가 없어
-                      // 시뮬레이션 쪽 컨텍스트 카드가 자치구를 복원하지 못했다.
+                      // 분석 컨텍스트는 `ctx` 키로 싣는다(#635). 시뮬레이션 조건 키
+                      // (`districtCode`·`serviceCode`)와 겹치면 입력 화면이 바꾼 자치구·업종을
+                      // 주소에 남길 수 없다.
                       router.push(
-                        `/analysis/simulation?${new URLSearchParams({
+                        buildSimulationAnalysisHref({
                           districtCode,
                           administrationCode,
                           commercialCode,
                           serviceCode,
-                        })}`,
+                        }),
                       )
                     }
                   >

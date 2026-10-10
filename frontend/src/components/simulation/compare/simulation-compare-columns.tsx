@@ -17,6 +17,7 @@ import {
   SIMULATION_COMPARE_SIDE_MARKS,
   toMirrorCostRows,
 } from '@/lib/simulation/compare-presentation'
+import { withSimulationAnalysisContext } from '@/lib/simulation/analysis-context'
 import { buildSimulationReportHref } from '@/lib/simulation/report-route'
 import type { SimulationReportVariant } from '@/lib/simulation/report-route'
 import { buildSimulationReportRequest } from '@/lib/api/simulation'
@@ -27,6 +28,8 @@ export type SimulationCompareColumnsProps = {
   left: SimulationReport
   right: SimulationReport
   variant?: SimulationReportVariant
+  /** 분석 경유 화면의 분석 컨텍스트(`ctx` 키, #635). 열별 리포트 링크에 덧붙여 들고 다닌다. */
+  contextParams?: URLSearchParams | null
 }
 
 /** 결과 제목 id. 비교에 성공하면 화면이 여기로 스크롤하고 포커스를 옮긴다(C3). */
@@ -338,10 +341,11 @@ const Links = styled.div`
 const toReportHref = (
   report: SimulationReport,
   variant: SimulationReportVariant,
+  contextParams: URLSearchParams | null,
 ): string => {
   const { condition } = report
 
-  return buildSimulationReportHref(
+  const href = buildSimulationReportHref(
     buildSimulationReportRequest({
       franchisee: condition.franchisee,
       franchiseeId: condition.franchiseeId,
@@ -353,6 +357,7 @@ const toReportHref = (
     variant,
     condition.brandName,
   )
+  return withSimulationAnalysisContext(href, contextParams)
 }
 
 /**
@@ -365,6 +370,7 @@ export default function SimulationCompareColumns({
   left,
   right,
   variant = 'standalone',
+  contextParams = null,
 }: SimulationCompareColumnsProps) {
   const gap = describeSimulationCostGap(left, right)
   const rows = toMirrorCostRows(left, right)
@@ -460,14 +466,14 @@ export default function SimulationCompareColumns({
       <Links>
         <ButtonLink
           variant="secondary"
-          href={toReportHref(left, variant)}
+          href={toReportHref(left, variant, contextParams)}
           rightIcon={<ArrowRight />}
         >
           {SIMULATION_COMPARE_SIDE_LABELS.left} 상세 리포트 보기
         </ButtonLink>
         <ButtonLink
           variant="secondary"
-          href={toReportHref(right, variant)}
+          href={toReportHref(right, variant, contextParams)}
           rightIcon={<ArrowRight />}
         >
           {SIMULATION_COMPARE_SIDE_LABELS.right} 상세 리포트 보기

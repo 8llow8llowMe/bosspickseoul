@@ -23,6 +23,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { createSimulationReport } from '@/lib/api/simulation'
+import {
+  readSimulationAnalysisContextParams,
+  withSimulationAnalysisContext,
+} from '@/lib/simulation/analysis-context'
 import { buildSimulationCompareHrefFromReport } from '@/lib/simulation/compare-route'
 import { getResponseBody } from '@/lib/api/response'
 import {
@@ -203,8 +207,23 @@ export default function SimulationReportPage({
     retry: retryUnlessClientError(),
   })
 
+  /*
+    분석 경유 리포트는 입력 화면이 덧붙인 분석 컨텍스트(`ctx` 키)를 읽지 않고 다음 링크로 옮기기만 한다(#635).
+    「조건 다시 고르기」로 돌아가도 카드가 원래 분석 조건을 말한다. 계산(요청·캐시 키)에는 쓰지 않는다.
+  */
+  const contextParams = useMemo(
+    () =>
+      variant === 'analysis'
+        ? readSimulationAnalysisContextParams(searchParams)
+        : null,
+    [variant, searchParams],
+  )
+
   // 고른 조건을 실어 보낸다. 이게 없으면 리포트를 빠져나오는 순간 고른 조건이 전부 초기화된다.
-  const builderHref = simulationBuilderHref(variant, conditionState)
+  const builderHref = withSimulationAnalysisContext(
+    simulationBuilderHref(variant, conditionState),
+    contextParams,
+  )
 
   /**
    * 오류가 지목한 조건 섹션으로 데려간다.
@@ -344,10 +363,13 @@ export default function SimulationReportPage({
             request={request}
             currentHref={currentHref}
             // B 는 A 의 복사본으로 연다(#567, 결정 D-3) — 비교는 보통 한 가지만 바꿔 본다.
-            compareHref={buildSimulationCompareHrefFromReport(
-              request,
-              variant,
-              conditionState.brandName,
+            compareHref={withSimulationAnalysisContext(
+              buildSimulationCompareHrefFromReport(
+                request,
+                variant,
+                conditionState.brandName,
+              ),
+              contextParams,
             )}
           />
         ) : null}

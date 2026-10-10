@@ -10,6 +10,7 @@ const context: SimulationAnalysisContext = {
   districtName: '서대문구',
   serviceCode: 'CS100001',
   serviceName: '한식음식점',
+  administrationCode: null,
   commercialCode: '3110001',
 }
 
