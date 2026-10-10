@@ -4,6 +4,7 @@ import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it } from 'vitest'
 
 import RankBarList, { type RankBarRow } from '@/components/home/rank-bar-list'
+import { presentStatusChange } from '@/lib/status/status-formatters'
 
 const rows: RankBarRow[] = [
   { key: 'a', rank: 1, name: '강남구', value: 100, valueLabel: '100회' },
@@ -63,11 +64,11 @@ describe('RankBarList', () => {
     ).toContain('href="/analysis?districtCode=11680"')
   })
 
-  it('변화율 배지는 changeLabel 이 있을 때만 그린다', () => {
+  it('증감은 change 가 있을 때만 그린다', () => {
     expect(render()).not.toContain('+3.2%')
     expect(
       render({
-        rows: [{ ...rows[0], changeLabel: '+3.2%', changeDirection: 'up' }],
+        rows: [{ ...rows[0], change: presentStatusChange('footTraffic', 3.2) }],
       }),
     ).toContain('+3.2%')
   })
@@ -164,8 +165,8 @@ describe('RankBarList — 증감 글자 대비', () => {
         sheet.collectStyles(
           createElement(RankBarList, {
             rows: [
-              { ...rows[0], changeLabel: '+2.5%', changeDirection: 'up' },
-              { ...rows[1], changeLabel: '-1.2%', changeDirection: 'down' },
+              { ...rows[0], change: presentStatusChange('sales', 2.5) },
+              { ...rows[1], change: presentStatusChange('sales', -1.2) },
             ],
             ariaLabel: '순위',
           }),
@@ -195,6 +196,72 @@ describe('RankBarList — 미니 지도 연결', () => {
 
       expect(html).toMatch(/<li[^>]*data-rank-key="a"/)
       expect(html).toMatch(/<li[^>]*data-rank-key="b"/)
+    },
+  )
+})
+
+/*
+ * 결정 D-1(DESIGN.md §Charts 「증감은 좋고 나쁨으로 칠한다」). 예전에는 오름=초록·내림=빨강이라 폐업처럼
+ * 늘면 나쁜 지표의 증가가 좋은 소식으로 칠해질 수 있었다. 색은 지표 극성이 정하고, 부호·화살표와
+ * 「개선/악화」 글자를 색과 같이 둔다(WCAG 1.4.1).
+ */
+describe('RankBarList — 증감은 극성으로 칠한다(D-1)', () => {
+  const renderChange = (change: RankBarRow['change'], changeBasis?: string) =>
+    render({ rows: [{ ...rows[0], change, changeBasis }] })
+
+  it('높을수록 좋은 지표의 증가는 개선(positive)이다', () => {
+    const html = renderChange(presentStatusChange('footTraffic', 2.5))
+
+    expect(html).toContain('data-change-tone="positive"')
+    expect(html).toContain('+2.5% 개선')
+    expect(html).toContain('▲')
+  })
+
+  it('높을수록 좋은 지표의 감소는 악화(negative)다', () => {
+    const html = renderChange(presentStatusChange('sales', -1.2))
+
+    expect(html).toContain('data-change-tone="negative"')
+    expect(html).toContain('-1.2% 악화')
+    expect(html).toContain('▼')
+  })
+
+  it('낮을수록 좋은 지표(폐업)의 증가는 방향이 올라도 악화다', () => {
+    const html = renderChange(presentStatusChange('closed', 4))
+
+    expect(html).toContain('data-change-tone="negative"')
+    expect(html).toContain('▲')
+    expect(html).toContain('악화')
+  })
+
+  it('변동 없음은 무채색이고 개선/악화를 말하지 않는다', () => {
+    const html = renderChange(presentStatusChange('footTraffic', 0))
+
+    expect(html).toContain('data-change-tone="neutral"')
+    expect(html).not.toContain('개선')
+    expect(html).not.toContain('악화')
+  })
+
+  it('화살표는 읽지 않고 기준과 방향을 숨긴 글자로 읽힌다', () => {
+    const html = renderChange(
+      presentStatusChange('footTraffic', 2.5),
+      '직전 분기 대비',
+    )
+
+    expect(html).toContain('<span aria-hidden="true">▲ </span>')
+    expect(html).toContain('직전 분기 대비 증가')
+  })
+})
+
+/* 조회 수가 임계값 아래면 막대를 끄고 순위만 남긴다(#600). */
+describe('RankBarList — 막대 끄기', () => {
+  it.each(['compact', 'card'] as const)(
+    '%s 변형에서 showBars=false 면 막대를 그리지 않는다',
+    variant => {
+      const html = render({ variant, showBars: false })
+
+      expect(html).not.toContain('width:100%')
+      expect(html).not.toContain('width:50%')
+      expect(html).toContain('강남구')
     },
   )
 })

@@ -3,6 +3,9 @@
 import Link from 'next/link'
 import styled, { css } from 'styled-components'
 
+import { CHANGE_TONE_TEXT_COLOR } from '@/lib/metrics/metric-polarity'
+import type { StatusChangePresentation } from '@/lib/status/status-formatters'
+
 export type RankBarRow = {
   key: string
   rank: number
@@ -11,10 +14,16 @@ export type RankBarRow = {
   value: number
   /** 포맷이 끝난 표시용 문자열. 이 부품은 포맷하지 않는다. */
   valueLabel: string
-  /** 변화율 표시 문자열. 없으면 배지를 그리지 않는다. */
-  changeLabel?: string
-  /** 변화 방향. `changeLabel` 이 있을 때만 본다. */
-  changeDirection?: 'up' | 'down'
+  /**
+   * 증감 한 칸(`presentStatusChange`). 없으면 그리지 않는다.
+   *
+   * 색은 오름·내림이 아니라 **지표 극성**으로 정해진 `tone` 을 따른다(DESIGN.md §Charts, 결정 D-1) —
+   * 예전 `changeDirection` 은 「상승=초록」이라 폐업처럼 늘면 나쁜 지표를 좋게 칠할 수 있었다.
+   * 화살표·부호·「개선/악화」 글자를 색과 늘 같이 둔다.
+   */
+  change?: StatusChangePresentation
+  /** 증감의 비교 기준(예: 「직전 분기 대비」). 스크린리더에만 읽힌다 — 화면에는 목록 머리가 한 번 적는다. */
+  changeBasis?: string
   href?: string
   ariaLabel?: string
 }
@@ -49,6 +58,11 @@ export type RankBarListProps = {
   onRowEnter?: (key: string) => void
   /** 행에서 포인터가 나가거나 포커스가 떠나면 그 행의 `key` 로 부른다. */
   onRowLeave?: (key: string) => void
+  /**
+   * 막대를 그릴지(기본 true). 값이 뜻을 갖지 못할 만큼 작으면 끈다 — 조회 「1회」 다섯 곳의 막대는
+   * 모두 100% 라 아무것도 말하지 않고, 아무도 쓰지 않는 서비스처럼 보인다(#600). 끄면 순위만 남는다.
+   */
+  showBars?: boolean
 }
 
 const List = styled.ol`
@@ -97,15 +111,16 @@ const CardList = styled(List)`
  * `1fr` 이라 데모 칸 폭을 그대로 먹었다. 남는 폭은 이름 칸이 가져간다 — 막대와 값이
  * 오른쪽에 붙어 눈으로 잇기 쉽다(card 변형과 같은 판단).
  *
- * 값 칸은 고정폭(150px, 오른쪽 정렬)이다. `auto` 면 행마다 값 길이가 달라 막대 끝이
+ * 값 칸은 고정폭(200px, 오른쪽 정렬)이다. `auto` 면 행마다 값 길이가 달라 막대 끝이
  * 어긋났다(1억 4539만명 vs 1억 1920만명 — 행이 각자 그리드라 칸 폭을 공유하지 않는다).
+ * 150 → 200 은 증감 옆 「개선/악화」 글자 몫이다(D-1) — 「1억 4,528만명 ▲ +13.6% 악화」가 한 줄에 든다.
  *
  * 행은 모두 흰 배경이다. 틀(DemoFrame) 배경이 회색이라 투명하게 두면 변화율·순위 글자가
  * 회색 위에서 AA 에 못 미친다(e2e 대비 지표). 1~3위는 막대 색과 순위 굵기로 가른다.
  */
 const rowGridStyles = css<{ $highlighted: boolean; $top: boolean }>`
   display: grid;
-  grid-template-columns: 24px minmax(72px, 1fr) minmax(0, 360px) 150px;
+  grid-template-columns: 24px minmax(72px, 1fr) minmax(0, 360px) 200px;
   gap: 12px;
   align-items: center;
   padding: 12px;
@@ -330,15 +345,50 @@ const Value = styled.span`
 
 // 증감 글자는 -text 토큰(green700·red700)이다. green500·red500 글자는 흰 바탕 2.77 / 3.71:1
 // 로 AA 미달이었다. 13px 은 가독성 때문(contrast-tokens.md D4-5) — 색만으로도 AA 를 넘는다.
-const Change = styled.span<{ $direction: 'up' | 'down' }>`
+// 어느 색인지는 방향이 아니라 극성 판단(tone)이 정한다(D-1). 변동 없음·데이터 없음은 무채색이다.
+const Change = styled.span<{ $tone: StatusChangePresentation['tone'] }>`
   margin-left: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: ${p =>
-    p.$direction === 'up'
-      ? 'var(--color-positive-text)'
-      : 'var(--color-negative-text)'};
+  color: ${p => CHANGE_TONE_TEXT_COLOR[p.$tone]};
 `
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+`
+
+/**
+ * 증감 한 칸. ▲▼ 는 읽지 않고, 기준과 방향은 숨긴 글자로 읽힌다(구별현황 목록과 같은 모양, #560).
+ */
+function ChangeText({
+  change,
+  basis,
+}: {
+  change: StatusChangePresentation
+  basis?: string
+}) {
+  return (
+    <Change $tone={change.tone} data-change-tone={change.tone}>
+      {change.arrow ? <span aria-hidden="true">{change.arrow} </span> : null}
+      {basis || change.directionLabel ? (
+        <VisuallyHidden>
+          {basis ? `${basis} ` : null}
+          {change.directionLabel ? `${change.directionLabel} ` : null}
+        </VisuallyHidden>
+      ) : null}
+      {change.rateText}
+      {change.qualityLabel ? ` ${change.qualityLabel}` : null}
+    </Change>
+  )
+}
 
 /** 1위 대비 비율. 최대값이 0 이하면 나눗셈을 하지 않는다(NaN 방지). */
 export const barPercent = (value: number, max: number): number => {
@@ -357,6 +407,7 @@ export default function RankBarList({
   variant = 'compact',
   onRowEnter,
   onRowLeave,
+  showBars = true,
 }: RankBarListProps) {
   const max = Math.max(0, ...rows.map(row => (row.value > 0 ? row.value : 0)))
   const resolvedCurrentKey =
@@ -395,15 +446,15 @@ export default function RankBarList({
               <CardName>{row.name}</CardName>
               <CardValue>
                 {row.valueLabel}
-                {row.changeLabel ? (
-                  <Change $direction={row.changeDirection ?? 'up'}>
-                    {row.changeLabel}
-                  </Change>
+                {row.change ? (
+                  <ChangeText change={row.change} basis={row.changeBasis} />
                 ) : null}
               </CardValue>
-              <CardTrack aria-hidden="true">
-                <CardFill $top={top} style={{ width: `${percent}%` }} />
-              </CardTrack>
+              {showBars ? (
+                <CardTrack aria-hidden="true">
+                  <CardFill $top={top} style={{ width: `${percent}%` }} />
+                </CardTrack>
+              ) : null}
             </>
           )
 
@@ -454,15 +505,17 @@ export default function RankBarList({
               {row.rank}
             </Rank>
             <Name>{row.name}</Name>
-            <Track aria-hidden="true">
-              <Fill $top={top} style={{ width: `${percent}%` }} />
-            </Track>
+            {showBars ? (
+              <Track aria-hidden="true">
+                <Fill $top={top} style={{ width: `${percent}%` }} />
+              </Track>
+            ) : (
+              <span aria-hidden="true" />
+            )}
             <Value>
               {row.valueLabel}
-              {row.changeLabel ? (
-                <Change $direction={row.changeDirection ?? 'up'}>
-                  {row.changeLabel}
-                </Change>
+              {row.change ? (
+                <ChangeText change={row.change} basis={row.changeBasis} />
               ) : null}
             </Value>
           </>

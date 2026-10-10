@@ -12,10 +12,10 @@ import {
 } from '@/components/home/district-rhythm'
 import { formatPeriodCode } from '@/lib/analysis/presentation'
 import {
+  STATUS_CHANGE_BASIS,
   STATUS_CHANGE_TONE_COLOR,
   formatSinoUnit,
-  formatStatusChange,
-  getStatusChangeTone,
+  presentStatusChange,
 } from '@/lib/status/status-formatters'
 
 /*
@@ -214,6 +214,15 @@ function ReadyBody({ rhythm }: { rhythm: DistrictRhythm }) {
     DAY_CHART.gap,
   )
   const peakSlot = slots.find(slot => slot.peak)
+  /*
+    증감은 극성으로 칠하고 「개선/악화」 글자를 늘 같이 둔다(DESIGN.md §Charts, 결정 D-1) — 색만으로
+    좋고 나쁨을 전하지 않는다. 툴팁 전체가 aria-hidden 이라(폴리곤 이름표가 읽힌다) 화살표는 두지 않고
+    부호(+/−)와 글자로 말한다. 변동 없음(0)은 판단 글자 없이 무채색이다.
+  */
+  const change =
+    latest && latest.changeRate !== null
+      ? presentStatusChange('footTraffic', latest.changeRate)
+      : null
   const hourToX = (hour: number) => PAD + (hour / 24) * INNER
 
   return (
@@ -222,24 +231,22 @@ function ReadyBody({ rhythm }: { rhythm: DistrictRhythm }) {
         <>
           <Value x={PAD} y={46}>
             {formatSinoUnit(latest.total, '명')}
-            {latest.changeRate !== null ? (
+            {change ? (
               <tspan
                 dx={6}
                 fontSize={12}
                 fontWeight={600}
-                style={{
-                  fill: STATUS_CHANGE_TONE_COLOR[
-                    getStatusChangeTone('footTraffic', latest.changeRate)
-                  ],
-                }}
+                data-change-tone={change.tone}
+                style={{ fill: STATUS_CHANGE_TONE_COLOR[change.tone] }}
               >
-                {formatStatusChange(latest.changeRate)}
+                {change.rateText}
+                {change.qualityLabel ? ` ${change.qualityLabel}` : ''}
               </tspan>
             ) : null}
           </Value>
           <Caption x={PAD} y={62}>
             {formatPeriodCode(latest.periodCode)} 유동인구
-            {latest.changeRate !== null ? ' · 전분기 대비' : ''}
+            {latest.changeRate !== null ? ` · ${STATUS_CHANGE_BASIS}` : ''}
           </Caption>
         </>
       ) : null}

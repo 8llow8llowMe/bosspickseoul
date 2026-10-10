@@ -18,8 +18,9 @@ import {
   type HomeMetric,
 } from '@/lib/home/metric-rankings'
 import {
+  STATUS_CHANGE_BASIS,
   formatStatusValue,
-  toChangeBadge,
+  presentStatusChange,
 } from '@/lib/status/status-formatters'
 
 const Subtitle = styled.span`
@@ -92,7 +93,14 @@ export default function MetricRankingBoard() {
       name: item.districtName,
       value: item.value,
       valueLabel: formatStatusValue(active.metric, item.value),
-      ...toChangeBadge(item.changeRate),
+      /*
+        증감은 극성으로 칠하고 「개선/악화」를 같이 둔다(D-1). 값이 없으면(null·NaN) 칸째로 뺀다 —
+        「변화율 데이터 없음」을 다섯 줄에 적으면 순위보다 결측이 먼저 읽힌다.
+      */
+      change: Number.isFinite(item.changeRate)
+        ? presentStatusChange(active.metric, item.changeRate)
+        : undefined,
+      changeBasis: STATUS_CHANGE_BASIS,
     }))
 
   return (
@@ -100,7 +108,8 @@ export default function MetricRankingBoard() {
       title="자치구 순위"
       subtitle={
         <Subtitle>
-          상위 {rows.length}곳 · 전월 대비
+          {/* 서버는 직전 분기를 비교 기준으로 쓴다(status.md 「백엔드 계약」) — 「전월」이 아니다. */}
+          상위 {rows.length}곳 · {STATUS_CHANGE_BASIS}
           {isFallback ? <SampleBadge>예시 데이터</SampleBadge> : null}
         </Subtitle>
       }
