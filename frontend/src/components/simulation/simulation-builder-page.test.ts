@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -11,6 +12,7 @@ import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SimulationBuilderPage from '@/components/simulation/simulation-builder-page'
+import { SIMULATION_AUTO_CALCULATE_DELAY_MS } from '@/lib/simulation/auto-calculate'
 import type { SimulationConditionSection } from '@/lib/simulation/conditions'
 import * as api from '@/lib/api/simulation'
 
@@ -27,8 +29,11 @@ import * as api from '@/lib/api/simulation'
  * 않으므로 그건 여전히 브라우저 실측의 몫이다 — 잘못된 안심을 만들지 않기 위해 적어 둔다.
  */
 
+/* 진입 쿼리. 복원(#568)·진입 시 자동 계산(#604)을 보는 테스트만 바꾼다. */
+const navigation = vi.hoisted(() => ({ search: '' }))
+
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }))
 
 vi.mock('@/lib/api/simulation', async importOriginal => ({
@@ -97,7 +102,7 @@ const chip = (name: string) => {
   return nodes[0]
 }
 
-const renderPage = () =>
+const renderPage = (variant: 'standalone' | 'analysis' = 'standalone') =>
   render(
     createElement(
       QueryClientProvider,
@@ -109,7 +114,7 @@ const renderPage = () =>
           },
         }),
       },
-      createElement(SimulationBuilderPage),
+      createElement(SimulationBuilderPage, { variant }),
     ),
   )
 
@@ -149,6 +154,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  navigation.search = ''
+  // 거울(#568)이 주소창을 바꾼다. 다음 테스트가 앞 테스트의 주소에서 시작하지 않게 되돌린다.
+  window.history.replaceState(null, '', '/')
 })
 
 describe('SimulationBuilderPage — 포커스 배선', () => {
@@ -329,9 +337,9 @@ describe('SimulationBuilderPage — 열림 단계 배선', () => {
     expect(isExpanded('brand')).toBe(true)
     expect(document.activeElement).toBe(header('brand'))
     // 첫 조회가 몇 초 걸릴 수 있어(dev 실측 5.8초) 스켈레톤만이 아니라 문구를 보인다.
-    expect(screen.getByRole('status').textContent).toBe(
-      '브랜드를 불러오는 중이에요',
-    )
+    expect(
+      screen.getByText('브랜드를 불러오는 중이에요').closest('[role="status"]'),
+    ).not.toBeNull()
 
     const brand = await screen.findByRole('button', { name: /테스트브랜드/ })
     fireEvent.click(brand)
@@ -691,5 +699,312 @@ describe('SimulationBuilderPage — 오류가 지목한 단계로 되돌리기',
     fireEvent.click(reselect)
 
     expect(isExpanded('district')).toBe(true)
+  })
+})
+
+/* 자동 계산의 디바운스(SIMULATION_AUTO_CALCULATE_DELAY_MS)보다 넉넉히 기다린다. */
+const settle = () => new Promise(resolve => setTimeout(resolve, 450))
+
+/** 개인 창업 · 강남구 · 한식음식점 · 66㎡ · 1층 — 마지막 칩(1층)이 전부 접는다. */
+const fillAll = () => {
+  fillThroughService()
+  fireEvent.change(screen.getByLabelText('면적 직접 입력 (제곱미터)'), {
+    target: { value: '66' },
+  })
+  fireEvent.click(chip('1층'))
+}
+
+const COMPLETE_QUERY =
+  'franchisee=false&districtCode=11680&serviceCode=CS100001&storeSize=66&floorType=FIRST_FLOOR'
+
+describe('SimulationBuilderPage — 자동 계산 (#604)', () => {
+  it('마지막 조건을 고르면 버튼 없이 한 번 계산한다', async () => {
+    renderPage()
+    fillAll()
+
+    await waitFor(() =>
+      expect(api.createSimulationReport).toHaveBeenCalledTimes(1),
+    )
+    expect(api.createSimulationReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        franchisee: false,
+        districtCode: '11680',
+        serviceCode: 'CS100001',
+        storeSize: 66,
+        floorType: 'FIRST_FLOOR',
+      }),
+    )
+
+    // 같은 조건으로는 다시 보내지 않는다 — 오류가 나도 되풀이하지 않는다.
+    await settle()
+    expect(api.createSimulationReport).toHaveBeenCalledTimes(1)
+  })
+
+  it('면적을 치는 동안에는 계산하지 않고 Enter 로 끝낼 때 계산한다', async () => {
+    renderPage()
+    fillThroughService()
+    fireEvent.click(chip('1층'))
+
+    const input = screen.getByLabelText('면적 직접 입력 (제곱미터)')
+    fireEvent.change(input, { target: { value: '6' } })
+    await settle()
+    expect(api.createSimulationReport).not.toHaveBeenCalled()
+
+    fireEvent.change(input, { target: { value: '66' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() =>
+      expect(api.createSimulationReport).toHaveBeenCalledTimes(1),
+    )
+    expect(api.createSimulationReport).toHaveBeenCalledWith(
+      expect.objectContaining({ storeSize: 66 }),
+    )
+  })
+
+  it('미루는 사이 「계산하기」를 눌러도 같은 조건으로 두 번 보내지 않는다', async () => {
+    renderPage()
+    fillAll()
+
+    fireEvent.click(screen.getAllByRole('button', { name: '계산하기' })[0])
+    await settle()
+
+    expect(api.createSimulationReport).toHaveBeenCalledTimes(1)
+  })
+
+  it('조건을 바꾸면 바뀐 조건으로 다시 계산한다', async () => {
+    renderPage()
+    fillAll()
+    await waitFor(() =>
+      expect(api.createSimulationReport).toHaveBeenCalledTimes(1),
+    )
+
+    fireEvent.click(header('store'))
+    fireEvent.click(chip('1층 외'))
+
+    await waitFor(() =>
+      expect(api.createSimulationReport).toHaveBeenCalledTimes(2),
+    )
+    expect(api.createSimulationReport).toHaveBeenLastCalledWith(
+      expect.objectContaining({ floorType: 'OTHER' }),
+    )
+  })
+
+  it('계산한 조건으로 오류가 나면 버튼은 「다시 계산」이다', async () => {
+    renderPage()
+    fillAll()
+
+    await screen.findByRole('button', { name: /자치구 다시 선택/ })
+    expect(
+      screen.getAllByRole('button', { name: '다시 계산' }).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('이미 완성된 조건으로 들어오면 진입만으로 계산하지 않는다', async () => {
+    navigation.search = COMPLETE_QUERY
+    renderPage()
+
+    await settle()
+
+    expect(api.createSimulationReport).not.toHaveBeenCalled()
+    expect(
+      screen.getAllByRole('button', { name: '계산하기' }).length,
+    ).toBeGreaterThan(0)
+  })
+})
+
+describe('SimulationBuilderPage — 입력 중 조건 보존 (#568)', () => {
+  it('고를 때마다 주소창에 조건을 쓰고 히스토리는 쌓지 않는다', () => {
+    window.history.replaceState(null, '', '/simulation')
+    const before = window.history.length
+    renderPage()
+
+    fireEvent.click(chip('개인 창업'))
+    fireEvent.click(chip('강남구'))
+
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('franchisee')).toBe('false')
+    expect(params.get('districtCode')).toBe('11680')
+    expect(window.history.length).toBe(before)
+  })
+
+  it('주소창에 남은 조건으로 다시 열면 고른 곳까지 그대로 돌아온다 — 새로고침·링크 공유', () => {
+    window.history.replaceState(null, '', '/simulation')
+    renderPage()
+    fireEvent.click(chip('개인 창업'))
+    fireEvent.click(chip('강남구'))
+    const written = window.location.search
+    cleanup()
+
+    // 새로고침: 주소창의 쿼리가 진입 쿼리가 된다.
+    navigation.search = written
+    renderPage()
+
+    expect(header('district').textContent).toContain('강남구')
+    expect(isExpanded('service')).toBe(true)
+  })
+})
+
+const liveStatus = () => {
+  const node = document.querySelector('[role="status"][aria-live="polite"]')
+  if (!node) throw new Error('계산 상태 live 영역이 없다')
+  return node
+}
+
+const ok23450 = () =>
+  ok({
+    condition: {
+      franchisee: false,
+      franchiseeId: null,
+      brandName: null,
+      districtCode: '11680',
+      districtName: '강남구',
+      serviceCode: 'CS100001',
+      serviceName: '한식음식점',
+      storeSize: 66,
+      floorType: { code: 'FIRST_FLOOR', name: '1층', description: '1층 점포' },
+      periodCode: '20261',
+    },
+    dataBaseYear: '2024',
+    totalPrice: 23_450,
+    keyMoney: { keyMoneyRatio: 62, keyMoneyAverage: 4_200, keyMoneyLevel: 63 },
+    costDetail: { rentPrice: 300, deposit: 3_000, interior: 5_000, levy: null },
+    similarFranchisees: [],
+    genderAgeAnalysis: null,
+    seasonAnalysis: null,
+  })
+
+/** 손으로 끝내는 요청. 요청 중에 조건을 바꾸는 경쟁을 재현한다. */
+const deferred = () => {
+  let resolve: (value: unknown) => void = () => {}
+  const promise = new Promise(next => {
+    resolve = next
+  })
+  return { promise, resolve }
+}
+
+describe('SimulationBuilderPage — 계산 상태 낭독 (#604 리뷰)', () => {
+  it('자동 계산의 시작과 완료를 live 영역이 알린다', async () => {
+    const pending = deferred()
+    vi.mocked(api.createSimulationReport).mockReturnValue(
+      pending.promise as never,
+    )
+    renderPage()
+    expect(liveStatus().textContent).toBe('')
+
+    fillAll()
+    await waitFor(() =>
+      expect(liveStatus().textContent).toBe(
+        '고른 조건으로 예상 창업 비용을 계산하고 있어요',
+      ),
+    )
+
+    pending.resolve(ok23450())
+    await waitFor(() =>
+      expect(liveStatus().textContent).toBe('예상 총 창업 비용 2억 3,450만원'),
+    )
+  })
+
+  it('실패는 오류 안내(alert)가 읽고 live 영역은 비운다 — 같은 오류를 두 번 읽지 않는다', async () => {
+    renderPage()
+    fillAll()
+
+    await screen.findByRole('alert')
+    expect(liveStatus().textContent).toBe('')
+  })
+})
+
+describe('SimulationBuilderPage — 분석 경유 화면의 URL 거울 (리뷰)', () => {
+  it('자치구를 바꿔도 분석 컨텍스트 키는 진입 값 그대로 둔다', () => {
+    const entry =
+      '?districtCode=11440&administrationCode=11440660&commercialCode=3110567&serviceCode=CS100001'
+    navigation.search = entry.slice(1)
+    window.history.replaceState(null, '', `/analysis/simulation${entry}`)
+    renderPage('analysis')
+
+    fireEvent.click(chip('개인 창업'))
+    fireEvent.click(header('district'))
+    fireEvent.click(chip('강남구'))
+
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('districtCode')).toBe('11440')
+    expect(params.get('serviceCode')).toBe('CS100001')
+    expect(params.get('administrationCode')).toBe('11440660')
+    expect(params.get('commercialCode')).toBe('3110567')
+    expect(params.get('franchisee')).toBe('false')
+    expect(header('district').textContent).toContain('강남구')
+  })
+})
+
+/*
+  경쟁(리뷰 3). 실제 타이머로 기다리면 「한 번만」을 우연히 통과할 수 있어 디바운스를 가짜 타이머로 정확히 넘긴다.
+  setTimeout 만 가짜로 둔다 — React Query 의 알림 스케줄도 setTimeout 이라 advanceTimersByTimeAsync 로 함께 민다.
+*/
+describe('SimulationBuilderPage — 자동 계산 경쟁 (#604 리뷰)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const advance = async (ms: number) => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms)
+    })
+  }
+
+  it('요청 중에 조건을 바꾸면 끝난 뒤 바뀐 조건으로 한 번만 더 보낸다', async () => {
+    const first = deferred()
+    vi.mocked(api.createSimulationReport)
+      .mockReturnValueOnce(first.promise as never)
+      .mockResolvedValue(ok23450() as never)
+    renderPage()
+    fillAll()
+
+    await advance(SIMULATION_AUTO_CALCULATE_DELAY_MS)
+    expect(api.createSimulationReport).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(header('store'))
+    fireEvent.click(chip('1층 외'))
+    await advance(SIMULATION_AUTO_CALCULATE_DELAY_MS * 3)
+    // 앞 요청이 끝나기 전에는 보내지 않는다.
+    expect(api.createSimulationReport).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      first.resolve(ok23450())
+    })
+    await advance(SIMULATION_AUTO_CALCULATE_DELAY_MS * 3)
+
+    expect(api.createSimulationReport).toHaveBeenCalledTimes(2)
+    expect(api.createSimulationReport).toHaveBeenLastCalledWith(
+      expect.objectContaining({ floorType: 'OTHER' }),
+    )
+  })
+
+  it('디바운스 중에 화면을 떠나면 보내지 않는다', async () => {
+    const { unmount } = renderPage()
+    fillAll()
+
+    await advance(SIMULATION_AUTO_CALCULATE_DELAY_MS - 50)
+    unmount()
+    await advance(SIMULATION_AUTO_CALCULATE_DELAY_MS * 3)
+
+    expect(api.createSimulationReport).not.toHaveBeenCalled()
+  })
+
+  it('오류 뒤 「다시 계산」은 한 번만 더 보내고 자동 계산은 되풀이하지 않는다', async () => {
+    renderPage()
+    fillAll()
+
+    await advance(SIMULATION_AUTO_CALCULATE_DELAY_MS)
+    await advance(50)
+    expect(api.createSimulationReport).toHaveBeenCalledTimes(1)
+
+    const retry = screen.getAllByRole('button', { name: '다시 계산' })[0]
+    fireEvent.click(retry)
+    await advance(SIMULATION_AUTO_CALCULATE_DELAY_MS * 3)
+
+    expect(api.createSimulationReport).toHaveBeenCalledTimes(2)
   })
 })

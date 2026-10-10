@@ -134,6 +134,19 @@ describe('SimulationResultPanel', () => {
     expect(markup).toContain('지금 조건으로 계산할 수 있어요')
   })
 
+  /* #604 — 조건이 다 차면 화면이 스스로 계산한다. 버튼은 「다시 계산」으로 남는다. */
+  it('자동 계산 중에는 계산하고 있다고 알리고, 이미 보낸 조건이면 「다시 계산」이다', () => {
+    const pending = render({ state: completeState(), isPending: true })
+    expect(pending).toContain('고른 조건으로 예상 창업 비용을 계산하고 있어요')
+
+    const again = render({
+      state: completeState(),
+      calculateLabel: '다시 계산',
+    })
+    expect(again).toContain('다시 계산')
+    expect(again).not.toContain('계산하기')
+  })
+
   it('계산 결과가 오면 금액과 기준 연도 안내만 남는다', () => {
     const markup = render({
       state: completeState(),

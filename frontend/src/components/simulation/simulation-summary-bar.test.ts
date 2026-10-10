@@ -48,6 +48,20 @@ describe('SimulationSummaryBar', () => {
     expect(markup).not.toContain('disabled')
   })
 
+  /* #604 — 조건이 다 차면 화면이 스스로 계산한다. 그동안 바는 계산 중이라고 말한다. */
+  it('자동 계산 중에는 계산하고 있다고 알린다', () => {
+    const markup = render({ gap: null, isPending: true })
+
+    expect(markup).toContain('조건을 다 골랐어요. 비용을 계산하고 있어요')
+  })
+
+  it('이미 보낸 조건이면 버튼은 「다시 계산」이다', () => {
+    const markup = render({ gap: null, calculateLabel: '다시 계산' })
+
+    expect(markup).toContain('다시 계산')
+    expect(markup).not.toContain('계산하기')
+  })
+
   it('계산 후에는 금액과 결과로 가는 버튼을 보여준다', () => {
     const markup = render({ totalPrice: 23_450, gap: null })
 
