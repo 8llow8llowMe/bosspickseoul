@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import ToastProvider from '@/components/ui/toast'
 import * as api from '@/lib/api/simulation'
+import { TOAST_ACTION_DURATION_MS } from '@/lib/ui/toast-state'
 import ProfileSimulationBookmarksPage from './profile-simulation-bookmarks-page'
 import type {
   SimulationHistories,
@@ -16,6 +25,8 @@ import type {
  * 여기서 잠그는 것은 **그 둘을 배선한 결과** — 뒷페이지가 비었을 때 사용자가 목록으로
  * 돌아올 수 있는지다. 배선이 없으면 "저장한 결과가 없어요"에 갇힌다(앞 페이지에 항목이
  * 남아 있는데도). 문자열 렌더로는 뮤테이션 콜백이 돌지 않아 jsdom 에서 실제로 누른다.
+ *
+ * 삭제는 지연 삭제다(#574) — 누르면 숨기고, 10초 「되돌리기」가 지나야 DELETE 가 나간다. 그래서 타이머를 건너뛴다.
  */
 
 const PAGE_SIZE = 10
@@ -71,15 +82,14 @@ const serveHistories = (remaining: { ids: string[] }) =>
     )
 
 const renderPage = () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(
       QueryClientProvider,
-      {
-        client: new QueryClient({
-          defaultOptions: { queries: { retry: false } },
-        }),
-      },
-      children,
+      { client },
+      createElement(ToastProvider, null, children),
     )
 
   return render(createElement(ProfileSimulationBookmarksPage), { wrapper })
@@ -92,8 +102,23 @@ const goToSecondPage = async () => {
   await waitFor(() => expect(screen.getByText('2 / 2')).toBeTruthy())
 }
 
+/** 되돌리기 기간을 건너뛴다 — 지연된 DELETE 가 이때 나간다. */
+const skipUndoWindow = async () => {
+  await act(async () => {
+    vi.advanceTimersByTime(TOAST_ACTION_DURATION_MS)
+  })
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({
+    toFake: ['setTimeout', 'clearTimeout'],
+    shouldAdvanceTime: true,
+  })
+})
+
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -113,11 +138,13 @@ describe('ProfileSimulationBookmarksPage — 뒷페이지가 비는 경로', () 
     const remove = screen.getAllByLabelText(/저장 기록 삭제$/)
     expect(remove).toHaveLength(1)
     remove[0].click()
+    await skipUndoWindow()
 
-    // 재시도를 권하지 않고 이미 없어진 항목으로 안내한다.
+    // 404 는 다른 기기가 먼저 지운 것이다 — 바란 상태와 같으므로 숨긴 카드를 되살리지도, 실패라고 하지도 않는다.
     await waitFor(() =>
-      expect(screen.getByText(/이미 삭제된 기록/)).toBeTruthy(),
+      expect(api.deleteSimulationHistory).toHaveBeenCalledTimes(1),
     )
+    expect(screen.queryByText(/다시 보여 드려요/)).toBeNull()
     // 그리고 1페이지로 되돌아와 남은 10건을 보여준다 — 여기 갇히지 않는다.
     await waitFor(() =>
       expect(screen.getAllByLabelText(/저장 기록 삭제$/)).toHaveLength(10),
@@ -148,6 +175,7 @@ describe('ProfileSimulationBookmarksPage — 뒷페이지가 비는 경로', () 
     expect(remove).toHaveLength(2)
     remove[0].click()
     remove[1].click()
+    await skipUndoWindow()
 
     await waitFor(() => expect(remaining.ids).toHaveLength(10))
     await waitFor(() =>
@@ -156,5 +184,24 @@ describe('ProfileSimulationBookmarksPage — 뒷페이지가 비는 경로', () 
     expect(screen.queryByText('아직 저장한 결과가 없어요')).toBeNull()
     // 빈 뒷페이지 문구로 바뀌었으니 그쪽도 본다 — 빈 2페이지에 갇히면 이 문구가 남는다.
     expect(screen.queryByText('이 페이지에는 결과가 없어요')).toBeNull()
+  })
+
+  it('되돌리면 카드가 돌아오고 DELETE 는 나가지 않는다', async () => {
+    const remaining = { ids: ['h0', 'h1'] }
+    serveHistories(remaining)
+    const deleteHistory = vi.spyOn(api, 'deleteSimulationHistory')
+
+    renderPage()
+    const remove = await screen.findAllByLabelText(/저장 기록 삭제$/)
+    remove[0].click()
+
+    await waitFor(() =>
+      expect(screen.getAllByLabelText(/저장 기록 삭제$/)).toHaveLength(1),
+    )
+    fireEvent.click(screen.getByRole('button', { name: '되돌리기' }))
+    expect(screen.getAllByLabelText(/저장 기록 삭제$/)).toHaveLength(2)
+
+    await skipUndoWindow()
+    expect(deleteHistory).not.toHaveBeenCalled()
   })
 })

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   resolveClampedPage,
-  resolveHistoryDeleteFailure,
   resolvePageAfterDelete,
 } from './profile-simulation-bookmarks-page'
 
@@ -43,34 +42,5 @@ describe('resolveClampedPage', () => {
   it('이력이 하나도 없으면 첫 페이지다', () => {
     // totalPages 0 에서 -1 을 만들면 서버에 보낼 수 없는 page 가 된다.
     expect(resolveClampedPage({ page: 4, totalPages: 0 })).toBe(0)
-  })
-})
-
-describe('resolveHistoryDeleteFailure', () => {
-  const httpError = (status: number, resultCode: string | null = null) => ({
-    response: {
-      status,
-      data: {
-        dataHeader: { success: false, resultCode, resultMessage: '서버 문구' },
-        dataBody: null,
-      },
-    },
-  })
-
-  it('404 SIMULATION_006 은 이미 없어진 항목으로 안내한다', () => {
-    // 미존재와 타인 항목을 서버가 구분하지 않는다. 재시도해도 같은 404 다.
-    const failure = resolveHistoryDeleteFailure(
-      httpError(404, 'SIMULATION_006'),
-    )
-
-    expect(failure.alreadyGone).toBe(true)
-    expect(failure.message).toContain('이미 삭제된')
-  })
-
-  it('그 밖의 실패는 서버 문구를 그대로 쓰고 목록을 다시 부르지 않는다', () => {
-    const failure = resolveHistoryDeleteFailure(httpError(500))
-
-    expect(failure.alreadyGone).toBe(false)
-    expect(failure.message).toBe('서버 문구')
   })
 })
