@@ -55,4 +55,16 @@ describe('createPageMetadata', () => {
       },
     ])
   })
+
+  it("ogImage: 'segment' 면 images 키를 넣지 않아 같은 세그먼트의 opengraph-image 파일이 og:image 가 된다", () => {
+    const metadata = createPageMetadata({
+      title: '공유된 분석 화면',
+      path: '/s/7GFPfbs3',
+      ogImage: 'segment',
+    })
+
+    expect(metadata.openGraph).not.toHaveProperty('images')
+    expect(metadata.twitter).not.toHaveProperty('images')
+    expect(metadata.twitter).toMatchObject({ card: 'summary_large_image' })
+  })
 })

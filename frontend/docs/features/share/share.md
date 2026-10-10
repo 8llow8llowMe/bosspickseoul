@@ -203,7 +203,7 @@ Top10 순위는 데이터 갱신마다 바뀐다. 즉 저장 시점에는 열리
 - **`next.config.ts` `htmlLimitedBots`** 에 Next 기본 목록 + 같은 추가분(`link-preview-bots.ts`)을 넣었다. 카카오톡은
   기본 목록에 없어 메타가 스트리밍되면 `og:title` 이 `</head>` 뒤로 밀린다 — 해석·이름 조회를 나눈 뒤 실측에서
   드러났고(바이트 위치 `</head>` 15377 < `og:title` 30743), 설정 뒤 `<head>` 안(1896 < 17444)으로 돌아왔다.
-- **OG 이미지는 아직 루트 이미지다**(#598 보류 — D7).
+- **OG 이미지는 공유별로 그린다**(#598 — D4-2). 그래서 이 페이지의 메타는 `openGraph.images` 를 비운다(`createPageMetadata({ ogImage: 'segment' })`).
 
 | 상황             | HTTP | 화면                                                                                     | 재시도 |
 | ---------------- | ---- | ---------------------------------------------------------------------------------------- | ------ |
@@ -216,6 +216,37 @@ Top10 순위는 데이터 갱신마다 바뀐다. 즉 저장 시점에는 열리
 
 만료 판정은 **HTTP 410** 으로 한다. `SHARE_LINK_002` 는 보조 근거로만 쓴다 — 에러 코드로 UI 를
 분기하지 않는 저장소 규약을 지키되, 410 은 상태만으로 의미가 확정되기 때문이다.
+
+#### D4-2. 공유 미리보기 이미지 (#598)
+
+`app/(shell)/s/[shareCode]/opengraph-image.tsx` 가 1200×630 PNG 를 그린다. 카드 모델은 `lib/share/share-og.ts`(순수),
+조회·폰트는 `lib/share/share-og.server.ts`, 그림은 `lib/og/share-og-card.tsx` 다.
+
+| shareType                                  | 그림                                                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `COMMERCIAL_ANALYSIS` · `AI_REPORT`        | 락업 · 유형 칩(`상권분석`/`AI 리포트`) · 기준 분기 · 상권명 · `{자치구} {행정동} · {업종}` · 지표 2개 |
+| `COMMERCIAL_COMPARISON`                    | 기본 이미지 — payload 에 기준 분기가 없어 지표를 하나로 정할 수 없다                                  |
+| `ADMINISTRATION_ANALYSIS`                  | 기본 이미지 — 업종이 없다                                                                             |
+| `DISTRICT_ANALYSIS` · 미지원               | 기본 이미지                                                                                           |
+| 해석 실패·만료·지표 없음·백엔드 오류       | 기본 이미지                                                                                           |
+| 폰트(KS X 1001 서브셋) 밖 글자가 있는 이름 | 기본 이미지 — 빈칸 글자로 틀린 상권명을 보이지 않는다                                                 |
+| 원천에서 깨진 이름(`?` 포함)               | 행정동·자치구 이름이면 부제에서 그 이름만 뺀다(`종로구 · 커피-음료`). 상권명이면 기본 이미지          |
+
+- **기본 이미지**는 루트 `app/opengraph-image.tsx` 와 같은 그림(`lib/og/brand-og-image.tsx`)이다. 어떤 실패에도 200 PNG 다 —
+  500 을 내면 카드가 이미지 없이 붙는다.
+- **지표**: `GET /commercials/{code}/benchmarks?serviceCode&periodCode` 1회. `salesPerStore.commercial` 의 점포당 월 매출
+  (`약 5227만원`)과 점포 수(`45개`). 점포당 값이 없으면 합계 ÷ 점포 수 — 요약 카드와 같은 `resolveMonthlySalesPerStore` 다.
+  점포 0 이면 둘 다 빼고, 남는 지표가 없으면 기본 이미지다. 상권·행정동·자치구 이름이 같은 응답에 와서 이름 조회는 따로 하지 않는다.
+  인증 없는 공개 API 다(백엔드 `@PreAuthorize` 없음).
+- **데이터 캐시**: 해석 `revalidate: 3600`(D4-1 과 같은 함수), 지표 `revalidate: 86400`(분기 단위 적재).
+- **시간 제한**: 해석과 지표는 순차라 **둘을 합쳐 4초**(`SHARE_OG_FETCH_BUDGET_MS`)다. 해석은 봇 기준 3초까지, 지표는 남은 시간만
+  기다리고, 남은 시간이 없으면 기본 이미지다. 따로 3초씩이면 최악 6초라 미리보기 봇이 먼저 포기한다.
+- **응답 캐시**: 서버는 PNG 를 캐시하지 않는다(ISR 없음) — 백엔드가 잠깐 실패한 순간의 기본 이미지가 굳지 않게 한다. 대신 응답 헤더를
+  나눈다. 카드 `public, max-age=3600, s-maxage=86400`, 기본 이미지 `public, max-age=300`(`share-og.ts` 상수).
+- **글꼴**: 웹 서브셋에서 뽑은 정적 WOFF1 2벌(`public/fonts/og/BPSSans-{Regular,Bold}.woff`, 합 약 453KB) — 만든 방법과 형식을
+  고른 근거는 [pretendard-subset D9](../layout/pretendard-subset.md). Node 런타임에서 `fs` 로 읽는다.
+- **og:image 주소**: 라우트 그룹 `(shell)` 아래라 Next 가 `…/opengraph-image-<hash>` 로 해시 접미사를 붙인다.
+  메타에서 주소를 손으로 적지 않고 파일 컨벤션에 맡긴다.
 
 ### D5. 보관함 UX
 
@@ -259,15 +290,7 @@ Snowflake 값이 `Number.MAX_SAFE_INTEGER` 를 넘는다. `Number('7345678901234
 - 보관함 목록 페이지네이션(현재 최신 20건). `totalPages` 는 응답에 이미 온다
 - 시뮬레이션 공유의 V2 이관(백엔드 `ShareTargetType` 에 시뮬레이션 상수 추가 선행)
 - 분석 결과 화면 `handleShare` 를 `deliverShareUrl`·`SHARE_LINK_READY_MESSAGE` 로 옮기기(동작 동일, 중복 제거)
-- **공유별 OG 이미지(#598, 보류)**: `app/(shell)/s/[shareCode]/opengraph-image.tsx` 에 상권·업종·분기 + 지표 1~2개.
-  막힌 지점은 글꼴이다. satori(`next/og`)는 WOFF2 를 읽지 못하는데 저장소에는
-  `PretendardVariable.subset.woff2` 하나뿐이다(DESIGN.md §1.5). 가변 글꼴도 satori 가 축을 적용하지 않아
-  기본 무게(400)로만 그려진다. 방안: `scripts/fonts/subset-pretendard.sh` 와 같은 원본(pretendard@1.3.9)에서
-  `fontTools.varLib.instancer` 로 **wght 700 정적 TTF** 1개를 만들고 같은 2,566자 `charset.txt` 로 서브셋,
-  `rename-family.py` 로 RFN 재작성(OFL D8-5) → `app/(shell)/s/[shareCode]/` 옆 자산으로 커밋.
-  예상 크기는 woff2 서브셋(429KiB, 가변)보다 큰 수백 KiB(TTF 는 압축이 없다) — 저장소에 새 바이너리를 넣는 결정과
-  RFN 파생물 이름 정책 확인이 먼저라 이번 배치에서 구현하지 않았다. 지표는 `GET /map/commercials/{code}/profile`
-  1회(`revalidate` 하루)로 충분하다. 해석 실패 시에는 이 파일이 없는 것과 같게 루트 이미지로 돌려보낸다.
+- ~~공유별 OG 이미지(#598)~~ — D4-2. 비교·행정동 탐색 공유의 이미지는 남았다(비교는 기준 분기 결정이 먼저)
 
 ---
 
@@ -293,6 +316,10 @@ Snowflake 값이 `Number.MAX_SAFE_INTEGER` 를 넘는다. `Number('7345678901234
 | TC-016 | 진입 연결부       | 사람: 해석만(1.5초) 기다려 redirect·이름 조회 없음 / 봇: 3초·render·제목 / 실패: render·고정 문구     | `app/(shell)/s/[shareCode]/page.test.ts`                           |
 | TC-017 | 형식 오류 코드    | 클라이언트가 해석을 부르지 않고 미존재로 안내                                                         | `components/share/share-entry-page.test.ts`                        |
 | TC-018 | 리포트 링크 복사  | shared·copied → 성공 토스트 / aborted → 없음 / 실패 → 오류 토스트                                     | `components/simulation/report/simulation-report-link-copy.test.ts` |
+| TC-019 | OG 카드 모델      | 지원 2종만 카드 / 지표 규칙(점포당·점포 0) / 이름·지표 없음 → 기본 / 서브셋 밖 글자 → 기본 / `?` 이름 | `lib/share/share-og.test.ts`                                       |
+| TC-020 | OG 조회·폰트      | 지표 하루 캐시 1회 / 해석·지표 실패·예외·예산 소진 → null / 정적 WOFF1 2벌 / 실제 PNG 1200×630        | `lib/share/share-og.server.test.ts`                                |
+| TC-021 | OG 메타 연결      | 공유 페이지 메타가 `openGraph.images` 를 비워 파일 컨벤션 이미지가 붙는다                             | `app/(shell)/s/[shareCode]/page.test.ts`, `lib/metadata.test.ts`   |
+| TC-022 | OG 라우트         | 폰트 실패·카드 없음 → 200 PNG + 폴백 캐시 헤더 / 카드 → 카드 캐시 헤더                                | `app/(shell)/s/[shareCode]/opengraph-image.test.ts`                |
 
 ---
 
@@ -303,3 +330,4 @@ Snowflake 값이 `Number.MAX_SAFE_INTEGER` 를 넘는다. `Number('7345678901234
 | 1.0  | 2026-08-26 | 최초 작성 — V2 공유 링크 + 분석 화면 보관함 연동 명세                                                                                                                                                                                           | FE     |
 | 1.1  | 2026-08-26 | `/status`·`/analysis` 복원 실측 후 `DISTRICT_ANALYSIS` 를 미지원(`null`)으로 조정, D1-1 추가                                                                                                                                                    | FE     |
 | 1.2  | 2026-10-10 | D1 비교 행 갱신, D3 화면별 공유·토스트 표(#573), D4 서버 해석·redirect·D4-1 미리보기 메타(#572), D7 #598 보류 근거, TC-011~018. 리뷰 반영: Page 는 해석만 대기(사람 1.5초), 코드 형식·만료 경계 검사, NotAllowedError 복사 폴백, TC-003·010 4종 | Claude |
+| 1.3  | 2026-10-10 | D4-2 공유 미리보기 이미지(#598) — 상권분석·AI 리포트 카드, 기본 이미지 폴백, 지표 하루 캐시, 조회 예산 4초, 응답 캐시 헤더 분리, OG 정적 WOFF1, `?` 이름 처리. TC-019~022                                                                       | Claude |

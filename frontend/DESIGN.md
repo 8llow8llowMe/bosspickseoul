@@ -61,16 +61,17 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 
 ### 자산 파일
 
-| 경로                            | 용도                     |
-| ------------------------------- | ------------------------ |
-| `public/brand/mark-primary.svg` | 배포용 Primary 심볼      |
-| `public/brand/mark-grid.svg`    | 배포용 Grid 심볼         |
-| `public/brand/mark-solid.svg`   | 배포용 Solid 심볼        |
-| `app/icon.svg`                  | 파비콘(컨테이너 + Solid) |
-| `app/apple-icon.tsx`            | 180×180                  |
-| `app/opengraph-image.tsx`       | 1200×630                 |
+| 경로                                            | 용도                                                         |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| `public/brand/mark-primary.svg`                 | 배포용 Primary 심볼                                          |
+| `public/brand/mark-grid.svg`                    | 배포용 Grid 심볼                                             |
+| `public/brand/mark-solid.svg`                   | 배포용 Solid 심볼                                            |
+| `app/icon.svg`                                  | 파비콘(컨테이너 + Solid)                                     |
+| `app/apple-icon.tsx`                            | 180×180                                                      |
+| `app/opengraph-image.tsx`                       | 1200×630                                                     |
+| `app/(shell)/s/[shareCode]/opengraph-image.tsx` | 공유 링크 1200×630(락업 + 상권·지표, 실패 시 위와 같은 그림) |
 
-정적 **락업** SVG 는 없다. `<text>` 는 파일을 여는 사람 컴퓨터에 Pretendard 가 있어야 하고, 글자를 아웃라인 패스로 바꿀 도구가 저장소에 없다. `apple-icon` 과 OG 이미지에 워드마크가 없는 것도 같은 계열의 제약이다 — satori 는 WOFF2 를 지원하지 않고 저장소에는 WOFF2 만 있다. Pretendard TTF/OTF 를 싣는 것이 후속 과제다.
+정적 **락업** SVG 는 없다. `<text>` 는 파일을 여는 사람 컴퓨터에 Pretendard 가 있어야 하고, 글자를 아웃라인 패스로 바꿀 도구가 저장소에 없다. `apple-icon` 과 루트 OG 이미지에 워드마크가 없는 것도 같은 계열의 제약이다 — satori 는 WOFF2·가변 폰트를 지원하지 않는다. 공유 링크 OG 이미지(#598)는 웹 서브셋에서 뽑은 **정적 WOFF1 2벌**(`public/fonts/og/BPSSans-{Regular,Bold}.woff`, 합 약 453KB)을 실어 락업과 한글을 그린다 — 만든 방법은 [pretendard-subset D9](docs/features/layout/pretendard-subset.md). satori 는 CSS 변수를 읽지 못하므로 그 이미지는 토큰 값을 hex 로 옮겨 적는다(`src/lib/og/share-og-card.tsx` 머리 주석의 표).
 
 ## 2. Color Palette & Roles
 
