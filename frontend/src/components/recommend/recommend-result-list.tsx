@@ -358,7 +358,7 @@ const SelectedServiceBadge = styled.span`
   padding: 0 8px;
   border-radius: var(--radius-pill);
   background: var(--color-primary-100);
-  color: var(--color-primary-600);
+  color: var(--color-text-primary-on-light);
   font-size: 12px;
   font-weight: 700;
 `

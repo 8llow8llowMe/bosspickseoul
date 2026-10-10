@@ -54,7 +54,7 @@ const HelpButton = styled.button`
   }
 
   &&[aria-expanded='true'] {
-    color: var(--color-primary-600);
+    color: var(--color-text-primary-on-light);
   }
 
   &&:focus-visible {

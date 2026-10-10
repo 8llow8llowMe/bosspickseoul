@@ -113,7 +113,9 @@ const RankingButton = styled.button<{
 
 const RankNumber = styled.span<{ $selected: boolean }>`
   color: ${props =>
-    props.$selected ? 'var(--color-primary-600)' : 'var(--color-text-600)'};
+    props.$selected
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-600)'};
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;

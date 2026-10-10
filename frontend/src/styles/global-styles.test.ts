@@ -589,32 +589,35 @@ describe('브랜드 강조색은 로고 전용이다', () => {
 })
 
 /**
- * **글자**에 `--color-primary-700`(= blue500)을 쓰지 않는다. 흰 바탕 2.77:1 · blue50 위 2.47:1 이라
- * AA(4.5)에 못 미친다. 파란 글자는 `--color-text-primary-on-light`(blue700)다(DESIGN.md §2 Blue
- * Text, contrast-tokens.md D3-3). 테두리·포커스 링·배경·`fill`/`stroke`·`accent-color` 는 primary-700
- * 그대로라 걸지 않는다 — `color` 속성 앞에 `-`/영숫자가 붙은 것(`border-color` 등)은 건너뛴다.
+ * **글자**에 `--color-primary-700`(= blue500)·`--color-primary-600`(= blue600)을 쓰지 않는다.
+ * primary-700 은 흰 바탕 2.77:1 · blue50 위 2.47:1, primary-600 은 흰 바탕 4.49:1 · blue50 위
+ * 4.00:1 이라 AA(4.5)에 못 미친다(primary-600 은 #639 에서 가드에 넣었다). 파란 글자는
+ * `--color-text-primary-on-light`(blue700)다(DESIGN.md §2 Blue Text, contrast-tokens.md D3-3).
+ * 테두리·포커스 링·배경·`fill`/`stroke`·`accent-color` 는 primary-700/600 그대로라 걸지 않는다 —
+ * `color` 속성 앞에 `-`/영숫자가 붙은 것(`border-color` 등)은 건너뛴다.
  *
  * 아직 못 옮긴 파일은 `KNOWN_DEBT` 에 남아 있다(#556 후속). **새 파일이 걸리면 실패**하고, 목록에 있는
  * 파일별 위반 수가 늘면 실패하고, 줄면 「숫자를 낮춰라」(0 이면 「목록에서 빼라」)로 실패한다 —
  * 부채가 줄기만 하도록 상한을 잠근다.
  *
  * SVG 글자는 `color` 가 아니라 `fill` 로 칠한다. CSS `fill:` 은 폴리곤·막대 같은 면에도 쓰여 걸면
- * 오탐이 많으므로, JSX `<text … fill={…}>` 속성에 primary-700 이 적힌 것만 따로 막는다(#634, 차트
+ * 오탐이 많으므로, JSX `<text … fill={…}>` 속성에 primary-700/600 이 적힌 것만 따로 막는다(#634, 차트
  * 링크 축 라벨).
  *
  * 한계: 색을 상수 맵·변수에 담았다가 `color: ${map[x]}` 로 꺼내는 **간접 참조는 못 잡는다**. 선언 안에
- * `--color-primary-700` 이 직접 적힌 것만 본다. `<text>` 가 아닌 요소(`<tspan>`, styled SVG 의 CSS
+ * `--color-primary-700`/`-600` 이 직접 적힌 것만 본다. `<text>` 가 아닌 요소(`<tspan>`, styled SVG 의 CSS
  * `fill:`)로 칠하는 SVG 글자도 못 잡는다.
  */
-describe('글자색에 primary-700 을 쓰지 않는다', () => {
+describe('글자색에 primary-700/600 을 쓰지 않는다', () => {
   const projectRoot = path.resolve(
     fileURLToPath(new URL('.', import.meta.url)),
     '..',
   )
 
   /**
-   * 파일 → 글자색 primary-700 선언 수(상한). #634 에서 글자·아이콘을 옮겼고, 마지막 남은 토스트 info
-   * 상태 아이콘은 #631 에서 옮겨 부채가 0 이다. 새로 걸리면 이 목록에 넣지 말고 고친다.
+   * 파일 → 글자색 primary-700/600 선언 수(상한). #634 에서 글자·아이콘을 옮겼고, 마지막 남은 토스트 info
+   * 상태 아이콘은 #631 에서 옮겨 부채가 0 이다. primary-600 글자 8곳은 #639 에서 가드를 넓히며 같이
+   * 옮겨 부채 없이 시작한다. 새로 걸리면 이 목록에 넣지 말고 고친다.
    */
   const KNOWN_DEBT = new Map<string, number>()
 
@@ -629,7 +632,7 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
    * `, 키:` 에서도 끊는다.
    */
   const blueText =
-    /(?<![-\w])color\s*:(?:(?!,\s*['"]?[\w$-]+['"]?\s*:)[^;}])*--color-primary-700/g
+    /(?<![-\w])color\s*:(?:(?!,\s*['"]?[\w$-]+['"]?\s*:)[^;}])*--color-primary-(?:700|600)/g
 
   const countBlueText = (source: string): number =>
     blankComments(source).match(blueText)?.length ?? 0
@@ -668,6 +671,18 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
     expect(hasBlueText("const s = { color: 'var(--color-primary-700)' }")).toBe(
       true,
     )
+    expect(hasBlueText('a{ color: var(--color-primary-600); }')).toBe(true)
+    expect(
+      hasBlueText(
+        "a{ color: ${p => p.$on ? 'var(--color-primary-600)' : 'var(--color-text-600)'}; }",
+      ),
+    ).toBe(true)
+    expect(hasBlueText('a{ border-color: var(--color-primary-600); }')).toBe(
+      false,
+    )
+    expect(hasBlueText('a{ background: var(--color-primary-600); }')).toBe(
+      false,
+    )
   })
 
   it('파일별 위반 수가 상한(KNOWN_DEBT)을 넘지 않고, 줄면 상한을 낮춘다', () => {
@@ -702,7 +717,8 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
   })
 
   /** JSX `<text>` 의 `fill` 속성. `[^>]` 로 태그 안에서만 본다. */
-  const blueSvgText = /<text\b[^>]*?\bfill=\{?[^}>]*--color-primary-700/g
+  const blueSvgText =
+    /<text\b[^>]*?\bfill=\{?[^}>]*--color-primary-(?:700|600)/g
 
   const countBlueSvgText = (source: string): number =>
     blankComments(source).match(blueSvgText)?.length ?? 0
@@ -716,6 +732,10 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
     expect(
       countBlueSvgText('<text fill="var(--color-primary-700)">a</text>'),
     ).toBe(1)
+    expect(
+      countBlueSvgText('<text fill="var(--color-primary-600)">a</text>'),
+    ).toBe(1)
+    expect(countBlueSvgText('<rect fill="var(--color-primary-600)" />')).toBe(0)
     expect(countBlueSvgText("<rect fill={'var(--color-primary-700)'} />")).toBe(
       0,
     )
@@ -726,7 +746,7 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
     ).toBe(0)
   })
 
-  it('SVG <text> 글자를 primary-700 으로 칠하지 않는다', () => {
+  it('SVG <text> 글자를 primary-700/600 으로 칠하지 않는다', () => {
     const offenders: string[] = []
 
     for (const file of collectFiles(projectRoot, isSourceFile)) {
