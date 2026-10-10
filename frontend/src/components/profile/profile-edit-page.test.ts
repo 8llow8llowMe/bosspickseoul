@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProfileEditPage, {
   canRemoveProfileImage,
   canSubmitNickname,
+  WITHDRAW_PATH,
 } from '@/components/profile/profile-edit-page'
 import { NICKNAME_RULE_TEXT } from '@/lib/auth/nickname-rules'
 import { IMAGE_RULE_TEXT } from '@/lib/upload/image-rules'
@@ -222,5 +223,21 @@ describe('ProfileEditPage — 계정 정보', () => {
 
     expect(markup).toContain('프로필 정보를 준비하는 중입니다')
     expect(markup).not.toContain('type="file"')
+  })
+})
+
+/* #575 · 결정 D-6 — 탈퇴는 설정 탭이 아니라 회원 정보 맨 아래 회색 링크다. */
+describe('ProfileEditPage — 회원 탈퇴 진입', () => {
+  it('맨 아래에 탈퇴 화면으로 가는 링크를 둔다', () => {
+    const markup = render()
+
+    expect(markup).toContain(`href="${WITHDRAW_PATH}"`)
+    expect(markup.lastIndexOf('회원 탈퇴')).toBeGreaterThan(
+      markup.indexOf('owner@example.com'),
+    )
+  })
+
+  it('탈퇴 진입은 버튼이 아니라 링크다 — 같은 급의 동작처럼 보이지 않는다', () => {
+    expect(render()).not.toMatch(/<button[^>]*>회원 탈퇴</)
   })
 })
