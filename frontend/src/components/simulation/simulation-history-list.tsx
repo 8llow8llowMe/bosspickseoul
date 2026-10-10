@@ -26,10 +26,22 @@ export type SimulationHistoryListProps = {
   page: number
   totalPages: number
   onPageChange: (page: number) => void
+  /** 삭제를 맡긴다. 호출부(프로필)가 카드를 바로 숨기고 되돌리기 토스트를 띄운 뒤 지연 삭제한다. */
   onDelete: (historyId: string) => void
-  /** 삭제 요청이 떠 있는 항목들. 그 카드의 버튼만 잠근다. */
-  deletingHistoryIds?: readonly string[]
 }
+
+/*
+  삭제는 위험색 ghost 다 — 프로필의 `DangerGhostButton`(profile-ui.tsx)과 같은 모양. 「리포트 보기」와 같은
+  무게면 무엇이 주 행동인지 읽히지 않는다. 보이는 높이도 44px 로 둔다(카드 안 터치 대상).
+*/
+const DeleteButton = styled(Button)`
+  min-height: 44px;
+  color: var(--color-negative-text);
+
+  &:hover:not(:disabled) {
+    color: var(--color-negative-text);
+  }
+`
 
 const Root = styled.div`
   display: grid;
@@ -113,9 +125,9 @@ const Pager = styled.nav`
  * 간다. 저장 응답이 `franchiseeId`를 돌려주지 않아 프랜차이즈는 조건이 완성되지 않기 때문인데,
  * 그 판단은 `history-presentation`이 하고 여기서는 문구만 바꾼다.
  *
- * 삭제는 `onDelete`로 **위임**한다. 확인 대화상자를 두지 않은 것은 분석 보관함 삭제와 같은
- * 동작으로 맞춘 것이다 — 두 보관함이 같은 프로필 화면에 나란히 있어서 한쪽만 확인창이
- * 뜨면 규칙이 없어 보인다.
+ * 삭제는 `onDelete`로 **위임**한다. 확인 대화상자를 두지 않는다 — 호출부가 카드를 바로 숨기고
+ * 「되돌리기」 토스트를 띄운 뒤 지연 삭제한다(분석 보관함과 같은 규칙). 되돌릴 수 있으니 확인창이
+ * 한 번 더 막을 이유가 없고, 요청이 화면 밖에서 진행되므로 카드 버튼을 잠그지도 않는다.
  */
 export default function SimulationHistoryList({
   histories,
@@ -123,7 +135,6 @@ export default function SimulationHistoryList({
   totalPages,
   onPageChange,
   onDelete,
-  deletingHistoryIds = [],
 }: SimulationHistoryListProps) {
   /**
    * 빈 목록.
@@ -204,18 +215,17 @@ export default function SimulationHistoryList({
                 >
                   {replayable ? '리포트 보기' : '브랜드 다시 고르기'}
                 </ButtonLink>
-                {/* 삭제는 ghost 로 낮춘다(X3). 「리포트 보기」와 같은 무게면 둘 중 무엇이 주 행동인지
-                    읽히지 않고, 되돌릴 수 없는 쪽을 잘못 누르기 쉽다. */}
-                <Button
+                {/* 삭제는 위험색 ghost 로 낮춘다(X3). 누르면 카드가 바로 사라지고 토스트의 「되돌리기」로
+                    살릴 수 있다 — 그래도 주 행동(리포트 보기)과 같은 무게로 두지 않는다. */}
+                <DeleteButton
                   size="medium"
                   variant="ghost"
                   aria-label={`${condition} 저장 기록 삭제`}
-                  isLoading={deletingHistoryIds.includes(history.historyId)}
                   onClick={() => onDelete(history.historyId)}
                   leftIcon={<Trash2 />}
                 >
                   삭제
-                </Button>
+                </DeleteButton>
               </Actions>
             </Card>
           )
