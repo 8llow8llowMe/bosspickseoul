@@ -1,9 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
+import { Button, ButtonLink } from '@/components/ui/button'
 import ChatRoomCreateModal from '@/components/chatting/chat-room-create-modal'
 import ChatRoomSearch from '@/components/chatting/chat-room-search'
 import { buildLoginHref, currentBrowserPath } from '@/lib/auth/return-path'
@@ -31,33 +31,13 @@ const Body = styled.p`
   line-height: 1.75;
 `
 
-const PrimaryButton = styled.button`
-  min-height: 46px;
+/* 사이드 카드 폭을 채운다. */
+const FullWidthButton = styled(Button)`
   width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-fill-primary-text);
-  border-radius: var(--radius-control);
-  background: var(--color-fill-primary-text);
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
 `
 
-const SecondaryLink = styled(Link)`
-  min-height: 46px;
+const FullWidthButtonLink = styled(ButtonLink)`
   width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
 `
 
 const Divider = styled.hr`
@@ -106,15 +86,22 @@ export default function ChattingSidebar({
           인기 채팅방을 둘러보고, 관심 있는 주제의 대화방에 바로 참여할 수
           있습니다.
         </Body>
-        <PrimaryButton
+        <FullWidthButton
           type="button"
+          size="large"
           onClick={() => {
             handleOpenCreate()
           }}
         >
           채팅방 생성하기
-        </PrimaryButton>
-        <SecondaryLink href="/chatting/list">인기방 둘러보기</SecondaryLink>
+        </FullWidthButton>
+        <FullWidthButtonLink
+          href="/chatting/list"
+          size="large"
+          variant="secondary"
+        >
+          인기방 둘러보기
+        </FullWidthButtonLink>
       </Card>
 
       <Card>

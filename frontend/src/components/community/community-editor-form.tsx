@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { Circle, CircleCheck, ImagePlus, Loader2, Plus, X } from 'lucide-react'
 import styled, { css, keyframes } from 'styled-components'
+import { Button } from '@/components/ui/button'
 import CommunityChoiceChips from '@/components/community/community-choice-chips'
 import CommunityRegionSheet, {
   type CommunityRegionSheetHandle,
@@ -209,47 +210,6 @@ const BarTitle = styled.h1`
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
-`
-
-const PrimaryButton = styled.button`
-  min-height: 48px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: var(--color-fill-primary-text);
-  color: var(--color-surface);
-  font: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: var(--button-disabled-opacity-color);
-  }
-`
-
-const BarSubmit = styled(PrimaryButton)`
-  min-height: 44px;
-  padding: 0 16px;
-`
-
-const SecondaryButton = styled.button`
-  min-height: 48px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: var(--color-grey-100);
-  color: var(--color-text-900);
-  font: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: var(--button-disabled-opacity-color);
-  }
 `
 
 /* `≥480` 머리 — 제목 한 줄. `<480` 은 편집 바가 대신한다(둘 중 하나만 보여 h1 이 겹치지 않는다). */
@@ -1183,9 +1143,9 @@ export default function CommunityEditorForm({
             <X aria-hidden="true" size={24} />
           </IconButton>
           <BarTitle>{heading}</BarTitle>
-          <BarSubmit disabled={submitLocked} type="submit">
+          <Button disabled={submitLocked} size="medium" type="submit">
             {pending ? '저장 중' : mode === 'edit' ? '수정' : '등록'}
-          </BarSubmit>
+          </Button>
         </MobileBar>
 
         <Heading id={`${id}-heading`}>{heading}</Heading>
@@ -1446,16 +1406,18 @@ export default function CommunityEditorForm({
         </Field>
 
         <ActionBar>
-          <SecondaryButton
+          <Button
             disabled={pending}
+            size="large"
+            variant="ghost"
             onClick={handleLeave}
             type="button"
           >
             취소
-          </SecondaryButton>
-          <PrimaryButton disabled={submitLocked} type="submit">
+          </Button>
+          <Button disabled={submitLocked} size="large" type="submit">
             {pending ? '저장 중' : mode === 'edit' ? '수정하기' : '등록하기'}
-          </PrimaryButton>
+          </Button>
         </ActionBar>
       </Form>
 

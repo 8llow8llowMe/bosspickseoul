@@ -1,6 +1,7 @@
 'use client'
 
 import styled from 'styled-components'
+import { Button } from '@/components/ui/button'
 
 export type CommunityFeedbackProps = {
   kind: 'loading' | 'error' | 'empty'
@@ -44,23 +45,8 @@ const Description = styled.p`
   word-break: keep-all;
 `
 
-const ActionButton = styled.button`
-  min-height: 48px;
+const ActionButton = styled(Button)`
   margin-top: 4px;
-  padding: 0 18px;
-  border: 1px solid var(--color-fill-primary-text);
-  border-radius: var(--radius-control);
-  background: var(--color-fill-primary-text);
-  color: var(--color-surface);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-focus-primary-strong);
-  }
 `
 
 const SkeletonList = styled.ul`
@@ -149,7 +135,7 @@ export default function CommunityFeedback({
       <Title>{title ?? copy.title}</Title>
       <Description>{description ?? copy.description}</Description>
       {onAction ? (
-        <ActionButton type="button" onClick={onAction}>
+        <ActionButton type="button" size="large" onClick={onAction}>
           {actionLabel ?? copy.actionLabel}
         </ActionButton>
       ) : null}

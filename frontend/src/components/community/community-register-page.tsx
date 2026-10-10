@@ -11,6 +11,7 @@ import {
 } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import styled from 'styled-components'
+import { Button } from '@/components/ui/button'
 import CommunityEditorForm, {
   type CommunityEditorMode,
   type CommunityEditorValue,
@@ -125,24 +126,11 @@ const RestoreActions = styled.div`
   ${MOBILE} {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-`
 
-const RestoreButton = styled.button<{ $primary?: boolean }>`
-  min-height: 48px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: var(--radius-control);
-  background: ${props =>
-    props.$primary
-      ? 'var(--color-fill-primary-text)'
-      : 'var(--color-grey-100)'};
-  color: ${props =>
-    props.$primary ? 'var(--color-surface)' : 'var(--color-text-900)'};
-  font: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
+    > * {
+      width: 100%;
+    }
+  }
 `
 
 const Notice = styled.p`
@@ -355,12 +343,17 @@ export function CommunityDraftRestorePrompt({
       <h1 id="community-draft-restore-title">작성하던 글이 있어요</h1>
       {preview ? <p>{preview}</p> : null}
       <RestoreActions>
-        <RestoreButton onClick={onFresh} type="button">
+        <Button
+          onClick={onFresh}
+          size="large"
+          type="button"
+          variant="secondary"
+        >
           새로 쓰기
-        </RestoreButton>
-        <RestoreButton $primary onClick={onResume} type="button">
+        </Button>
+        <Button onClick={onResume} size="large" type="button">
           이어 쓰기
-        </RestoreButton>
+        </Button>
       </RestoreActions>
     </RestoreCard>
   )

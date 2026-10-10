@@ -147,7 +147,7 @@ export const DangerGhostButton = styled(Button).attrs({
   min-height: 44px;
   color: var(--color-negative-text);
 
-  &:hover:not(:disabled) {
+  &:hover:not(:disabled):not([aria-disabled='true']) {
     color: var(--color-negative-text);
   }
 `
@@ -255,35 +255,6 @@ export const ActionRow = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-`
-
-export const PrimaryButton = styled.button`
-  height: 48px;
-  padding: 0 18px;
-  border: none;
-  border-radius: var(--radius-control);
-  background: var(--color-fill-primary-text);
-  color: white;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: var(--button-disabled-opacity-color);
-  }
-`
-
-export const SecondaryButton = styled.button`
-  height: 48px;
-  padding: 0 18px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  background: var(--color-primary-100);
-  color: var(--color-text-primary-on-light);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
 `
 
 export const HelperText = styled.p`

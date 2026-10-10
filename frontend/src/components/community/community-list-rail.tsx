@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ChevronRight, Heart } from 'lucide-react'
 import styled from 'styled-components'
+import { ButtonLink } from '@/components/ui/button'
 import { formatCommunityCount, formatRelativeTime } from '@/lib/community'
 import type { CommunityRailPostsKind } from '@/lib/community/list-rail'
 import type { CommunityId } from '@/types/community'
@@ -147,20 +148,6 @@ const VisuallyHidden = styled.span`
   border: 0;
 `
 
-/* 보조 CTA 라 blue50 바탕 + blue700 글자(DESIGN.md §4 Secondary) — 상세 레일의 빈 상태 글쓰기와 같다. */
-const AskWriteLink = styled(Link)`
-  min-height: 44px;
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 16px;
-  border-radius: var(--radius-control);
-  background: var(--color-primary-100);
-  color: var(--color-text-primary-on-light);
-  font-size: 14px;
-  font-weight: 700;
-`
-
 const AnalysisLink = styled(Link)`
   min-height: 52px;
   display: flex;
@@ -255,9 +242,14 @@ export default function CommunityListRail({
         <CardTitle id="community-list-rail-ask" title={askTitle}>
           {askTitle}
         </CardTitle>
-        <AskWriteLink data-community-rail-ask="true" href={askHref}>
+        <ButtonLink
+          data-community-rail-ask="true"
+          href={askHref}
+          size="medium"
+          variant="secondary"
+        >
           질문하기
-        </AskWriteLink>
+        </ButtonLink>
       </Card>
 
       <AnalysisLink href={analysis.href}>

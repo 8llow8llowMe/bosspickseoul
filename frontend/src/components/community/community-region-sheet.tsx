@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import styled from 'styled-components'
+import { Button } from '@/components/ui/button'
 import CommunitySheet from '@/components/community/community-sheet'
 import {
   communityLocationQueryKeys,
@@ -335,19 +336,6 @@ const ErrorText = styled.p`
   color: var(--color-danger);
 `
 
-const RetryButton = styled.button`
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-300);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text-700);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
 /* 단계마다 목록이 무엇인지(조사까지). 안내 문구가 단계를 말해야 지금 어디인지 안다. */
 const levelNoun: Record<
   RegionSheetStep['level'],
@@ -549,14 +537,16 @@ export function CommunityRegionSheetPanel({
         ) : listState === 'error' ? (
           <StatusRow role="status">
             <ErrorText>{`${noun.object} 불러오지 못했어요.`}</ErrorText>
-            <RetryButton
+            <Button
               onClick={() => {
                 void listQuery?.refetch()
               }}
+              size="medium"
               type="button"
+              variant="secondary"
             >
               다시 시도
-            </RetryButton>
+            </Button>
           </StatusRow>
         ) : filtered.length === 0 ? (
           <StatusRow role="status">

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   useInfiniteQuery,
@@ -11,6 +10,7 @@ import {
 } from '@tanstack/react-query'
 import type { Client, IMessage, StompSubscription } from '@stomp/stompjs'
 import styled from 'styled-components'
+import { Button, ButtonLink } from '@/components/ui/button'
 import RequireAuth from '@/components/auth/require-auth'
 import ChattingShell from '@/components/chatting/chatting-shell'
 import ChattingSidebar from '@/components/chatting/chatting-sidebar'
@@ -118,30 +118,9 @@ const ActionRow = styled.div`
   gap: 10px;
 `
 
-const SecondaryLink = styled(Link)`
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
-`
-
-const GhostButton = styled.button`
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
+/* 「이전 메시지 더 보기」 — 메시지 목록 맨 위 가운데에 놓는다. */
+const LoadOlderButton = styled(Button)`
+  margin: 0 auto 6px;
 `
 
 const Notice = styled.div<{ $tone?: 'error' }>`
@@ -263,32 +242,6 @@ const Helper = styled.p`
   color: var(--color-text-500);
   font-size: 13px;
   line-height: 1.75;
-`
-
-const PrimaryButton = styled.button`
-  min-height: 46px;
-  padding: 0 18px;
-  border: 1px solid var(--color-fill-primary-text);
-  border-radius: var(--radius-control);
-  background: var(--color-fill-primary-text);
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-`
-
-const LoadOlderButton = styled.button`
-  min-height: 40px;
-  width: fit-content;
-  margin: 0 auto 6px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
 `
 
 type ChattingDetailPageProps = {
@@ -546,10 +499,21 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
                 </MetaRow>
               </HeaderCopy>
               <ActionRow>
-                <SecondaryLink href="/chatting/list">목록으로</SecondaryLink>
-                <GhostButton type="button" onClick={handleExitRoom}>
+                <ButtonLink
+                  href="/chatting/list"
+                  size="medium"
+                  variant="secondary"
+                >
+                  목록으로
+                </ButtonLink>
+                <Button
+                  type="button"
+                  size="medium"
+                  variant="secondary"
+                  onClick={handleExitRoom}
+                >
                   {exitRoomMutation.isPending ? '나가는 중' : '나가기'}
-                </GhostButton>
+                </Button>
               </ActionRow>
             </HeaderTop>
             {roomMessage ? <Notice $tone="error">{roomMessage}</Notice> : null}
@@ -559,6 +523,8 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
             {roomMessagesQuery.hasNextPage ? (
               <LoadOlderButton
                 type="button"
+                size="medium"
+                variant="secondary"
                 onClick={() => {
                   void roomMessagesQuery.fetchNextPage()
                 }}
@@ -625,14 +591,15 @@ function ChattingDetailContent({ roomId }: ChattingDetailPageProps) {
               <Helper>
                 브라우저 푸시가 불가능한 환경에서도 채팅 자체는 정상 동작합니다.
               </Helper>
-              <PrimaryButton
+              <Button
                 type="button"
+                size="large"
                 onClick={() => {
                   void handleSendMessage()
                 }}
               >
                 보내기
-              </PrimaryButton>
+              </Button>
             </ComposerFooter>
           </Composer>
         </Panel>

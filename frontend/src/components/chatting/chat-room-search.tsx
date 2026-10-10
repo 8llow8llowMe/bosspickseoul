@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useDeferredValue, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import styled from 'styled-components'
+import { Button } from '@/components/ui/button'
 import { getMyChatRoomsData } from '@/lib/api/chatting'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
 
@@ -60,16 +61,8 @@ const Notice = styled.p<{ $tone?: 'error' }>`
   line-height: 1.75;
 `
 
-const LoadMoreButton = styled.button`
-  min-height: 42px;
+const LoadMoreButton = styled(Button)`
   width: 100%;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
 `
 
 const dedupeRooms = <
@@ -153,6 +146,8 @@ export default function ChatRoomSearch({
           {myRoomsQuery.hasNextPage ? (
             <LoadMoreButton
               type="button"
+              size="large"
+              variant="secondary"
               onClick={() => {
                 void myRoomsQuery.fetchNextPage()
               }}

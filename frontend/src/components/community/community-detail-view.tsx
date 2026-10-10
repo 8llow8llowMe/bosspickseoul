@@ -10,6 +10,7 @@ import {
   Share,
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
+import { Button, ButtonLink } from '@/components/ui/button'
 import CommunityCategoryBadge from '@/components/community/community-category-badge'
 import CommunityCommentThread from '@/components/community/community-comment-thread'
 import CommunityDetailBottomBar from '@/components/community/community-detail-bottom-bar'
@@ -677,34 +678,6 @@ const RailMessage = styled.p`
   word-break: keep-all;
 `
 
-const RailButton = styled.button`
-  min-height: 44px;
-  width: fit-content;
-  padding: 0 16px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text-700);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-`
-
-/* 빈 레일의 글쓰기 — 보조 CTA 라 blue50 바탕 + blue700 글자(DESIGN.md §4 Secondary). */
-const RailWriteLink = styled(Link)`
-  min-height: 44px;
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 16px;
-  border-radius: var(--radius-control);
-  background: var(--color-primary-100);
-  color: var(--color-text-primary-on-light);
-  font-size: 14px;
-  font-weight: 700;
-`
-
 const AdjacentNavigation = styled.nav`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1364,9 +1337,14 @@ export default function CommunityDetailView({
                     <RailMessage role="alert">
                       {relatedErrorMessage ?? '관련 글을 불러오지 못했어요.'}
                     </RailMessage>
-                    <RailButton type="button" onClick={onRetryRelated}>
+                    <Button
+                      type="button"
+                      size="medium"
+                      variant="secondary"
+                      onClick={onRetryRelated}
+                    >
                       다시 시도
-                    </RailButton>
+                    </Button>
                   </>
                 ) : relatedStatus === 'ready' && relatedPosts.length > 0 ? (
                   <RelatedList>
@@ -1392,7 +1370,14 @@ export default function CommunityDetailView({
                     <RailMessage>
                       {railRegionName}의 다음 이야기를 남겨 보세요
                     </RailMessage>
-                    <RailWriteLink href={writeHref}>글쓰기</RailWriteLink>
+                    {/* 빈 레일의 글쓰기 — 보조 CTA(DESIGN.md §4 Secondary). */}
+                    <ButtonLink
+                      href={writeHref}
+                      size="medium"
+                      variant="secondary"
+                    >
+                      글쓰기
+                    </ButtonLink>
                   </>
                 )}
               </Rail>
