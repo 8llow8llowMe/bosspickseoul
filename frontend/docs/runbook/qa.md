@@ -15,6 +15,9 @@
 
 ### 2. 사전 조건
 
+- Node 는 **22.12 이상**(22 계열)이다. vitest 5 의 `engines` 가 `^22.12.0 || ^24.0.0 || >=26.0.0` 이다.
+  Node 20 은 지원 밖이다(돌아가더라도 보장하지 않는다). 로컬 기본이 20 이면 `nvm use 22` 로 맞춘다.
+  CI(`setup-node` `'22'`)·배포 이미지(`node:22-alpine`)는 22 다. Jenkins 빌더(`jenkins-builder-agent`)의 22 부 버전은 저장소 밖이라 거기서 확인한다.
 - `pnpm install`이 완료되어 있다.
 - `.env.local`이 [`.env.example`](../../.env.example) 기준으로 채워져 있다.
 - 백엔드 API와 websocket endpoint가 접근 가능하다.
@@ -48,6 +51,26 @@ PR 에서는 같은 검사에 `pnpm test` 를 더해 두 곳에서 돈다(#497).
 - Jenkins 프론트 PR 빌드(`RUN_TESTS`): `frontend-web` 라벨이 붙은 PR 에서 Vault env 를 넣고 돈다. 라벨은 PR 을 만들 때 붙인다. 빠뜨리면 `label` 워크플로가 보정한다.
 
 역할 분담 정본은 `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2.
+
+### 4. 도구 메이저 보류
+
+Dependabot `fe-major` 그룹(#524, 2026-10-10)에서 `@types/node` 26 · `vitest` 5 는 올렸고
+아래 셋은 보류했다. 보류한 메이저는 `.github/dependabot.yml` 의 `ignore` 가 제안을 막는다 — 그래서
+**스스로 다시 열리지 않는다.** 확인 시점에 아래 조건을 보고, 풀렸으면 `ignore` 항목을 지우고 올린다.
+
+| 패키지       | 보류한 메이저 | 막는 것                                                                                                                                                                                                                                                                                                                                                                | 풀리는 조건                                                                                                                                                                                                                                                                   | 다음 확인                                                                             |
+| ------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `eslint`     | 10            | `eslint-config-next`(16.4.0 까지)가 끌어오는 `eslint-plugin-react` 7.37.5 가 v10 에서 지운 `context.getFilename()` 을 불러 `pnpm lint` 가 첫 파일에서 죽는다. `eslint-plugin-import`·`jsx-a11y` 도 peer 가 `^9` 까지다                                                                                                                                                 | `eslint-plugin-react` 가 v10 을 지원하는 판을 내고(jsx-eslint/eslint-plugin-react#3977) `eslint-config-next` 가 그 판을 쓴다                                                                                                                                                  | Next 마이너를 올릴 때, 늦어도 2026-12 첫 주                                           |
+| `typescript` | 7             | 7.0 패키지는 `require('typescript')` 가 버전 문자열만 내놓는다(기존 컴파일러 API 가 없다). `typescript-eslint` 8.x 의 peer 가 `<6.1.0` 이고 `next build` 의 타입 검사도 그 API 를 쓴다                                                                                                                                                                                 | `typescript-eslint` 와 Next 가 TS 7 을 지원 범위에 넣는다                                                                                                                                                                                                                     | 위와 같음                                                                             |
+| `jsdom`      | 27+ (30 시험) | `<style>` 에 글자 노드를 붙일 때마다 시트 전체를 다시 파싱하는 비용이 26 의 약 3 배다(같은 규칙 800 개 probe). 테스트에서 styled-components 는 글자 노드 방식이라 파일의 첫 렌더가 느려지고(현황 페이지 첫 테스트 0.5 → 2.4 초), 기계가 바쁘면(load 28 에서 재현) `status-page.list/outage/period` 첫 테스트가 5 초 제한에 걸린다. `verify` 가 필수 체크라 받지 않는다 | 테스트에서 insertRule 방식(`SC_DISABLE_SPEEDY=false`)으로 바꾸고, `<style>` textContent 를 읽는 테스트 3 개(`site-header.mobile-login.interaction`·`community-image-lightbox.interaction`·`community-sheet.interaction`)를 `cssRules` 로 옮긴다. 같이 고칠 테스트 2 개는 아래 | 위 정리를 할 때. 30 은 Node `^22.22.2` 를 요구하므로 Jenkins 빌더 부 버전도 같이 본다 |
+
+- eslint 9 는 npm 에서 "더 이상 지원하지 않는 판"으로 표시된다(`pnpm install` 경고). 보안 수정이 끊기므로 eslint 10 확인을 미루지 않는다.
+- TS 6.0.x 는 `typescript-eslint` peer(`<6.1.0`) 안에 있다. 7 을 기다리는 동안 6.0 으로 올리는 것은 이 `ignore` 가 함께 막으므로(5 → 6 도 메이저), 하려면 사람이 따로 올린다.
+
+jsdom 30 으로 올릴 때 같이 고칠 테스트 2 개(2026-10-10 시험에서 실패, 원인 확인됨).
+
+- `site-header.interaction.test.ts` 「comes back while keyboard focus is inside the header」 — 30 의 `:focus-visible` 은 브라우저 휴리스틱(직전 입력이 키보드인지 포인터인지, `@asamuzakjp/dom-selector` 의 이벤트 추적)을 따른다. 26 은 `:focus` 와 같게 매칭해 `focus()` 만으로 통과했다. 앞 테스트의 `fireEvent.click` 이 직전 입력으로 남아 포인터 포커스로 판정된다. `focus()` 앞에 `fireEvent.keyDown(document.body, { key: 'Tab' })` 를 넣는다. 이때 `fireEvent.mouseDown(el)` 뒤 `focus()` 하면 헤더가 숨은 채인지 보는 「탭」 테스트도 더할 수 있다 — 지금은 선택자 문자열로만 잠근 Android 탭 회귀를 동작으로 잡는다.
+- `community-editor-form.interaction.test.ts` 「사진을 누르면 드롭존으로 포커스가 간다」 — 30.1.2 부터 `display:none` 요소에 `focus()` 가 걸리지 않는다. jsdom 은 `@media` 를 계산하지 않아 모바일 우선 드롭존(기본 `display:none`, `≥480` 에서 보임)이 늘 숨은 것으로 보인다. 제품 버그는 아니다(작성 체크는 `≥1080` 에서만 보인다). `activeElement` 대신 `vi.spyOn(dropzone, 'focus')` 호출을 본다.
 
 ## 2. 브라우저 실측 회귀 (Playwright)
 
