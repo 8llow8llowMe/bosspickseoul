@@ -6,6 +6,7 @@ import { forwardRef, useId, useState } from 'react'
 import styled, { css } from 'styled-components'
 
 import { touchHitArea } from '@/styles/touch-target'
+import { visuallyHidden } from '@/styles/visually-hidden'
 
 export type TextFieldSize = 'medium' | 'large'
 
@@ -26,6 +27,11 @@ export type TextFieldProps = Omit<
   fullWidth?: boolean
   helperText?: ReactNode
   label?: ReactNode
+  /**
+   * 라벨을 화면에서만 감춘다(sr-only). `<label>` 연결은 그대로라 접근 이름은 남는다. placeholder 가 같은
+   * 말을 하는 좁은 자리(상권분석 모바일 시트, #648)에서만 켠다. 기본값 false.
+   */
+  labelVisuallyHidden?: boolean
   leftSlot?: ReactNode
   /**
    * 검색어 지우기. 넘기면 값이 있을 때만 라벨 있는 ✕ 버튼이 뜬다.
@@ -84,11 +90,13 @@ const Field = styled.label<{ $fullWidth: boolean }>`
   gap: 8px;
 `
 
-const FieldLabel = styled.span`
+const FieldLabel = styled.span<{ $visuallyHidden: boolean }>`
   color: var(--color-text-700);
   font-size: 13px;
   font-weight: 600;
   line-height: 20px;
+
+  ${props => (props.$visuallyHidden ? visuallyHidden : '')}
 `
 
 const InputShell = styled.span<{
@@ -266,6 +274,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
       fullWidth = true,
       helperText,
       label,
+      labelVisuallyHidden = false,
       leftSlot,
       onClear,
       revealable = false,
@@ -300,7 +309,11 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
 
     return (
       <Field $fullWidth={fullWidth}>
-        {label ? <FieldLabel id={labelId}>{label}</FieldLabel> : null}
+        {label ? (
+          <FieldLabel id={labelId} $visuallyHidden={labelVisuallyHidden}>
+            {label}
+          </FieldLabel>
+        ) : null}
         <InputShell
           $emphasized={emphasized}
           $hasError={hasError}

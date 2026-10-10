@@ -58,6 +58,12 @@ export type OptionPickerProps = {
    * 업종」을 넘긴다. 넘기지 않으면 `emptyMessage` 만 나온다.
    */
   emptyFallback?: OptionPickerFeatured
+  /**
+   * 검색어를 바깥에서 쥔다. 넘기면 목록 위 검색 칸을 그리지 않고 이 값으로만 거른다 — 검색 칸은
+   * 호출부가 다른 자리에 그린다(상권분석 모바일 시트는 시트 머리 아래 고정 자리, #648).
+   * 넘기지 않으면 지금처럼 자기 검색 칸과 상태를 쓴다.
+   */
+  externalQuery?: string
 }
 
 const resolveFeaturedItems = (
@@ -406,11 +412,13 @@ export default function OptionPicker({
   emptyMessage = '검색 결과가 없어요.',
   featured,
   emptyFallback,
+  externalQuery,
 }: OptionPickerProps) {
-  const [query, setQuery] = useState('')
+  const [ownQuery, setQuery] = useState('')
+  const query = externalQuery ?? ownQuery
 
   const totalCount = countOptions(items, groups)
-  const showSearch = totalCount > searchThreshold
+  const showSearch = externalQuery === undefined && totalCount > searchThreshold
 
   const visibleGroups = useMemo(
     () => (groups ? filterOptionGroups(groups, query) : null),

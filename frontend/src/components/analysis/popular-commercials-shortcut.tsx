@@ -31,13 +31,28 @@ export type PopularCommercialJump = {
   districtCode: string
 }
 
-const Root = styled.section`
+/**
+ * - `card`: 데스크톱 패널. 단계 탭 아래 회색 카드로 따로 선다.
+ * - `inline`: 모바일 시트. 목록 스크롤의 첫 블록이라 카드 테두리·면 없이 제목 한 줄 + 칩 한 줄만
+ *   둔다(#648). 스크롤하면 목록과 함께 올라가 사라진다.
+ */
+export type PopularCommercialsShortcutVariant = 'card' | 'inline'
+
+const Root = styled.section<{ $variant: PopularCommercialsShortcutVariant }>`
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
+  gap: ${props => (props.$variant === 'inline' ? '6px' : '8px')};
+
+  ${props =>
+    props.$variant === 'inline'
+      ? `
+        margin-bottom: 8px;
+      `
+      : `
+        padding: 12px;
+        border: 1px solid var(--color-border-200);
+        border-radius: var(--radius-card);
+        background: var(--color-surface-muted);
+      `}
 `
 
 const Heading = styled.h3`
@@ -169,7 +184,10 @@ const Scroller = styled.div`
   화살표(z-index 2)보다 아래, 칩보다 위다. pointer-events 를 끄지 않으면 이 띠가
   덮은 칩을 누를 수 없다.
 */
-const Fade = styled.div<{ $side: 'left' | 'right' }>`
+const Fade = styled.div<{
+  $side: 'left' | 'right'
+  $variant: PopularCommercialsShortcutVariant
+}>`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -183,7 +201,11 @@ const Fade = styled.div<{ $side: 'left' | 'right' }>`
   /* 화살표가 놓이는 구간은 완전히 불투명해야 원 뒤로 칩이 비치지 않는다. */
   background: linear-gradient(
     ${props => (props.$side === 'left' ? 'to right' : 'to left')},
-    var(--color-surface-muted) 45%,
+    ${props =>
+      props.$variant === 'inline'
+        ? 'var(--color-surface)'
+        : 'var(--color-surface-muted)'}
+      45%,
     transparent
   );
 `
@@ -248,11 +270,13 @@ export function ShortcutTrack({
   busy,
   pendingCode,
   onSelect,
+  variant = 'card',
 }: {
   items: PopularCommercial[]
   busy: boolean
   pendingCode: string | null
   onSelect: (commercialCode: string) => void
+  variant?: PopularCommercialsShortcutVariant
 }) {
   const listRef = useRef<HTMLOListElement>(null)
   /* 조회 수가 임계값 아래인 곳이 있으면 순위·이름만 둔다(#600, 홈·추천과 같은 `MIN_VISIBLE_VIEW_COUNT`). */
@@ -294,7 +318,7 @@ export function ShortcutTrack({
     <Scroller>
       {reach.left ? (
         <>
-          <Fade $side="left" aria-hidden="true" />
+          <Fade $side="left" $variant={variant} aria-hidden="true" />
           {/*
             목록의 칩이 이미 탭으로 순회된다 — 화살표는 마우스용 중복 조작이라
             접근성 트리에서 뺀다.
@@ -337,7 +361,7 @@ export function ShortcutTrack({
 
       {reach.right ? (
         <>
-          <Fade $side="right" aria-hidden="true" />
+          <Fade $side="right" $variant={variant} aria-hidden="true" />
           <Arrow
             type="button"
             $side="right"
@@ -355,8 +379,10 @@ export function ShortcutTrack({
 
 export default function PopularCommercialsShortcut({
   onJump,
+  variant = 'card',
 }: {
   onJump: (target: PopularCommercialJump) => void
+  variant?: PopularCommercialsShortcutVariant
 }) {
   const [failedCode, setFailedCode] = useState<string | null>(null)
 
@@ -401,7 +427,11 @@ export default function PopularCommercialsShortcut({
 
   if (rankingQuery.isPending) {
     return (
-      <Root aria-busy="true" aria-label="지금 많이 본 상권 불러오는 중">
+      <Root
+        $variant={variant}
+        aria-busy="true"
+        aria-label="지금 많이 본 상권 불러오는 중"
+      >
         <Heading>
           <TrendingUp aria-hidden="true" />
           지금 많이 본 상권
@@ -433,7 +463,7 @@ export default function PopularCommercialsShortcut({
     : null
 
   return (
-    <Root aria-label="지금 많이 본 상권">
+    <Root $variant={variant} aria-label="지금 많이 본 상권">
       <Heading>
         <TrendingUp aria-hidden="true" />
         지금 많이 본 상권
@@ -441,6 +471,7 @@ export default function PopularCommercialsShortcut({
       </Heading>
 
       <ShortcutTrack
+        variant={variant}
         items={view.items}
         busy={jumpMutation.isPending}
         pendingCode={

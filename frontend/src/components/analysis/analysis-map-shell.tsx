@@ -1345,6 +1345,17 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     ),
     [handleNameSearchPick, nameSearchEntries],
   )
+  /* 모바일 시트는 도움말 한 줄을 뺀 칸을 쓴다 — 그 자리를 자치구 카드에 준다(#648). */
+  const sheetNameSearch = useMemo(
+    () => (
+      <AnalysisNameSearch
+        entries={nameSearchEntries}
+        onPick={handleNameSearchPick}
+        compact
+      />
+    ),
+    [handleNameSearchPick, nameSearchEntries],
+  )
 
   // 패널 재시도/제출 콜백 안정화. activeQuery는 매 렌더 새 객체라 latest-ref로 참조.
   const activeQueryRef = useRef(activeQuery)
@@ -1403,6 +1414,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
   )
   // 모바일 시트 전용: 데스크탑 panel과 동일한 props를 참조 동일성 유지한 채
   // variant="sheet"만 추가한다(memo 비교 대상 콜백은 데스크탑과 동일 참조).
+  // 이름 검색 칸만 시트용(도움말 없는 compact) 요소를 넘긴다(#648).
   const sheetPanel = (
     <AnalysisSelectionPanel
       activeStep={activeStep}
@@ -1418,7 +1430,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       onRetry={handlePanelRetry}
       onSubmit={handlePanelSubmit}
       onPopularCommercialJump={handlePopularCommercialJump}
-      nameSearch={nameSearch}
+      nameSearch={sheetNameSearch}
       variant="sheet"
     />
   )

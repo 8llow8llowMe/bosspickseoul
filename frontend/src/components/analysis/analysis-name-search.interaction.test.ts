@@ -366,3 +366,27 @@ describe('이름 검색 콤보박스', () => {
     expect(searchPlaces).toHaveBeenCalledWith('망원')
   })
 })
+
+/*
+  모바일 시트(#648)는 도움말 줄을 빼고 보이는 라벨은 화면에서만 감춘다. 이름은 그대로여야 한다 —
+  `<label>` 안의 라벨 글자와 aria-label 이 남아 「상권·지하철역·동 이름으로 찾기」로 읽힌다.
+*/
+describe('이름 검색 칸 — compact (모바일 시트)', () => {
+  it('도움말은 없고 라벨 연결·접근 이름은 남는다', () => {
+    const { input } = renderSearch({ compact: true })
+
+    expect(input.getAttribute('aria-label')).toBe(NAME_SEARCH_LABEL)
+    expect(input.closest('label')?.textContent).toContain(NAME_SEARCH_LABEL)
+    expect(
+      screen.queryByText('자치구 이름도 이 칸에서 찾을 수 있습니다.'),
+    ).toBeNull()
+    expect(input.getAttribute('aria-describedby')).toBeNull()
+  })
+
+  it('기본(데스크톱)은 도움말을 그대로 둔다', () => {
+    renderSearch()
+    expect(
+      screen.getByText('자치구 이름도 이 칸에서 찾을 수 있습니다.'),
+    ).toBeTruthy()
+  })
+})
