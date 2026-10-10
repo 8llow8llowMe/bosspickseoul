@@ -25,6 +25,7 @@ import {
 import LineChart from '@/components/analysis/charts/line-chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
+import { CHANGE_TONE_AREA_COLOR } from '@/lib/metrics/metric-polarity'
 import type { GenderSegment, TrendPoint } from '@/lib/analysis/chart-data'
 import {
   type AnalysisMetricRow,
@@ -35,7 +36,8 @@ import {
   formatSinoUnit,
   formatStatusChange,
   formatStatusValue,
-  getStatusChangeTone,
+  presentStatusChange,
+  STATUS_CHANGE_BASIS,
   STATUS_METRIC_LABELS,
   type StatusChangeTone,
 } from '@/lib/status/status-formatters'
@@ -253,21 +255,21 @@ const HeaderRank = styled.p`
   ${rankPendingStyles}
 `
 
-// 어느 쪽이 좋고 나쁜지는 목록과 같은 규칙(`getStatusChangeTone`, 폐업 반전)을 따른다.
-const CHANGE_TONE_AREA_COLOR: Record<StatusChangeTone, string> = {
-  positive: 'var(--color-positive)',
-  negative: 'var(--color-negative)',
-  neutral: 'var(--color-border-300)',
-}
-
+// 어느 쪽이 좋고 나쁜지는 목록과 같은 규칙(`presentStatusChange`, 지표 극성 — 폐업만 반대)을 따른다.
 // 칩의 색은 **면적**(틴트·테두리)에만 쓴다 — 글자는 text-800 이다. 그래서 글자용 -text 토큰이
 // 아니라 면적 토큰이다(contrast-tokens.md D3-3). 변동 없음은 틴트가 흰 바탕에 묻히지 않게
 // 회색 테두리 색을 쓴다.
 const changeToneColor = (tone: StatusChangeTone): string =>
   CHANGE_TONE_AREA_COLOR[tone]
 
+/*
+ * 「▲ +26.1% 악화」까지 붙어 길어졌다. 칩 안 조각(기호·비율·판단)은 각자 줄바꿈하지 않고, 칩이 칸보다
+ * 넓어지면 **조각 사이에서** 다음 줄로 넘긴다 — 360px 시트 머리(내용 폭 약 288px)에서도 넘치지 않는다.
+ */
 const HeaderChange = styled.span<{ $tone: StatusChangeTone }>`
   display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   align-items: center;
   gap: 6px;
   padding: 2px 10px;
@@ -590,16 +592,6 @@ const VisuallyHidden = styled.span`
   clip-path: inset(50%);
   white-space: nowrap;
 `
-
-const getChangeCue = (
-  metric: StatusMetric,
-  changeRate: number | null,
-): string => {
-  if (changeRate === null || !Number.isFinite(changeRate)) return '변화율'
-  if (changeRate === 0) return '변동 없음'
-  if (metric === 'closed') return changeRate > 0 ? '주의' : '개선'
-  return changeRate > 0 ? '증가' : '감소'
-}
 
 // 차트 카드: 제목 + (제목과 다를 때만) 설명 캡션 + 차트/데이터.
 function ChartPanel({
@@ -1129,6 +1121,7 @@ function DetailHeader({
   const compact = variant === 'sheet'
   const rankedItem = selectedDistrict?.rankedItem ?? null
   const metricLabel = STATUS_METRIC_LABELS[metric]
+  const headerChange = presentStatusChange(metric, rankedItem?.changeRate)
   return (
     <Header $compact={compact}>
       <HeaderMain>
@@ -1136,7 +1129,7 @@ function DetailHeader({
           <BackButton
             ref={backButtonRef}
             $compact={compact}
-            aria-label="상위 10개로 돌아가기"
+            aria-label="순위 목록으로 돌아가기"
             type="button"
             onClick={onBack}
           >
@@ -1161,11 +1154,21 @@ function DetailHeader({
               <HeaderValue>
                 {formatStatusValue(metric, rankedItem.value)}
               </HeaderValue>
-              <HeaderChange
-                $tone={getStatusChangeTone(metric, rankedItem.changeRate)}
-              >
-                <span>{getChangeCue(metric, rankedItem.changeRate)}</span>
-                <span>{formatStatusChange(rankedItem.changeRate)}</span>
+              <HeaderChange $tone={headerChange.tone}>
+                {/* 목록 행과 같은 재료다. ▲▼ 는 읽지 않고 기준·방향은 숨긴 글자로 읽힌다(#560). */}
+                {headerChange.arrow ? (
+                  <span aria-hidden="true">{headerChange.arrow}</span>
+                ) : null}
+                <VisuallyHidden>
+                  {STATUS_CHANGE_BASIS}{' '}
+                  {headerChange.directionLabel
+                    ? `${headerChange.directionLabel} `
+                    : null}
+                </VisuallyHidden>
+                <span>{headerChange.rateText}</span>
+                {headerChange.qualityLabel ? (
+                  <span>{headerChange.qualityLabel}</span>
+                ) : null}
               </HeaderChange>
             </HeaderMetric>
           ) : null}

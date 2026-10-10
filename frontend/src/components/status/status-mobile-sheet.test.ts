@@ -137,11 +137,11 @@ describe('StatusMobileSheet', () => {
   it('상세 헤더에 아이콘 뒤로가기 버튼을 표시한다', () => {
     const { markup } = renderSheet('expanded', selectedDistrict)
 
-    expect(markup).toContain('aria-label="상위 10개로 돌아가기"')
+    expect(markup).toContain('aria-label="순위 목록으로 돌아가기"')
     expect(markup).toMatch(
-      /<button[^>]*aria-label="상위 10개로 돌아가기"[^>]*><svg/,
+      /<button[^>]*aria-label="순위 목록으로 돌아가기"[^>]*><svg/,
     )
-    expect(markup).not.toContain('>상위 10개로 돌아가기</button>')
+    expect(markup).not.toContain('>순위 목록으로 돌아가기</button>')
   })
 
   it('공유 높이 상수와 테두리를 제외한 핸들 높이를 스타일에 반영한다', () => {

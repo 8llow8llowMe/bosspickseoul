@@ -277,8 +277,32 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
 - **강조 색은 「가장 큰 값」 하나에만 쓴다.** 진한 막대는 최댓값으로 읽힌다. 요일을 고정 강조하면
   (예: 토·일) 실제 최댓값이 연한 색이 되어 거꾸로 읽힌다. 강조한 막대 위에는 값을 늘 적는다 —
   터치 화면에는 hover 가 없다(`BarChart` 의 `highlightMax`).
-- **증감을 빨강·초록으로 칠하지 않는다.** 국내 사용자는 주식 관례로 빨강을 상승으로 읽는다.
-  ▲▼ 기호와 「매출이 직전 분기보다 4.2% 줄었어요」 같은 문장으로 말하고 색은 중립으로 둔다.
+- **증감은 방향(오름·내림)이 아니라 좋고 나쁨으로 칠한다**(2026-10-10 결정 D-1, #560). 색이 방향을
+  말하면 두 관례가 부딪친다 — 국내 주식 관례는 빨강을 상승으로 읽고, 폐업·위험도처럼 늘면 나쁜
+  지표는 「상승=초록」이 나쁜 소식을 좋게 보이게 한다. 그래서 색은 판단만 맡는다.
+  - **지표마다 극성을 둔다** — 높을수록 좋음 / 낮을수록 좋음 / 중립. 정본은
+    `src/lib/metrics/metric-polarity.ts` 하나다(추천 점수 `METRIC_POLARITY`, 구별현황
+    `STATUS_METRIC_POLARITY` — 폐업만 낮을수록 좋다). 화면이 극성을 따로 적지 않는다.
+  - **극성이 있으면** 좋아진 쪽은 positive, 나빠진 쪽은 negative 시맨틱 토큰이다. 글자는
+    `--color-positive-text`·`--color-negative-text`, 면적(칩 틴트·테두리·막대)은 `--color-positive`·
+    `--color-negative`(`CHANGE_TONE_TEXT_COLOR`·`CHANGE_TONE_AREA_COLOR`). **변동 없음·데이터 없음·
+    극성 중립·극성 모름은 무채색**(글자 `--color-text-600`, 면적 `--color-border-300`)이다.
+  - **색만으로 말하지 않는다**(WCAG 1.4.1). 색을 칠한 증감 옆에는 **부호(+/−)·화살표(▲▼)와
+    「개선」/「악화」 글자를 늘 같이 둔다**(`describeChangeTone`). ▲▼ 는 `aria-hidden` 으로 두고
+    스크린리더에는 「직전 분기 대비 증가」처럼 기준과 방향을 글자로 읽힌다.
+  - **비교 기준을 적는다.** 「+2.5%」만 두면 무엇과 비교한 값인지 모른다. 목록이면 제목 아래 한 번
+    (「증감은 직전 분기 대비예요.」), 문장이면 문장 안에 적는다.
+  - 색 없이 문장으로 말하는 자리(「▼ 매출이 직전 분기보다 4.2% 줄었어요」)는 그대로 둬도 된다 —
+    색을 칠할 때만 위 규칙을 지킨다.
+  - **적용 현황(2026-10-10).** 적용됨: 구별현황 목록·상세 머리(#560). **아직 옮기지 않은 화면** — 손댈 때
+    이 규칙으로 맞춘다.
+    - 홈 `components/home/district-tooltip.tsx` — 극성 색(`getStatusChangeTone`)은 쓰지만 「개선/악화」
+      글자가 없다.
+    - 홈 `components/home/rank-bar-list.tsx` — 극성이 아니라 오름·내림(`changeDirection`)으로 초록·빨강을
+      칠한다.
+    - 상권분석 `components/analysis/ai-report/report-metric-cards.tsx` — `tone` 으로 글자색을 칠하고 판단
+      글자를 같이 두는지 확인되지 않았다.
+    - 상권분석 트렌드(`AnalysisTrendSummary`) — 무채색 문장이다. 색을 싣게 되면 위 규칙을 따른다.
 - **성별은 남성 `--color-primary-600`, 여성 `--color-chart-female`.** 파랑 두 톤으로 나누면
   범례 없이는 구분되지 않는다.
 - **Y 축 위에 단위를 한 번 적는다**(「(원)」·「(명)」). 눈금 「8000만」은 크기만 말한다.
@@ -475,7 +499,8 @@ inline-size` 를 걸고 `@container` 로 열을 바꾼다(결과 화면: 1열 <6
 - Use tabular (fixed-width) numerals for financial data and transaction amounts
 - Use 700 weight for financial amounts and headings, 400 for body, 600 for emphasis
 - Keep border-radius between 8px-16px for most elements
-- Show positive changes in green, negative in red. 면적·아이콘은 `#03b26c` / `#f04452`,
+- Show **good** changes in green, **bad** in red — 오름·내림이 아니라 지표 극성으로 판단한다(§Charts
+  「증감은 좋고 나쁨으로 칠한다」). 부호·▲▼·「개선/악화」 글자를 늘 같이 둔다. 면적·아이콘은 `#03b26c` / `#f04452`,
   **글자는 `#0b7a52` / `#c8323f`** (12~16px 텍스트는 AA 4.5:1 을 넘어야 한다)
 - Use blue50 (`#e8f3ff`) for subtle informational backgrounds
 

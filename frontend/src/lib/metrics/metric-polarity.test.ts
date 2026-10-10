@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  CHANGE_TONE_AREA_COLOR,
+  CHANGE_TONE_TEXT_COLOR,
   COMPOSITE_SCORE_POLARITY,
+  describeChangeTone,
   describeMetricPolarity,
   getScoreQualityColor,
   getScoreQualityLabel,
   resolveMetricPolarity,
+  resolveChangeTone,
   resolveScoreQuality,
+  STATUS_METRIC_POLARITY,
 } from './metric-polarity'
 
 describe('resolveMetricPolarity', () => {
@@ -110,5 +115,65 @@ describe('describeMetricPolarity', () => {
 
   it('says nothing when the direction is unknown', () => {
     expect(describeMetricPolarity(null)).toBe('')
+  })
+})
+
+describe('neutral polarity', () => {
+  // 높고 낮음에 좋고 나쁨이 없는 지표는 등급도 방향 문구도 내지 않는다.
+  it('grades nothing and says nothing', () => {
+    expect(resolveScoreQuality(90, 'neutral')).toBe('neutral')
+    expect(describeMetricPolarity('neutral')).toBe('')
+  })
+})
+
+describe('STATUS_METRIC_POLARITY', () => {
+  // D-1 — 구별현황 네 지표 중 폐업만 낮을수록 좋다.
+  it('treats only closures as lower-is-better', () => {
+    expect(STATUS_METRIC_POLARITY).toEqual({
+      footTraffic: 'higher-is-better',
+      sales: 'higher-is-better',
+      opened: 'higher-is-better',
+      closed: 'lower-is-better',
+    })
+  })
+})
+
+describe('resolveChangeTone', () => {
+  // D-1 — 색은 오름·내림이 아니라 좋고 나쁨을 따른다.
+  it.each([
+    [2.5, 'higher-is-better', 'positive'],
+    [-4.3, 'higher-is-better', 'negative'],
+    [26.1, 'lower-is-better', 'negative'],
+    [-3, 'lower-is-better', 'positive'],
+  ] as const)('%s on %s → %s', (rate, polarity, tone) => {
+    expect(resolveChangeTone(rate, polarity)).toBe(tone)
+  })
+
+  it('stays neutral without a change, a value or a direction', () => {
+    expect(resolveChangeTone(0, 'higher-is-better')).toBe('neutral')
+    expect(resolveChangeTone(null, 'higher-is-better')).toBe('neutral')
+    expect(resolveChangeTone(Number.NaN, 'lower-is-better')).toBe('neutral')
+    expect(resolveChangeTone(5, 'neutral')).toBe('neutral')
+    expect(resolveChangeTone(5, null)).toBe('neutral')
+  })
+
+  it('maps tones to the existing semantic tokens only', () => {
+    expect(CHANGE_TONE_TEXT_COLOR).toEqual({
+      positive: 'var(--color-positive-text)',
+      negative: 'var(--color-negative-text)',
+      neutral: 'var(--color-text-600)',
+    })
+    expect(CHANGE_TONE_AREA_COLOR).toEqual({
+      positive: 'var(--color-positive)',
+      negative: 'var(--color-negative)',
+      neutral: 'var(--color-border-300)',
+    })
+  })
+
+  // WCAG 1.4.1 — 색을 칠한 증감 옆에는 늘 글자가 있다. 판단하지 않은 것은 말하지 않는다.
+  it('puts good and bad into words', () => {
+    expect(describeChangeTone('positive')).toBe('개선')
+    expect(describeChangeTone('negative')).toBe('악화')
+    expect(describeChangeTone('neutral')).toBe('')
   })
 })

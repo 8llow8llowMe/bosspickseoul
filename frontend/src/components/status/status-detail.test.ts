@@ -70,6 +70,29 @@ describe('/status 상세 머리', () => {
     expect(markup).toContain('매출 1위')
   })
 
+  // D-1 · #560 — 증감 칩도 목록과 같이 기준·방향을 읽히고 「개선/악화」를 글자로 적는다.
+  it('증감 칩은 ▲▼ 를 숨기고 기준·방향을 읽히며 개선·악화를 적는다', () => {
+    const selected = (changeRate: number): StatusSelectedDistrict => ({
+      districtCode: '11680',
+      districtName: '강남구',
+      rankedItem: {
+        rank: 1,
+        districtCode: '11680',
+        districtName: '강남구',
+        value: 1_559,
+        changeRate,
+      },
+    })
+    const falling = renderHeader(selected(-4.3))
+    const openedRising = renderHeader(selected(26.1), 'opened')
+
+    expect(falling).toContain('<span aria-hidden="true">▼</span>')
+    expect(falling).toMatch(/<span[^>]*>직전 분기 대비 감소 <\/span>/)
+    expect(falling).toContain('<span>악화</span>')
+    // 개업 증가는 좋은 쪽이다(폐업만 낮을수록 좋다).
+    expect(openedRising).toContain('<span>개선</span>')
+  })
+
   it('Top10 밖 구도 전체 순위의 값·변화율과 「지표 N위」를 적는다', () => {
     const markup = renderHeader({
       districtCode: '11545',
@@ -103,7 +126,8 @@ describe('/status 상세 머리', () => {
     })
 
     expect(markup).toContain('매출 2위')
-    expect(markup).toContain('데이터 없음')
+    expect(markup).toContain('<span>변화율 데이터 없음</span>')
+    expect(markup).not.toContain('–')
     expect(markup).not.toContain('0%')
     expect(markup).not.toContain('변동 없음')
   })

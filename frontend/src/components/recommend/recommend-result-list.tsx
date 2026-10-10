@@ -13,7 +13,7 @@ import {
   getScoreQualityLabel,
   resolveMetricPolarity,
   resolveScoreQuality,
-} from '@/lib/recommend/metric-polarity'
+} from '@/lib/metrics/metric-polarity'
 import {
   isRecord,
   readBlueOceanCategories,

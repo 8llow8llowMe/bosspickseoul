@@ -640,7 +640,7 @@ node 환경 + `renderToStaticMarkup` 문자열 assertion 컨벤션을 따른다.
 | 무엇                            | 어디                                                               |
 | ------------------------------- | ------------------------------------------------------------------ |
 | 점수 토큰                       | `--score-high/mid/low/neutral` (`styles/global-styles.ts`)         |
-| 지표 방향 → 좋음/보통/나쁨      | `lib/recommend/metric-polarity.ts`                                 |
+| 지표 방향 → 좋음/보통/나쁨      | `lib/metrics/metric-polarity.ts`                                   |
 | 값 하나짜리 게이지              | `components/ui/score-gauge.tsx` (의존성 없는 인라인 SVG)           |
 | 업종 아이콘(대분류 폴백 + 개별) | `lib/recommend/service-icons.ts`                                   |
 | 빈 자리 막대                    | `getBlueOceanVacancy` + `VacancyBar` (`recommend-result-list.tsx`) |

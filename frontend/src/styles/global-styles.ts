@@ -58,8 +58,8 @@ const GlobalStyles = createGlobalStyle`
     --color-primary-600: var(--color-blue-600);
     --color-primary-100: var(--color-blue-50);
     --color-chart-female: #f2698f; /* 여성 계열: primary(blue)와 명도·색상 대비 확보 */
-    --color-positive: var(--color-green-500); /* 상승 — 면적(막대·점)용 */
-    --color-negative: var(--color-red-500); /* 하락 — 면적(막대·점)용 */
+    --color-positive: var(--color-green-500); /* 긍정·좋아짐 — 면적(막대·점)용. 증감은 극성 기준(DESIGN.md §Charts) */
+    --color-negative: var(--color-red-500); /* 부정·나빠짐 — 면적(막대·점)용. 증감은 극성 기준(DESIGN.md §Charts) */
     /*
      * 증감 **글자**. green500·red500 을 글자에 쓰면 흰 바탕 2.77 / 3.71:1 로 AA(4.5)에
      * 못 미친다. 면적은 3:1 기준이라 위 두 토큰을 그대로 두고 글자만 -text 로 간다
@@ -106,7 +106,7 @@ const GlobalStyles = createGlobalStyle`
      *
      * **점수가 아니라 「좋음/보통/주의」(내부 값 good/fair/poor)에 매핑한다.** 위험도·혼잡도는 점수가 높을수록
      * 나쁘므로, 점수를 그대로 이 토큰에 이으면 「위험도 100」이 초록이 된다.
-     * 방향 변환은 lib/recommend/metric-polarity.ts 가 맡는다.
+     * 방향 변환은 lib/metrics/metric-polarity.ts 가 맡는다.
      *
      * --score-neutral 은 **방향을 모르는 지표**용이다. 백엔드가 지표를 추가했을 때
      * 색으로 조용히 거짓말하지 않기 위해 색으로 판단하지 않는다는 표시다.
