@@ -113,19 +113,39 @@ export const getToggledSheetSnap = (
 ): StatusSheetSnap =>
   current === 'collapsed' ? 'expanded' : getNextSheetSnap(current, 'collapse')
 
+type StatusSheetRowTarget = StatusSheetFocusTarget & {
+  scrollIntoView?: (options?: ScrollIntoViewOptions) => void
+}
+
+/**
+ * 시트 본문이 목록 ↔ 상세로 바뀔 때 스크롤과 포커스를 옮긴다.
+ *
+ * 상세로 갈 때는 맨 위(머리)부터 보이고 뒤로가기 버튼에 포커스가 간다. 목록으로 돌아올 때 **방금 보던 구의
+ * 행(`returnRow`)이 목록에 있으면** 그 행이 보이게 스크롤하고 포커스를 돌려준다 — 25개 구로 펼친 목록의
+ * 20위를 보다 돌아왔는데 맨 위로 튀면 어디를 보고 있었는지 잃는다(#565 리뷰). 행이 없으면(지도에서 고른
+ * 순위 밖 구, 접힌 목록의 11위 이하) 예전처럼 맨 위로 올리고 손잡이에 포커스를 둔다.
+ */
 export const applyStatusSheetContentTransition = ({
   body,
   backButton,
   handle,
   isShowingDetail,
+  returnRow = null,
 }: {
   body: StatusSheetBodyTarget | null
   backButton: StatusSheetFocusTarget | null
   handle: StatusSheetFocusTarget | null
   isShowingDetail: boolean
+  returnRow?: StatusSheetRowTarget | null
 }): void => {
   if (body) {
     body.scrollTop = 0
+  }
+
+  if (!isShowingDetail && returnRow) {
+    returnRow.scrollIntoView?.({ block: 'nearest' })
+    returnRow.focus({ preventScroll: true })
+    return
   }
 
   const focusTarget = isShowingDetail ? backButton : handle
@@ -241,6 +261,35 @@ export const resolveStatusSelectedDistrict = (
   return { districtCode, districtName, rankedItem }
 }
 
+/**
+ * 순위 목록을 25개 구 모두 펼쳤는지(#565). `?list=all` 이 정본이다 — 상세를 열었다가 돌아오거나
+ * 뒤로가기·새로고침을 해도 펼친 목록이 그대로다. 다른 값은 「접힘」으로 읽는다.
+ */
+export const STATUS_LIST_PARAM = 'list'
+const STATUS_LIST_EXPANDED_VALUE = 'all'
+
+export const parseStatusListExpanded = (
+  value: string | null | undefined,
+): boolean => value === STATUS_LIST_EXPANDED_VALUE
+
+/**
+ * 목록 펼침만 바꾼 쿼리. 지표·구·분기는 그대로 둔다. 접힘이 기본이라 URL 에 적지 않는다.
+ */
+export const createStatusListQuery = (
+  currentQuery: URLSearchParams,
+  isExpanded: boolean,
+): URLSearchParams => {
+  const query = new URLSearchParams(currentQuery)
+
+  if (isExpanded) {
+    query.set(STATUS_LIST_PARAM, STATUS_LIST_EXPANDED_VALUE)
+  } else {
+    query.delete(STATUS_LIST_PARAM)
+  }
+
+  return query
+}
+
 export const createStatusQuery = (
   currentQuery: URLSearchParams,
   metric: StatusMetric,
@@ -263,6 +312,11 @@ export const createStatusQuery = (
     query.delete('periodCode')
   } else {
     query.set('periodCode', periodCode)
+  }
+
+  // 손편집한 `?list=` 값(`all` 이 아닌 것)은 접힘이다 — URL 에 남겨 두지 않는다.
+  if (!parseStatusListExpanded(query.get(STATUS_LIST_PARAM))) {
+    query.delete(STATUS_LIST_PARAM)
   }
 
   return query
