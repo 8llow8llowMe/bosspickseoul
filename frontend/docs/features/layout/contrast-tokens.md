@@ -459,7 +459,9 @@ blue600(`#2272eb`, HSL 216/83/53)의 **색상각을 유지하고 명도만 내�
 
 **2026-10-09 후속(#556) — 홈·헤더 밖으로 넓힌 대상**: 파란 글자를 `--color-text-primary-on-light` 로 옮겼다 — `hero-window.tsx` 「구별현황 보기」 · `site-header.tsx` 활성·hover 6곳 · `auth-shell.tsx` 보조 버튼·하단 링크 · `register-form.tsx` · `feature-bento.tsx` · `analysis-result-view.tsx` 추천 이동 링크. grey100 밴드 위 캡션은 `--color-text-caption-on-band` 로 옮겼다 — `analysis-summary-cards.tsx` `Head`·`ContextText` · `analysis-result-view.tsx` `SingleFigure`·`ComparisonItem` 라벨 · `RecommendHandoffNote`(Root grey100 위). 추천 이동 링크 hover 는 글자색을 primary-600(grey100 위 4.07:1)으로 옮기지 않고 밑줄 굵기로 알린다. 흰 카드 위 캡션은 4.62 라 그대로다.
 
-**남은 대상**: 글자에 `--color-primary-700` 을 쓰는 곳이 **31개 파일**에 남아 있다(`global-styles.test.ts` 「글자색에 primary-700 을 쓰지 않는다」의 `KNOWN_DEBT`). 소스 스캔이 **새 파일의 위반을 막고**, 목록의 파일이 깨끗해지면 목록에서 빼도록 실패시킨다. 목록은 줄기만 한다.
+**2026-10-10 후속(#634)**: `KNOWN_DEBT` 26개 파일(46건)을 `--color-text-primary-on-light` 로 옮겼다 — 공용 `Badge` blue 톤, 토스트 동작 버튼, `tabs`·`option-picker`, 분석·채팅·커뮤니티·홈·시뮬레이션의 활성 칩·배지·링크·hover 글자, 차트 링크 축 라벨(SVG `<text fill>`). 선택 체크처럼 의미 있는 아이콘(비텍스트 3:1, blue50 위 2.47 → 5.26)과 글자 옆 장식 아이콘도 같은 토큰으로 맞췄다. 정의되지 않은 `--color-primary-50` 을 쓰던 정책 유형 배지 바탕은 `--color-primary-100` 으로 고쳤다. 가드에 SVG `<text>` 의 JSX `fill` 검사를 더했다.
+
+**남은 대상**: 글자에 `--color-primary-700` 을 쓰는 곳은 **`ui/toast.tsx` 상태 아이콘 1건**이다(`global-styles.test.ts` 「글자색에 primary-700 을 쓰지 않는다」의 `KNOWN_DEBT`). info 톤을 나타내는 의미 아이콘이라 비텍스트 3:1 이 걸리는데 흰 바탕 2.77 로 미달이다. 토스트를 함께 고치는 #631 이후에 처리한다. 소스 스캔이 **새 파일의 위반을 막고**, 목록의 파일이 깨끗해지면 목록에서 빼도록 실패시킨다. 목록은 줄기만 한다.
 
 ### D6-2. 영향 범위 — 같은 조합을 쓰는 앱 전체 (grep 실측, `*.test.*` 제외)
 

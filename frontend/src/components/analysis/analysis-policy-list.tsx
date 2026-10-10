@@ -64,8 +64,8 @@ const TypeBadge = styled.span`
   flex-shrink: 0;
   padding: 3px 9px;
   border-radius: 999px;
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
+  background: var(--color-primary-100);
+  color: var(--color-text-primary-on-light);
   font-size: 12px;
   font-weight: 700;
   line-height: 18px;
@@ -108,7 +108,7 @@ const DetailLink = styled.a`
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 13px;
   font-weight: 700;
   text-decoration: underline;

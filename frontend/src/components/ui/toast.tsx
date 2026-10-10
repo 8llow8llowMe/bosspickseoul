@@ -145,7 +145,7 @@ const ActionButton = styled.button`
   border: none;
   background: none;
   padding: 0;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 13px;
   font-weight: 700;
   line-height: 20px;

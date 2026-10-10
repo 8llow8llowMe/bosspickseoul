@@ -128,7 +128,7 @@ const Row = styled.button`
 `
 
 const Rank = styled.span`
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 12px;
   font-weight: 700;
 `
@@ -217,7 +217,7 @@ const Arrow = styled.button<{ $side: 'left' | 'right' }>`
 
   &:hover {
     border-color: var(--color-primary-600);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   /*

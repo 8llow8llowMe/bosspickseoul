@@ -280,7 +280,7 @@ const Outcome = styled.p`
     width: 18px;
     height: 18px;
     margin-top: 2px;
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 `
 

@@ -57,7 +57,9 @@ const Chip = styled.button<{ $selected: boolean }>`
   background: ${props =>
     props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+    props.$selected
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-800)'};
   padding: 8px 22px;
   font-size: 14px;
   font-weight: ${props => (props.$selected ? 700 : 600)};
@@ -104,7 +106,7 @@ const Mark = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
 
   svg {
     width: 14px;

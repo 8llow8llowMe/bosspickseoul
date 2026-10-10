@@ -108,7 +108,7 @@ const Action = styled.span`
   align-items: center;
   vertical-align: bottom;
   gap: 2px;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 13px;
   font-weight: 700;
   line-height: 20px;

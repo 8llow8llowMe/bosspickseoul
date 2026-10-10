@@ -104,7 +104,7 @@ const Status = styled.p`
   word-break: keep-all;
 
   a {
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
     font-weight: 600;
     text-decoration: underline;
     text-underline-offset: 2px;

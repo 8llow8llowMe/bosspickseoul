@@ -528,7 +528,7 @@ const AnalysisLink = styled(Link)`
 
   &:hover {
     border-color: var(--color-primary-600);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   svg {

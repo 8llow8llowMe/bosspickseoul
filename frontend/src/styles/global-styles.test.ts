@@ -598,8 +598,13 @@ describe('브랜드 강조색은 로고 전용이다', () => {
  * 파일별 위반 수가 늘면 실패하고, 줄면 「숫자를 낮춰라」(0 이면 「목록에서 빼라」)로 실패한다 —
  * 부채가 줄기만 하도록 상한을 잠근다.
  *
+ * SVG 글자는 `color` 가 아니라 `fill` 로 칠한다. CSS `fill:` 은 폴리곤·막대 같은 면에도 쓰여 걸면
+ * 오탐이 많으므로, JSX `<text … fill={…}>` 속성에 primary-700 이 적힌 것만 따로 막는다(#634, 차트
+ * 링크 축 라벨).
+ *
  * 한계: 색을 상수 맵·변수에 담았다가 `color: ${map[x]}` 로 꺼내는 **간접 참조는 못 잡는다**. 선언 안에
- * `--color-primary-700` 이 직접 적힌 것만 본다.
+ * `--color-primary-700` 이 직접 적힌 것만 본다. `<text>` 가 아닌 요소(`<tspan>`, styled SVG 의 CSS
+ * `fill:`)로 칠하는 SVG 글자도 못 잡는다.
  */
 describe('글자색에 primary-700 을 쓰지 않는다', () => {
   const projectRoot = path.resolve(
@@ -607,34 +612,15 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
     '..',
   )
 
-  /** 파일 → 글자색 primary-700 선언 수(상한). */
+  /**
+   * 파일 → 글자색 primary-700 선언 수(상한). #634 에서 글자·아이콘을 모두 옮기고 하나만 남았다.
+   *
+   * - `toast.tsx` 1: 카드 왼쪽 상태 아이콘(`> svg { color }`)이다. 글자는 아니지만 info 톤을 나타내는
+   *   의미 있는 아이콘이라 비텍스트 3:1 이 걸리고, 흰 바탕 2.77:1 로 못 넘는다. 토스트 다른 부분을
+   *   고치는 작업(#631)과 겹치지 않게 #634 에서는 동작 버튼 글자색만 옮겼다.
+   */
   const KNOWN_DEBT = new Map<string, number>([
-    ['src/components/analysis/analysis-policy-list.tsx', 2],
-    ['src/components/analysis/analysis-result-nav.tsx', 2],
-    ['src/components/analysis/analysis-result-section.tsx', 1],
-    ['src/components/analysis/analysis-summary-insights.tsx', 1],
-    ['src/components/analysis/popular-commercials-shortcut.tsx', 2],
-    ['src/components/auth/password-reset-form.tsx', 1],
-    ['src/components/chatting/chat-room-search.tsx', 1],
-    ['src/components/chatting/chatting-detail-page.tsx', 3],
-    ['src/components/chatting/chatting-list-page.tsx', 3],
-    ['src/components/chatting/chatting-unavailable-page.tsx', 1],
-    ['src/components/community/community-choice-chips.tsx', 1],
-    ['src/components/community/community-list-filter.tsx', 1],
-    ['src/components/home/analysis-mini-demo.tsx', 3],
-    ['src/components/home/metric-toggle-group.tsx', 2],
-    ['src/components/home/product-story.tsx', 1],
-    ['src/components/recommend/recommend-result-list.tsx', 1],
-    ['src/components/simulation/report/simulation-save-button.tsx', 1],
-    ['src/components/simulation/simulation-analysis-context-card.tsx', 2],
-    ['src/components/simulation/simulation-brand-search.tsx', 1],
-    ['src/components/simulation/simulation-choice-grid.tsx', 2],
-    ['src/components/simulation/simulation-condition-section.tsx', 1],
-    ['src/components/simulation/simulation-result-panel.tsx', 1],
-    ['src/components/ui/badge.tsx', 1],
-    ['src/components/ui/option-picker.tsx', 6],
-    ['src/components/ui/tabs.tsx', 2],
-    ['src/components/ui/toast.tsx', 2],
+    ['src/components/ui/toast.tsx', 1],
   ])
 
   const blankComments = (source: string): string =>
@@ -718,6 +704,45 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
 
     expect(grew).toEqual([])
     expect(shrank).toEqual([])
+  })
+
+  /** JSX `<text>` 의 `fill` 속성. `[^>]` 로 태그 안에서만 본다. */
+  const blueSvgText = /<text\b[^>]*?\bfill=\{?[^}>]*--color-primary-700/g
+
+  const countBlueSvgText = (source: string): number =>
+    blankComments(source).match(blueSvgText)?.length ?? 0
+
+  it('판정 — SVG <text> 의 fill 만 걸고 면(rect·path)의 fill 은 건너뛴다', () => {
+    expect(
+      countBlueSvgText(
+        "<text x={x} fill={href ? 'var(--color-primary-700)' : axis}>",
+      ),
+    ).toBe(1)
+    expect(
+      countBlueSvgText('<text fill="var(--color-primary-700)">a</text>'),
+    ).toBe(1)
+    expect(countBlueSvgText("<rect fill={'var(--color-primary-700)'} />")).toBe(
+      0,
+    )
+    expect(
+      countBlueSvgText(
+        "<text fill={'var(--color-text-primary-on-light)'}>a</text>",
+      ),
+    ).toBe(0)
+  })
+
+  it('SVG <text> 글자를 primary-700 으로 칠하지 않는다', () => {
+    const offenders: string[] = []
+
+    for (const file of collectFiles(projectRoot, isSourceFile)) {
+      const source = readIfPresent(file)
+
+      if (source !== null && countBlueSvgText(source) > 0) {
+        offenders.push(path.relative(projectRoot, file).replaceAll('\\', '/'))
+      }
+    }
+
+    expect(offenders).toEqual([])
   })
 })
 

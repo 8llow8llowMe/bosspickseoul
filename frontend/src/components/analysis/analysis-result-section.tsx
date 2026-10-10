@@ -204,7 +204,7 @@ const Footer = styled.footer`
   line-height: 19px;
 
   a {
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
     text-decoration: underline;
   }
 `

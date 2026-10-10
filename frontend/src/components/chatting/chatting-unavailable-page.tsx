@@ -49,7 +49,7 @@ const Status = styled.span`
   padding: 4px 12px;
   border-radius: var(--radius-pill);
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 13px;
   font-weight: 600;
 

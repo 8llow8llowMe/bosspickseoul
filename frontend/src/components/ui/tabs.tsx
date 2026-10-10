@@ -36,7 +36,7 @@ export const TabButton = styled.button<{ $active?: boolean }>`
     color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 `
 
@@ -58,6 +58,6 @@ export const TabLink = styled.a<{ $active?: boolean }>`
     color var(--motion-fast) var(--ease-standard);
 
   &:hover {
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 `

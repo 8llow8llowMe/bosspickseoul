@@ -105,7 +105,7 @@ const RowLabel = styled.span`
     width: 14px;
     height: 14px;
     flex: 0 0 auto;
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
     stroke: currentColor;
   }
 `

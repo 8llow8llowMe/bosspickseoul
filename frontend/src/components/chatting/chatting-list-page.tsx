@@ -102,7 +102,9 @@ const CategoryChip = styled.button<{ $active: boolean }>`
   background: ${props =>
     props.$active ? 'var(--color-primary-100)' : 'white'};
   color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-500)'};
+    props.$active
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-500)'};
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -206,7 +208,7 @@ const RoomCategory = styled.span`
   padding: 0 10px;
   border-radius: 999px;
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 12px;
   font-weight: 700;
 `
@@ -236,7 +238,7 @@ const Notice = styled.div<{ $tone?: 'error' }>`
   color: ${props =>
     props.$tone === 'error'
       ? 'var(--color-danger)'
-      : 'var(--color-primary-700)'};
+      : 'var(--color-text-primary-on-light)'};
   line-height: 1.75;
 `
 

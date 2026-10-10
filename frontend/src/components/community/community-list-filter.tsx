@@ -62,7 +62,9 @@ const FilterChip = styled.span<{ $active: boolean }>`
   background: ${props =>
     props.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+    props.$active
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-700)'};
   font-size: 14px;
   font-weight: ${props => (props.$active ? 700 : 600)};
 

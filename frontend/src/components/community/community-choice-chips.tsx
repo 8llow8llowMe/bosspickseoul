@@ -8,7 +8,7 @@ import styled, { css } from 'styled-components'
   `role="group"` + `aria-pressed` 버튼 묶음이다(라디오가 아니다 — 글쓰기 말머리는 다시 누르면 풀린다).
 
   모양은 작성 도움 칩(community-editor-form PromptChip — 알약·테두리·44 높이)을, 눌림은 선택 칩
-  관용구(option-picker — primary-600 테두리 · primary-100 바탕 · primary-700 글자)를 그대로 쓴다.
+  관용구(option-picker — primary-600 테두리 · primary-100 바탕 · --color-text-primary-on-light 글자)를 그대로 쓴다.
   새 토큰을 만들지 않는다.
 */
 
@@ -90,7 +90,9 @@ const Chip = styled.button<{ $selected: boolean }>`
   background: ${props =>
     props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+    props.$selected
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-700)'};
   font: inherit;
   font-size: 14px;
   font-weight: ${props => (props.$selected ? 700 : 600)};

@@ -134,7 +134,7 @@ const Meta = styled.span`
 
 const Edit = styled.span`
   flex: 0 0 auto;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 13px;
   font-weight: 600;
 `

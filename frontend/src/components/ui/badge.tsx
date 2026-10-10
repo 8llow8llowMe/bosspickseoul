@@ -8,7 +8,7 @@ export type BadgeTone =
 const toneStyles = {
   blue: css`
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   `,
   grey: css`
     background: var(--color-surface-muted);
