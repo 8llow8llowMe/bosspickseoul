@@ -118,3 +118,37 @@ describe('PopularCommercialsShortcut — 낮은 조회 수(#600)', () => {
     expect(html).not.toContain('조회 40회')
   })
 })
+
+/*
+ * #648: 모바일 시트는 목록 스크롤 첫 블록(`inline`)으로 쓴다. 빈 상태 규칙은 카드와 같다 —
+ * 0개면 제목만 남기지 않고 블록을 통째로 빼고, 1개여도 그린다.
+ */
+describe('PopularCommercialsShortcut — 시트 인라인', () => {
+  const renderInline = (seed: AnalysisRankingResponse) => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    client.setQueryData(QUERY_KEY, seed)
+    return renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(PopularCommercialsShortcut, {
+          onJump: () => undefined,
+          variant: 'inline',
+        }),
+      ),
+    )
+  }
+
+  it('항목이 0개면 제목도 남기지 않는다', () => {
+    expect(renderInline(createResponse([]))).toBe('')
+  })
+
+  it('항목이 1개여도 제목과 칩을 그린다', () => {
+    const html = renderInline(createResponse(rankings.slice(0, 1)))
+    expect(html).toContain('지금 많이 본 상권')
+    expect(html).toContain('최근 24시간')
+    expect(html).toContain('역삼역')
+  })
+})

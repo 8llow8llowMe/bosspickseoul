@@ -1,12 +1,14 @@
 'use client'
 
-import { memo, useMemo, type ReactNode } from 'react'
+import { memo, useId, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { RotateCcw } from 'lucide-react'
+import { RotateCcw, Search } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Button } from '@/components/ui/button'
+import { visuallyHidden } from '@/styles/visually-hidden'
 import EmptyState from '@/components/ui/empty-state'
+import { TextField } from '@/components/ui/text-field'
 import OptionPicker, {
   type OptionPickerFeatured,
 } from '@/components/ui/option-picker'
@@ -18,7 +20,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import {
   canGroupByDescription,
+  countOptions,
   groupOptionsByDescription,
+  OPTION_SEARCH_THRESHOLD,
 } from '@/lib/option-filter'
 import { formatPeriodCode } from '@/lib/analysis/presentation'
 import {
@@ -137,19 +141,27 @@ const Title = styled.h1`
   word-break: keep-all;
 `
 
+/*
+  모바일 시트는 머리(72px)와 지도 최소 높이(180px)를 빼면 375×667 에서 350px 밖에 안 남는다.
+  고정 영역(이름 검색·단계 탭·CTA)이 그 자리를 다 먹어 자치구 카드가 반 줄만 보였다(#648).
+  시트에서는 고정 영역의 위아래 여백을 줄인다. 데스크톱 패널은 그대로다.
+*/
+type PanelVariant = 'panel' | 'sheet'
+
 /* 이름 검색 칸. 단계 탭보다 위, 패널 맨 위다 — 지도·4단계를 거치지 않는 첫 길이라서다. */
-const SearchSlot = styled.div`
-  padding: 14px 20px;
+const SearchSlot = styled.div<{ $variant: PanelVariant }>`
+  padding: ${props => (props.$variant === 'sheet' ? '8px 20px' : '14px 20px')};
   border-bottom: 1px solid var(--color-border-200);
 `
 
-const StepList = styled.ol`
+const StepList = styled.ol<{ $variant: PanelVariant }>`
   display: grid;
   /* minmax(0, 1fr)로 트랙을 고정한다. 기본 1fr(=minmax(auto,1fr))은 긴 선택명이
      트랙을 밀어 폭이 들쭉날쭉해지므로, 내용과 무관하게 항상 4등분되게 한다. */
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  padding: 16px 20px;
+  /* 시트는 탭(48) + 위아래 4 = 탭 줄 56(경계선 별도). 「바텀시트에서 탭이 너무 크다」는 피드백(#648). */
+  padding: ${props => (props.$variant === 'sheet' ? '4px 20px' : '16px 20px')};
   border-bottom: 1px solid var(--color-border-200);
 `
 
@@ -159,11 +171,16 @@ const StepList = styled.ol`
   배치와 `<ol>` 이 이미 말하므로 번호 글자를 걷어내고, 값은 13px 두 줄까지 보인다.
   아직 안 고른 단계는 「업종」처럼 단계 이름만 쓴다.
 */
-const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
+const StepButton = styled.button<{
+  $active: boolean
+  $completed: boolean
+  $variant: PanelVariant
+}>`
   width: 100%;
   height: 100%;
   min-width: 0;
-  min-height: 56px;
+  /* 시트는 공용 버튼 large(48px) 높이로 맞춘다. 값 두 줄(18px × 2) + 위아래 4px 이 들어간다. */
+  min-height: ${props => (props.$variant === 'sheet' ? '48px' : '56px')};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -179,7 +196,7 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
       : props.$completed
         ? 'var(--color-text-800)'
         : 'var(--color-text-caption)'};
-  padding: 8px 6px;
+  padding: ${props => (props.$variant === 'sheet' ? '4px 6px' : '8px 6px')};
   font-size: 13px;
   font-weight: ${props => (props.$completed ? 700 : 600)};
   line-height: 18px;
@@ -209,11 +226,12 @@ const StepName = styled.span`
   -webkit-line-clamp: 2;
 `
 
-const Body = styled.div<{ $variant: 'panel' | 'sheet' }>`
+const Body = styled.div<{ $variant: PanelVariant }>`
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 18px 20px 24px;
+  padding: ${props =>
+    props.$variant === 'sheet' ? '8px 20px 24px' : '18px 20px 24px'};
 
   ${props =>
     props.$variant === 'sheet' &&
@@ -226,7 +244,10 @@ const Body = styled.div<{ $variant: 'panel' | 'sheet' }>`
     `}
 `
 
-const BodyTitle = styled.div`
+/* 시트에서는 화면에서만 감춘다(#648) — 시트 머리가 같은 말(「자치구 선택」)을 하지만, 목록 영역의
+   제목(h2)은 스크린리더의 제목 탐색에 남아야 한다. */
+const BodyTitle = styled.div<{ $visuallyHidden: boolean }>`
+  ${props => (props.$visuallyHidden ? visuallyHidden : '')}
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -255,23 +276,43 @@ const LoadingList = styled.div<{ $variant: 'grid' | 'list' }>`
       : ''}
 `
 
-const Footer = styled.footer`
+const Footer = styled.footer<{ $variant: PanelVariant }>`
   display: grid;
-  gap: 9px;
+  gap: ${props => (props.$variant === 'sheet' ? '4px' : '9px')};
   border-top: 1px solid var(--color-border-200);
   background: var(--color-surface);
-  padding: 16px 20px max(18px, env(safe-area-inset-bottom));
+  padding: ${props =>
+    props.$variant === 'sheet'
+      ? '12px 20px max(12px, env(safe-area-inset-bottom))'
+      : '16px 20px max(18px, env(safe-area-inset-bottom))'};
 
   button {
     width: 100%;
   }
 `
 
-const Helper = styled.p`
+/*
+  - `hidden`: 시트에서 덜 고른 동안의 안내. 화면에서는 감추고 CTA 의 aria-describedby 로 잇는다 — 가상 커서·버튼 탐색 때 읽힌다(#648).
+  - 시트에서 다 고른 뒤의 분기 안내는 사라지는 추천 링크(44px)와 같은 높이를 미리 잡는다. 마지막 단계를
+    고르는 순간 푸터 높이가 바뀌어 목록이 튀지 않게 한다.
+*/
+const Helper = styled.p<{ $variant: PanelVariant; $hidden: boolean }>`
   color: var(--color-text-caption);
   font-size: 12px;
   line-height: 18px;
   text-align: center;
+
+  ${props =>
+    props.$hidden
+      ? visuallyHidden
+      : props.$variant === 'sheet'
+        ? `
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        `
+        : ''}
 `
 
 /* Footer 의 `button { width: 100% }` 에 걸리지 않도록 링크로 둔다. 주 CTA
@@ -359,6 +400,17 @@ function AnalysisSelectionPanel({
     : activeStep === 'service' && variant === 'panel'
       ? 'grid-wide'
       : 'list'
+  const isSheet = variant === 'sheet'
+  const helperId = useId()
+  /*
+    「지금 많이 본 상권」은 처음 들어와 아직 아무것도 고르지 않은 사람을 위한 지름길이다.
+    데스크톱 패널은 1단계면 낸다(자리가 넉넉하다). 시트는 자치구를 한 번이라도 고르면 감춘다 —
+    경로를 이미 정한 사람에게는 목록 자리만 먹는 방해다(#648).
+  */
+  const showPopularShortcut =
+    activeStep === 'district' &&
+    Boolean(onPopularCommercialJump) &&
+    (!isSheet || !selection.districtCode)
   // 업종은 카탈로그가 6카테고리를 이미 갖고 있다. 평면으로 펼치면 31개가
   // 구분 없이 쏟아지므로 그룹 그대로 넘긴다.
   const groups = useMemo(
@@ -369,6 +421,37 @@ function AnalysisSelectionPanel({
     [activeStep, items],
   )
 
+  /*
+    시트의 검색 자리는 시트 머리 바로 아래 한 곳이다(#648). 1단계는 이름 검색 칸, 2단계부터는 목록 필터
+    (「행정동 검색」 등)가 같은 자리에 고정된다. 필터는 목록을 다루는 도구라 스크롤로 사라지면 안 되고,
+    단계마다 검색 위치가 바뀌면 안 된다. 데스크톱 패널은 지금처럼 목록 위(OptionPicker 안)에 둔다.
+
+    검색어는 「단계 + 상위 선택」 열쇠에 묶는다. 단계나 상위 선택(자치구·행정동)이 바뀌면 열쇠가 달라져
+    빈 검색어로 본다 — 다른 동의 상권 목록을 이전 동의 검색어로 걸러 「검색 결과가 없어요」만 남기지 않는다.
+    칸이 없으면(목록이 임계값 이하) 거르지 않는다. 지울 칸이 없는 필터는 남기지 않는다.
+  */
+  const sheetFilterKey = `${activeStep}:${selection.districtCode ?? ''}|${selection.administrationCode ?? ''}`
+  const [sheetFilter, setSheetFilter] = useState({ key: '', query: '' })
+  const sheetQuery = sheetFilter.key === sheetFilterKey ? sheetFilter.query : ''
+  const setSheetQuery = (query: string) =>
+    setSheetFilter({ key: sheetFilterKey, query })
+  const showNameSearch = activeStep === 'district' && Boolean(nameSearch)
+  const showSheetFilter =
+    isSheet &&
+    !showNameSearch &&
+    status === 'ready' &&
+    countOptions(groups ? undefined : items, groups) > OPTION_SEARCH_THRESHOLD
+  /*
+    행정동·업종은 목록이 거의 늘 임계값을 넘는다. 불러오는 동안 같은 높이의 꺼진 칸으로 자리를 잡아 두지
+    않으면 준비가 끝나는 순간 단계 탭이 65px 밀려 내려온다. 상권은 개수 편차가 커서 예약하지 않는다.
+  */
+  const reserveSheetFilter =
+    isSheet &&
+    !showNameSearch &&
+    status === 'loading' &&
+    (activeStep === 'administration' || activeStep === 'service')
+  const filterLabel = `${ANALYSIS_STEP_LABELS[activeStep]} 검색`
+
   return (
     <Root aria-label="상권 분석 조건 선택">
       {variant !== 'sheet' ? (
@@ -377,11 +460,30 @@ function AnalysisSelectionPanel({
         </Header>
       ) : null}
 
-      {activeStep === 'district' && nameSearch ? (
-        <SearchSlot>{nameSearch}</SearchSlot>
+      {showNameSearch ? (
+        <SearchSlot $variant={variant}>{nameSearch}</SearchSlot>
       ) : null}
 
-      <StepList aria-label="분석 조건 단계">
+      {showSheetFilter || reserveSheetFilter ? (
+        <SearchSlot $variant={variant}>
+          {/* 이름 검색 칸과 같은 높이(large 48)·채움형. 보이는 라벨·도움말 없이 placeholder 만 둔다. */}
+          <TextField
+            fullWidth
+            emphasized
+            fieldSize="large"
+            type="search"
+            aria-label={filterLabel}
+            placeholder={filterLabel}
+            value={sheetQuery}
+            disabled={reserveSheetFilter}
+            leftSlot={<Search aria-hidden="true" />}
+            onClear={() => setSheetQuery('')}
+            onChange={event => setSheetQuery(event.target.value)}
+          />
+        </SearchSlot>
+      ) : null}
+
+      <StepList aria-label="분석 조건 단계" $variant={variant}>
         {ANALYSIS_STEPS.map(step => {
           const name = selectedNames[step]
           const stepLabel = ANALYSIS_STEP_LABELS[step]
@@ -395,6 +497,7 @@ function AnalysisSelectionPanel({
                 type="button"
                 $active={activeStep === step}
                 $completed={completed}
+                $variant={variant}
                 aria-current={activeStep === step ? 'step' : undefined}
                 aria-label={completed ? `${stepLabel}: ${name}` : stepLabel}
                 disabled={!canOpenStep(selection, step)}
@@ -411,15 +514,31 @@ function AnalysisSelectionPanel({
         4단계를 밟지 않고도 「남들이 보는 상권」으로 곧장 갈 수 있는 지름길. 1단계에서만
         낸다 — 자치구를 이미 고른 사람에게 다른 자치구의 상권을 들이밀 이유가 없다.
       */}
-      {activeStep === 'district' && onPopularCommercialJump ? (
+      {showPopularShortcut && !isSheet && onPopularCommercialJump ? (
         <PopularCommercialsShortcut onJump={onPopularCommercialJump} />
       ) : null}
 
       <Body $variant={variant}>
-        <BodyTitle>
+        {/*
+          제목은 시트에서 화면에서만 감춘다. 시트 머리가 이미 「자치구 선택」을 말하지만, 제목 탐색에는
+          남아야 한다. 지름길(h3)보다 먼저 둬 제목 순서를 지킨다.
+        */}
+        <BodyTitle $visuallyHidden={isSheet}>
           <h2>{ANALYSIS_STEP_LABELS[activeStep]} 선택</h2>
           {status === 'ready' ? <span>{items.length}개</span> : null}
         </BodyTitle>
+
+        {/*
+          시트에서는 목록 스크롤의 첫 블록이다(#648). 단계 탭 아래에 따로 세우면 스크롤해도
+          그 자리를 계속 먹어 자치구 카드가 반 줄만 보였다. 지도 앱 시트처럼 고정 영역은
+          검색·단계 같은 이동 수단에만 쓰고, 인기 지름길 같은 콘텐츠는 목록과 함께 올라간다.
+        */}
+        {showPopularShortcut && isSheet && onPopularCommercialJump ? (
+          <PopularCommercialsShortcut
+            onJump={onPopularCommercialJump}
+            variant="inline"
+          />
+        ) : null}
 
         {status === 'loading' ? (
           <LoadingList
@@ -494,15 +613,16 @@ function AnalysisSelectionPanel({
             emptyFallback={
               activeStep === 'service' ? POPULAR_SERVICE_FALLBACK : undefined
             }
-            searchPlaceholder={`${ANALYSIS_STEP_LABELS[activeStep]} 검색`}
+            searchPlaceholder={filterLabel}
+            externalQuery={
+              isSheet ? (showSheetFilter ? sheetQuery : '') : undefined
+            }
             /*
               1단계에 이름 검색 칸이 있으면 자치구 목록의 검색 칸은 숨긴다(#596). 검색 칸 두 개가 위아래로
               서면 어느 쪽에 입력할지 헷갈린다. 자치구 이름은 이름 검색 칸에서도 찾는다.
             */
             searchThreshold={
-              activeStep === 'district' && nameSearch
-                ? Number.POSITIVE_INFINITY
-                : undefined
+              showNameSearch ? Number.POSITIVE_INFINITY : undefined
             }
             onPreviewChange={onPreviewChange}
             onSelect={onSelect}
@@ -510,11 +630,26 @@ function AnalysisSelectionPanel({
         ) : null}
       </Body>
 
-      <Footer>
-        <Button size="large" disabled={!isComplete} onClick={onSubmit}>
+      <Footer $variant={variant}>
+        <Button
+          size="large"
+          disabled={!isComplete}
+          aria-describedby={helperId}
+          onClick={onSubmit}
+        >
           분석 결과 보기
         </Button>
-        <Helper>
+        {/*
+          시트에서는 덜 고른 동안의 안내(「자치구를 선택해 주세요」)를 화면에서만 감춘다. 시트 머리
+          (「자치구 선택」)와 강조된 단계 탭이 같은 말을 하고, 그 18px 이 목록 자리다(#648). 비활성
+          CTA 의 aria-describedby 로 이어 가상 커서·버튼 탐색 때 꺼진 이유가 읽힌다. 다 고른 뒤의 분기 안내는 다른 곳에
+          없는 정보라 보인다.
+        */}
+        <Helper
+          id={helperId}
+          $variant={variant}
+          $hidden={isSheet && !isComplete}
+        >
           {isComplete
             ? `${periodCode ? formatPeriodCode(periodCode) : '최신 분기'} 기준으로 분석해요`
             : describeAnalysisSelectionGap(selection)}

@@ -342,6 +342,133 @@ describe('AnalysisSelectionPanel 인기 상권 지름길', () => {
 
     expect(markup).not.toContain('지금 많이 본 상권')
   })
+
+  /*
+   * #648: 시트에서는 단계 탭 밑에 따로 세우지 않고 목록 스크롤(Body) 안 첫 블록으로 넣는다.
+   * 데스크톱 패널은 단계 탭(`</ol>`) 바로 다음 형제 섹션 그대로다.
+   */
+  const markupBetweenStepsAndShortcut = (markup: string) => {
+    const stepsEnd = markup.indexOf('</ol>')
+    const shortcut = markup.indexOf('지금 많이 본 상권')
+    expect(stepsEnd).toBeGreaterThan(-1)
+    expect(shortcut).toBeGreaterThan(stepsEnd)
+    return markup.slice(stepsEnd + '</ol>'.length, shortcut)
+  }
+
+  it('데스크톱 패널은 단계 탭 바로 아래 따로 둔다', () => {
+    const between = markupBetweenStepsAndShortcut(renderWithJump())
+    expect(between.startsWith('<section')).toBe(true)
+  })
+
+  it('시트는 목록 스크롤 영역의 첫 블록으로 넣는다', () => {
+    const markup = renderWithJump({ variant: 'sheet' })
+    const between = markupBetweenStepsAndShortcut(markup)
+    // 스크롤 컨테이너(Body div)가 열리고, 화면에서만 감춘 목록 제목(h2) 다음에 지름길이 온다.
+    expect(between).toMatch(/^<div[^>]*><div[^>]*><h2>자치구 선택<\/h2>/)
+    // 제목 블록이 닫히자마자 지름길 섹션이 열린다(`between` 은 그 섹션의 aria-label 앞에서 끝난다).
+    expect(between).toMatch(/<\/h2>(<span>[^<]*<\/span>)?<\/div><section[^>]*$/)
+    expect(markup.indexOf('지금 많이 본 상권')).toBeLessThan(
+      markup.indexOf('<footer'),
+    )
+  })
+
+  it('시트는 자치구를 고른 뒤 자치구 탭으로 돌아와도 내지 않는다', () => {
+    const selected = {
+      ...createEmptyAnalysisSelection(),
+      districtCode: '11680',
+    }
+    expect(
+      renderWithJump({ variant: 'sheet', selection: selected }),
+    ).not.toContain('지금 많이 본 상권')
+    // 데스크톱 패널의 기존 규칙(1단계면 낸다)은 그대로다.
+    expect(renderWithJump({ selection: selected })).toContain(
+      '지금 많이 본 상권',
+    )
+  })
+})
+
+describe('AnalysisSelectionPanel — 모바일 시트 자리 (#648)', () => {
+  /* 시트 머리와 같은 말이라 화면에서는 감추지만(sr-only, 실제 숨김은 e2e 가 잰다) 제목 탐색에는 남는다. */
+  it('목록 제목(h2)을 지우지 않는다', () => {
+    const items = [{ code: '11680', name: '강남구' }]
+    expect(
+      renderPanel({ activeStep: 'district', items, variant: 'sheet' }),
+    ).toContain('<h2>자치구 선택</h2>')
+    expect(renderPanel({ activeStep: 'district', items })).toContain(
+      '<h2>자치구 선택</h2>',
+    )
+  })
+
+  it('덜 고른 동안 CTA 가 꺼진 이유를 aria-describedby 로 잇는다', () => {
+    for (const variant of ['sheet', 'panel'] as const) {
+      const markup = renderPanel({ activeStep: 'district', variant })
+      const describedBy = markup.match(
+        /<button[^>]*aria-describedby="([^"]+)"[^>]*>분석 결과 보기/,
+      )?.[1]
+      expect(describedBy, variant).toBeTruthy()
+      const helper = markup.match(
+        new RegExp(`<p[^>]*id="${describedBy}"[^>]*>([^<]*)</p>`),
+      )?.[1]
+      expect(helper, variant).toBe('자치구를 선택해 주세요')
+    }
+  })
+
+  /*
+    시트의 검색 자리는 시트 머리 아래 한 곳이다. 2단계부터는 목록 필터가 그 자리(단계 탭 위)에 고정되고
+    목록 스크롤 안에는 검색 칸이 없다. 데스크톱 패널은 지금처럼 목록 위(단계 탭 아래)다.
+  */
+  it('시트는 2단계부터 목록 필터를 단계 탭 위 고정 자리에 둔다', () => {
+    const many = Array.from({ length: 16 }, (_, index) => ({
+      code: String(11680500 + index),
+      name: `행정${index + 1}동`,
+    }))
+    const props = {
+      activeStep: 'administration' as const,
+      selection: { ...createEmptyAnalysisSelection(), districtCode: '11680' },
+      items: many,
+    }
+
+    const sheet = renderPanel({ ...props, variant: 'sheet' })
+    expect(sheet.match(/placeholder="행정동 검색"/g)).toHaveLength(1)
+    expect(sheet.indexOf('placeholder="행정동 검색"')).toBeLessThan(
+      sheet.indexOf('분석 조건 단계'),
+    )
+    // 목록 제목은 지우지 않고 개수와 함께 남는다(화면에서만 감춘다).
+    expect(sheet).toContain('<h2>행정동 선택</h2><span>16개</span>')
+
+    const panel = renderPanel(props)
+    expect(panel.match(/placeholder="행정동 검색"/g)).toHaveLength(1)
+    expect(panel.indexOf('placeholder="행정동 검색"')).toBeGreaterThan(
+      panel.indexOf('분석 조건 단계'),
+    )
+  })
+
+  it('시트도 목록이 짧으면(임계값 이하) 필터를 두지 않는다', () => {
+    const sheet = renderPanel({
+      activeStep: 'administration',
+      selection: { ...createEmptyAnalysisSelection(), districtCode: '11680' },
+      items: [{ code: '11680510', name: '신사동' }],
+      variant: 'sheet',
+    })
+    expect(sheet).not.toContain('행정동 검색')
+  })
+
+  it('다 고른 뒤 분기 안내는 남긴다', () => {
+    expect(
+      renderPanel({
+        activeStep: 'service',
+        variant: 'sheet',
+        periodCode: '20233',
+        selection: {
+          districtCode: '11680',
+          administrationCode: '11680640',
+          commercialCode: '3110008',
+          serviceCode: 'CS100001',
+          periodCode: null,
+        },
+      }),
+    ).toContain('2023년 3분기 기준으로 분석해요')
+  })
 })
 
 /* 안내 문장의 분기는 해석된 분기다 — 결과에서 고른 분기로 돌아오면 그 분기를 말한다(period-catalog.md D4-2). */

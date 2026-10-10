@@ -55,6 +55,13 @@ export type AnalysisNameSearchProps = {
   /** 테스트가 카카오 대신 넣는다. 기본은 카카오 장소 검색이다. */
   searchPlaces?: (keyword: string) => Promise<NameSearchPlace[]>
   debounceMs?: number
+  /**
+   * 모바일 시트용(#648). 칸 위 라벨(「상권·지하철역·동 이름으로 찾기」)은 화면에서만 감추고(라벨 연결·
+   * 접근 이름은 남는다), 칸 아래 도움말(「자치구 이름도 이 칸에서 찾을 수 있습니다.」)은 뺀다. 자리표시
+   * 글자(「예: 망원시장, 강남역, 연남동, 마포구」)가 두 말을 이미 한다. 두 줄이 시트에서 자치구 카드
+   * 자리를 먹었다.
+   */
+  compact?: boolean
 }
 
 type PlaceState = {
@@ -183,6 +190,7 @@ function AnalysisNameSearch({
   onPick,
   searchPlaces = searchSeoulPlaces,
   debounceMs = NAME_SEARCH_DEBOUNCE_MS,
+  compact = false,
 }: AnalysisNameSearchProps) {
   const baseId = useId()
   const listboxId = `${baseId}-listbox`
@@ -349,12 +357,15 @@ function AnalysisNameSearch({
     <Root>
       <TextField
         label={NAME_SEARCH_LABEL}
+        labelVisuallyHidden={compact}
         type="search"
         fieldSize="large"
         emphasized
         leftSlot={<Search />}
         placeholder="예: 망원시장, 강남역, 연남동, 마포구"
-        helperText="자치구 이름도 이 칸에서 찾을 수 있습니다."
+        helperText={
+          compact ? undefined : '자치구 이름도 이 칸에서 찾을 수 있습니다.'
+        }
         autoComplete="off"
         enterKeyHint="search"
         value={value}

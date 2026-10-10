@@ -90,3 +90,26 @@ describe('OptionPicker 검색 한 줄', () => {
     expect(screen.queryByLabelText('검색어 지우기')).toBeNull()
   })
 })
+
+/*
+ * 상권분석 모바일 시트(#648)는 검색 칸을 시트 머리 아래 고정 자리에 그리고 검색어만 넘긴다.
+ * 그때 목록 위에 검색 칸이 또 서면 안 되고, 넘긴 검색어로 걸러야 한다.
+ */
+describe('OptionPicker 바깥 검색어(externalQuery)', () => {
+  it('검색 칸을 그리지 않고 넘긴 검색어로 거른다', () => {
+    mount({ ...base, items: items(20), externalQuery: '항목1' })
+
+    expect(screen.queryByRole('searchbox')).toBeNull()
+    expect(screen.queryByLabelText('이름으로 검색')).toBeNull()
+    // 항목1, 항목10~항목19 = 11개
+    expect(screen.getAllByRole('button').length).toBe(11)
+    expect(screen.getByText('20개 중 11개')).toBeTruthy()
+  })
+
+  it('빈 검색어면 전부 보인다', () => {
+    mount({ ...base, items: items(20), externalQuery: '' })
+
+    expect(screen.queryByRole('searchbox')).toBeNull()
+    expect(screen.getAllByRole('button').length).toBe(20)
+  })
+})
