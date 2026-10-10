@@ -34,6 +34,13 @@ const Container = styled.main`
   }
 `
 
+/*
+  1024px 이하(#575). 데스크톱 사이드바의 카드 세 장(아바타·메뉴·약관)이 본문 위로 그대로 쌓여 입력칸이 약 750px
+  아래에서 시작했다. 좁은 화면에서는 머리를 「48px 아바타 + 닉네임」 한 줄로 접고, 메뉴는 가로 탭으로, 약관 카드는
+  숨긴다(같은 링크가 사이트 푸터에 있다).
+*/
+const COMPACT = '@media (max-width: 1024px)'
+
 const Sidebar = styled.aside`
   position: sticky;
   top: 96px;
@@ -41,8 +48,9 @@ const Sidebar = styled.aside`
   display: grid;
   gap: 16px;
 
-  @media (max-width: 1024px) {
+  ${COMPACT} {
     position: static;
+    gap: 12px;
   }
 `
 
@@ -52,6 +60,31 @@ const SidebarCard = styled.section`
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-level-1);
+`
+
+const IdentityCard = styled(SidebarCard)`
+  ${COMPACT} {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 12px;
+    padding: 12px 16px;
+  }
+`
+
+const MenuCard = styled(SidebarCard)`
+  ${COMPACT} {
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+`
+
+const LegalCard = styled(SidebarCard)`
+  ${COMPACT} {
+    display: none;
+  }
 `
 
 const Avatar = styled.div<{ $image?: string | null }>`
@@ -67,6 +100,12 @@ const Avatar = styled.div<{ $image?: string | null }>`
   color: var(--color-text-700);
   font-size: 28px;
   font-weight: 700;
+
+  ${COMPACT} {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
 `
 
 const Name = styled.h2`
@@ -75,12 +114,25 @@ const Name = styled.h2`
   font-size: 22px;
   line-height: 30px;
   letter-spacing: 0;
+
+  ${COMPACT} {
+    margin-top: 0;
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 24px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 `
 
 const Email = styled.p`
   margin-top: 8px;
   color: var(--color-text-500);
   word-break: break-all;
+
+  ${COMPACT} {
+    display: none;
+  }
 `
 
 const RolePill = styled.span`
@@ -94,11 +146,24 @@ const RolePill = styled.span`
   color: var(--color-text-700);
   font-size: 13px;
   font-weight: 600;
+
+  ${COMPACT} {
+    display: none;
+  }
 `
 
 const NavList = styled.nav`
   display: grid;
   gap: 8px;
+
+  ${COMPACT} {
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--radius-control);
+    background: var(--color-surface-muted);
+  }
 `
 
 const NavLink = styled(Link)<{ $active: boolean }>`
@@ -111,18 +176,40 @@ const NavLink = styled(Link)<{ $active: boolean }>`
   background: ${props =>
     props.$active ? 'var(--color-primary-100)' : 'transparent'};
   color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+    props.$active
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-700)'};
   font-weight: 600;
 
   &:hover {
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   svg {
     width: 18px;
     height: 18px;
     stroke: currentColor;
+  }
+
+  /* 가로 탭 — 두 칸이 같은 폭으로 줄을 채우고 선택 칸만 흰 바탕으로 떠오른다(세그먼트). */
+  ${COMPACT} {
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: calc(var(--radius-control) - 2px);
+    background: ${props =>
+      props.$active ? 'var(--color-surface)' : 'transparent'};
+    box-shadow: ${props => (props.$active ? 'var(--shadow-level-1)' : 'none')};
+    color: ${props =>
+      props.$active ? 'var(--color-text-900)' : 'var(--color-text-700)'};
+    white-space: nowrap;
+
+    &:hover {
+      background: ${props =>
+        props.$active ? 'var(--color-surface)' : 'transparent'};
+      color: var(--color-text-900);
+    }
   }
 `
 
@@ -221,7 +308,7 @@ export default function ProfileShell({ children }: ProfileShellProps) {
   return (
     <Container>
       <Sidebar>
-        <SidebarCard>
+        <IdentityCard>
           <Avatar $image={resolvedMemberInfo.profileImageUrl}>
             {resolvedMemberInfo.profileImageUrl ? null : avatarLabel}
           </Avatar>
@@ -230,8 +317,8 @@ export default function ProfileShell({ children }: ProfileShellProps) {
           {resolvedMemberInfo.role?.description ? (
             <RolePill>{resolvedMemberInfo.role.description}</RolePill>
           ) : null}
-        </SidebarCard>
-        <SidebarCard>
+        </IdentityCard>
+        <MenuCard>
           <NavList aria-label="프로필 메뉴">
             {navigationItems.map(item => {
               const ItemIcon = item.icon
@@ -248,10 +335,10 @@ export default function ProfileShell({ children }: ProfileShellProps) {
               )
             })}
           </NavList>
-        </SidebarCard>
-        <SidebarCard>
+        </MenuCard>
+        <LegalCard>
           <ProfileLegalLinks />
-        </SidebarCard>
+        </LegalCard>
       </Sidebar>
       <Content>{children}</Content>
     </Container>

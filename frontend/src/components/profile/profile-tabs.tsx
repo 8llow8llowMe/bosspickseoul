@@ -35,8 +35,9 @@ const TabLink = styled(Link)<{ $active: boolean }>`
     border-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
 
+  /* 글자색에는 primary-700(blue500)을 쓰지 않는다 — 흰 바탕 위 2.77:1 이다(DESIGN.md §7). */
   &:hover {
-    color: var(--color-primary-700);
+    color: var(--color-text-900);
   }
 `
 

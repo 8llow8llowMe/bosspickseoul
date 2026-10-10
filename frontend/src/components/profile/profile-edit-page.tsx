@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRef, useState } from 'react'
 import styled from 'styled-components'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -118,6 +119,37 @@ const AvatarControls = styled.div`
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+`
+
+/*
+  회원 탈퇴는 설정 탭이 아니라 회원 정보 맨 아래의 회색 링크다(#575, 결정 D-6). 「회원 정보」·「비밀번호 변경」과 같은
+  급의 탭이면 자주 쓰는 메뉴처럼 보인다 — 되돌릴 수 없는 동작은 찾을 수는 있되 눈에 띄지 않는 자리에 둔다.
+*/
+export const WITHDRAW_PATH = '/profile/settings/withdraw'
+
+const WithdrawRow = styled.p`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--color-text-caption);
+  font-size: 13px;
+  line-height: 20px;
+`
+
+const WithdrawLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text-caption);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--color-text-800);
+  }
 `
 
 /**
@@ -457,6 +489,11 @@ export default function ProfileEditPage() {
           ))}
         </AccountSummary>
       </SectionPanel>
+
+      <WithdrawRow>
+        더 이상 서비스를 이용하지 않으려면
+        <WithdrawLink href={WITHDRAW_PATH}>회원 탈퇴</WithdrawLink>
+      </WithdrawRow>
     </SectionStack>
   )
 }

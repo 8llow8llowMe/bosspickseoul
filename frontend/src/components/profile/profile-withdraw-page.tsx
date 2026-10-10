@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import styled from 'styled-components'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -50,6 +52,17 @@ export const canConfirmWithdraw = (
 
   return input.trim().toLowerCase() === target
 }
+
+const BackLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-text-700);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+`
 
 export default function ProfileWithdrawPage() {
   const router = useRouter()
@@ -140,16 +153,20 @@ export default function ProfileWithdrawPage() {
           ) : null}
 
           <ActionRow>
+            {/* 되돌릴 수 없는 확정이라 danger 다(DESIGN.md 프로필 절, 결정 D-6). 예전 파란 보조 버튼은 저장처럼 보였다. */}
             <Button
               type="submit"
-              size="medium"
-              variant="secondary"
+              size="large"
+              variant="danger"
               disabled={!canConfirm || withdrawMutation.isPending}
               isLoading={withdrawMutation.isPending}
             >
               회원 탈퇴
             </Button>
           </ActionRow>
+          <BackLink href="/profile/settings/edit">
+            탈퇴하지 않고 회원 정보로 돌아가기
+          </BackLink>
         </Form>
       </SectionPanel>
     </SectionStack>

@@ -1,6 +1,9 @@
 import { createElement } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ServerStyleSheet } from 'styled-components'
 import { describe, expect, it, vi } from 'vitest'
 
 import ProfileWithdrawPage, {
@@ -94,5 +97,44 @@ describe('ProfileWithdrawPage', () => {
   /* 자리표시자 시절 문구가 남아 있으면 안 된다. */
   it('「준비 중」 문구가 남아 있지 않다', () => {
     expect(render()).not.toContain('준비 중')
+  })
+})
+
+/* #575 · 결정 D-6 — 탈퇴 확정은 파란 보조 버튼이 아니라 danger 48px 이고, 설정 탭에서는 빠진다. */
+describe('ProfileWithdrawPage — 위험 동작 표시', () => {
+  it('탈퇴 확정 버튼은 danger 채움이고 높이가 48px 다', () => {
+    const sheet = new ServerStyleSheet()
+    try {
+      const markup = renderToStaticMarkup(
+        sheet.collectStyles(
+          createElement(
+            QueryClientProvider,
+            { client: new QueryClient() },
+            createElement(ProfileWithdrawPage),
+          ),
+        ),
+      )
+      const styles = sheet.getStyleTags().replace(/\s+/g, '')
+
+      expect(markup).toMatch(/<button[^>]*type="submit"/)
+      expect(styles).toContain('min-height:48px')
+      expect(styles).toContain('background:var(--color-danger)')
+    } finally {
+      sheet.seal()
+    }
+  })
+
+  it('탈퇴하지 않고 돌아갈 길을 준다', () => {
+    expect(render()).toContain('href="/profile/settings/edit"')
+  })
+
+  it('설정 탭에는 회원 탈퇴가 없다', () => {
+    const layout = readFileSync(
+      join(process.cwd(), 'app/(shell)/profile/settings/layout.tsx'),
+      'utf8',
+    )
+
+    expect(layout).not.toContain("label: '회원 탈퇴'")
+    expect(layout).toContain("label: '로그인 기기'")
   })
 })
