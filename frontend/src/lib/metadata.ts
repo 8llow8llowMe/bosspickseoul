@@ -7,6 +7,13 @@ type CreatePageMetadataOptions = {
   path?: string
   index?: boolean
   type?: 'website' | 'article'
+  /**
+   * `'segment'` 면 `images` 키를 아예 넣지 않는다. 그래야 그 경로 세그먼트의
+   * `opengraph-image.tsx` 가 og:image 가 된다 — Next 는 같은 세그먼트의 메타에 `images` 키가
+   * 있으면 파일 컨벤션 이미지를 붙이지 않는다(`resolve-metadata.js`). 라우트 그룹 아래 이미지
+   * 주소에는 해시 접미사가 붙어(`opengraph-image-<hash>`) 여기서 주소를 적을 수도 없다.
+   */
+  ogImage?: 'default' | 'segment'
 }
 
 const createAbsoluteUrl = (path = '/') =>
@@ -34,8 +41,10 @@ export const createPageMetadata = ({
   path = '/',
   index = true,
   type = 'website',
+  ogImage = 'default',
 }: CreatePageMetadataOptions): Metadata => {
   const canonical = createAbsoluteUrl(path)
+  const images = ogImage === 'default' ? { images: [OG_IMAGE] } : {}
   const resolvedTitle = title
     ? `${title} | ${siteConfig.name}`
     : siteConfig.name
@@ -57,13 +66,13 @@ export const createPageMetadata = ({
       siteName: siteConfig.name,
       locale: siteConfig.locale,
       type,
-      images: [OG_IMAGE],
+      ...images,
     },
     twitter: {
       card: 'summary_large_image',
       title: resolvedTitle,
       description,
-      images: [OG_IMAGE],
+      ...images,
     },
   }
 }

@@ -110,6 +110,8 @@ describe('/s/[shareCode] generateMetadata', () => {
       '배화여자대학교(박노수미술관) · 커피-음료 상권분석 (2025년 2분기) | BossPickSeoul',
     )
     expect(metadata.robots).toMatchObject({ index: false })
+    // og:image 는 같은 폴더의 opengraph-image.tsx 가 맡는다(#598) — 메타가 images 를 덮으면 안 된다.
+    expect(metadata.openGraph).not.toHaveProperty('images')
   })
 
   it('307 을 받을 사람에게는 이름을 조회하지 않는다', async () => {

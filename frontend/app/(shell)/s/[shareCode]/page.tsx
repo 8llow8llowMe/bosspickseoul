@@ -56,6 +56,8 @@ export async function generateMetadata({
     description: copy.description,
     path: `/s/${shareCode}`,
     index: false,
+    // og:image 는 같은 폴더의 opengraph-image.tsx 가 공유별로 그린다(#598).
+    ogImage: 'segment',
   })
 }
 

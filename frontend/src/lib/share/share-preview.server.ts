@@ -56,7 +56,8 @@ const readSuccessBody = (value: unknown): unknown => {
     : null
 }
 
-const getJson = async (
+/** 공개 API 의 성공 본문. 백엔드 주소가 없거나 실패·시간 초과면 null 이다. OG 이미지 조회도 쓴다. */
+export const getJson = async (
   path: string,
   { revalidate, timeoutMs }: { revalidate: number; timeoutMs: number },
   fetcher: SharePreviewFetcher,
