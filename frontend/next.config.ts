@@ -1,6 +1,18 @@
 import type { NextConfig } from 'next'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from 'next/dist/shared/lib/router/utils/is-bot'
+
+import { EXTRA_LINK_PREVIEW_BOTS_SOURCE } from './src/lib/share/link-preview-bots'
 
 const nextConfig: NextConfig = {
+  // 메타를 스트리밍하지 않고 `<head>` 에 막아 넣을 봇. 지정하면 Next 기본 목록을 **대체**하므로
+  // 기본 목록(HTML_LIMITED_BOT_UA_RE_STRING)에 카카오톡·다음·텔레그램 미리보기 봇을 더한다.
+  // 카카오톡(`kakaotalk-scrap`)이 기본 목록에 없어 `/s/{shareCode}` 의 og:title 이 `</head>` 뒤로
+  // 밀렸다(2026-10-10 실측, share.md D4-1). 내부 경로 import 라 Next 가 옮기면 빌드가 깨진다 — 조용히
+  // 기본 목록을 잃는 것보다 낫다. 문서: node_modules/next/dist/docs/.../next-config-js/htmlLimitedBots.md
+  htmlLimitedBots: new RegExp(
+    `${HTML_LIMITED_BOT_UA_RE_STRING}|${EXTRA_LINK_PREVIEW_BOTS_SOURCE}`,
+    'i',
+  ),
   // 배포는 Jenkins 빌더가 만든 산출물만 배포 호스트로 옮기는 방식이라
   // 서버 실행에 필요한 node_modules 까지 포함된 self-contained 번들이 필요하다.
   // (백엔드가 bootJar 산출물 하나만 옮기는 것과 같은 구조)
