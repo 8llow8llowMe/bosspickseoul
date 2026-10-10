@@ -6,7 +6,10 @@ import {
   SEOUL_STATUS_FEATURES,
   SEOUL_STATUS_VIEW_BOX,
 } from '@/data/seoul-status-map'
-import { STATUS_MAP_VALUE_STEPS } from '@/components/status/status-map'
+import {
+  STATUS_MAP_VALUE_STEPS,
+  statusMapValueStepFill,
+} from '@/lib/status/status-map-model'
 import type { RankingMapLayers } from '@/lib/home/ranking-map'
 
 /**
@@ -26,7 +29,7 @@ import type { RankingMapLayers } from '@/lib/home/ranking-map'
 const FILL_MIX_PERCENTS = STATUS_MAP_VALUE_STEPS.map(step => step.mixPercent)
 
 const fillFor = (rank: number) =>
-  `color-mix(in srgb, var(--color-primary-600) ${FILL_MIX_PERCENTS[rank - 1]}%, var(--color-surface))`
+  statusMapValueStepFill(FILL_MIX_PERCENTS[rank - 1])
 
 /**
  * 배지 반지름(viewBox 단위). 배지 `<g>` 를 지도 배율의 역수로 키우므로 화면에서도 이 값(px)이다 —

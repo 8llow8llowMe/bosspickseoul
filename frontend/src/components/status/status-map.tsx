@@ -18,6 +18,8 @@ import {
   resolveStatusMapValueSteps,
   STATUS_MAP_LABEL_BREAKPOINT_PX,
   STATUS_MAP_LABEL_TIERS,
+  STATUS_MAP_VALUE_STEPS,
+  statusMapValueStepFill,
 } from '@/lib/status/status-map-model'
 import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
@@ -38,23 +40,7 @@ type StatusMapProps = {
   onHighlightLeave?: (districtCode: string) => void
 }
 
-/*
- * 단계 색. 25개 구를 현재 지표 값의 5분위로 칠한다(`resolveStatusMapValueSteps`, #542). 예전에는
- * Top10 응답에 10개 구 값만 있어 순위 두 칸씩 10개만 칠하고 15개 구는 회색이었다.
- * 새 토큰 없이 primary-600 을 흰 바탕에 섞는다(비율은 그때와 같다). 가장 옅은 단계(11%)와 데이터
- * 없는 회색(grey100)은 명도 대비가 1.05:1 뿐이라 **색조로만** 갈린다 — 툴팁과 목록이 값을 함께
- * 주므로 색만으로 전달하지 않는다.
- */
-export const STATUS_MAP_VALUE_STEPS = [
-  { step: 1, mixPercent: 60 },
-  { step: 2, mixPercent: 46 },
-  { step: 3, mixPercent: 33 },
-  { step: 4, mixPercent: 21 },
-  { step: 5, mixPercent: 11 },
-] as const
-
-const valueStepFill = (mixPercent: number) =>
-  `color-mix(in srgb, var(--color-primary-600) ${mixPercent}%, var(--color-surface))`
+// 단계 색(5분위 다섯 칸)은 `lib/status/status-map-model.ts` 가 정본이다 — 홈 지도도 같은 칸을 쓴다(#588).
 
 const STATUS_MAP_VIEW_BOX_SIZE = {
   width: 800,
@@ -120,7 +106,7 @@ const DistrictPath = styled.path`
   ${STATUS_MAP_VALUE_STEPS.map(
     ({ step, mixPercent }) => `
       &[data-value-step='${step}'] {
-        fill: ${valueStepFill(mixPercent)};
+        fill: ${statusMapValueStepFill(mixPercent)};
       }
     `,
   ).join('')}
@@ -501,7 +487,10 @@ export default function StatusMap({
             <span>많음</span>
             <LegendScale>
               {STATUS_MAP_VALUE_STEPS.map(({ step, mixPercent }) => (
-                <LegendSwatch key={step} $fill={valueStepFill(mixPercent)} />
+                <LegendSwatch
+                  key={step}
+                  $fill={statusMapValueStepFill(mixPercent)}
+                />
               ))}
             </LegendScale>
             <span>적음</span>

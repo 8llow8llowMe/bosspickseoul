@@ -317,12 +317,15 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
     색을 칠할 때만 위 규칙을 지킨다.
   - **적용 현황(2026-10-10).** 적용됨: 구별현황 목록·상세 머리(#560), 상권분석 「분기별 변화」
     (`AnalysisTrendSummary` — 기호와 「개선/악화」에만 색, 문장은 본문 색, 점포 수는 중립이라 무채색),
-    AI 리포트 지표 카드 「성장률」(`report-metric-cards.tsx` — ▲▼·부호 + 「개선/악화」). **아직 옮기지
-    않은 화면** — 손댈 때 이 규칙으로 맞춘다.
-    - 홈 `components/home/district-tooltip.tsx` — 극성 색(`getStatusChangeTone`)은 쓰지만 「개선/악화」
-      글자가 없다.
-    - 홈 `components/home/rank-bar-list.tsx` — 극성이 아니라 오름·내림(`changeDirection`)으로 초록·빨강을
-      칠한다.
+    AI 리포트 지표 카드 「성장률」(`report-metric-cards.tsx` — ▲▼·부호 + 「개선/악화」), 홈 히어로 툴팁
+    `components/home/district-tooltip.tsx`(부호 + 「개선/악화」, 툴팁 전체가 `aria-hidden` 이라 화살표는 두지
+    않는다), 홈 순위 막대 `components/home/rank-bar-list.tsx`(행에 `presentStatusChange` 결과를 받아 ▲▼·부호·
+    「개선/악화」를 극성 색으로, 판단 흐름 01 머리에 「직전 분기 대비」 — 예전 「전월 대비」는 서버 기준과
+    달랐다)(B19, hero-value-map.md). 증감을 색으로 칠하는 화면을 새로 만들면 이 규칙으로 맞춘다.
+- **서울 지도의 값 칠은 5분위 다섯 칸 하나로 쓴다**(#542, #588). 칸 색은 새 토큰 없이 `--color-primary-600` 을
+  바탕에 60·46·33·21·11% 섞은 것이고, 정본은 `lib/status/status-map-model.ts` 의 `STATUS_MAP_VALUE_STEPS`·
+  `statusMapValueStepFill` 이다. 구별현황 지도·홈 히어로 지도(유동인구)·홈 미니 지도가 같이 쓴다 — 같은 농도는
+  같은 단계다. 값으로 칠하면 지도 가까이에 기준(「2026년 1분기 유동인구」)과 「많음 → 적음」 범례를 둔다.
 - **성별은 남성 `--color-primary-600`, 여성 `--color-chart-female`.** 파랑 두 톤으로 나누면
   범례 없이는 구분되지 않는다.
 - **Y 축 위에 단위를 한 번 적는다**(「(원)」·「(명)」). 눈금 「8000만」은 크기만 말한다.
