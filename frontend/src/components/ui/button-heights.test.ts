@@ -15,6 +15,12 @@ import { TOUCH_TARGET_MIN } from '@/styles/touch-target'
   - 목록 행·카드처럼 버튼이 아닌 큰 누름 영역은 아래 `NON_BUTTON_SURFACES` 에 이유와 함께 적는다.
 
   새 높이(42·46 같은 값)가 들어오거나, 로컬 Primary/Secondary/Ghost 버튼이 다시 생기면 실패한다.
+
+  보이는 높이가 터치 바닥 44 보다 작은 컨트롤은 모바일 히트 영역을 `touchHitArea()` 로 44 까지 넓힌다(#633).
+  넓히지 않는 이유가 있으면 `BELOW_TOUCH_FLOOR` 에 적는다.
+
+  한계: 정의 본문에 px 로 적힌 높이만 본다. 폭, 공유 css 조각(`${someFragment}`)이 넣는 높이, 보간한
+  높이(`${props => ...}`)는 보지 않는다. 히트 영역이 이웃과 겹치는지는 브라우저 실측(`e2e/community/touch-targets.spec.ts`)이 본다.
 */
 
 const SCOPES = ['community', 'chatting', 'profile'] as const
@@ -32,6 +38,12 @@ const NON_BUTTON_SURFACES = new Map<string, number[]>([
   // 지역 칩 — 검색칸(46)과 한 줄을 나누는 툴바 필드라 칸 높이를 따른다(읽기 전용 칩과 같은 높이).
   ['community/community-region-sheet.tsx:Chip', [46]],
 ])
+
+/**
+ * 보이는 높이가 44 미만인데 `touchHitArea()` 를 쓰지 않는 정의 — `파일:이름` → 이유.
+ * 비어 있는 게 정상이다. 넣을 때는 모바일에서 히트 영역이 어떻게 44 를 넘는지(또는 왜 모바일에 없는지) 적는다.
+ */
+const BELOW_TOUCH_FLOOR = new Map<string, string>([])
 
 const ALLOWED = new Set<number>([
   ...Object.values(BUTTON_HEIGHTS),
@@ -54,7 +66,7 @@ const collectTsx = (dir: string): string[] =>
       : []
   })
 
-type Definition = { key: string; heights: number[] }
+type Definition = { key: string; heights: number[]; hitArea: boolean }
 
 /*
   잡는 정의: `styled.button`·`styled.a`·`styled(Link)`·`styled(ButtonLink)`, 그리고 이름이 `Button` 으로 끝나는
@@ -115,7 +127,11 @@ const definitionsIn = (file: string): Definition[] => {
       Number(found[1]),
     )
 
-    return { key: `${rel}:${match[1]}`, heights }
+    return {
+      key: `${rel}:${match[1]}`,
+      heights,
+      hitArea: body.includes('${touchHitArea('),
+    }
   })
 }
 
@@ -150,6 +166,33 @@ describe('버튼 높이 체계(#582)', () => {
     )
 
     expect(stale).toEqual([])
+  })
+
+  it('44 미만 컨트롤은 모바일 히트 영역을 touchHitArea() 로 44 까지 넓힌다(#633)', () => {
+    const offenders = definitions
+      .filter(({ heights }) =>
+        heights.some(height => height < TOUCH_TARGET_MIN),
+      )
+      .filter(({ hitArea }) => !hitArea)
+      .map(({ key }) => key)
+      .filter(key => !BELOW_TOUCH_FLOOR.has(key))
+
+    expect(offenders).toEqual([])
+  })
+
+  it('44 미만 예외 목록이 실제 정의와 맞는다(고치거나 지운 정의는 목록에서도 뺀다)', () => {
+    const below = new Set(
+      definitions
+        .filter(
+          ({ heights, hitArea }) =>
+            !hitArea && heights.some(height => height < TOUCH_TARGET_MIN),
+        )
+        .map(({ key }) => key),
+    )
+
+    expect(
+      [...BELOW_TOUCH_FLOOR.keys()].filter(key => !below.has(key)),
+    ).toEqual([])
   })
 
   it('로컬 Primary·Secondary·Ghost 버튼을 다시 만들지 않는다 — 공용 Button 을 쓴다', () => {

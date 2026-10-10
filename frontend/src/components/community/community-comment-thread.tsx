@@ -26,6 +26,7 @@ import {
 } from '@/lib/community/comment-thread'
 import type { CommunityViewer } from '@/lib/community/community-state'
 import { communityOutlinedField } from '@/lib/community/field-styles'
+import { touchHitArea } from '@/styles/touch-target'
 import {
   getCommunityLikeIntent,
   type CommunityLikeOutcome,
@@ -191,7 +192,12 @@ const RowActions = styled.div`
   margin-left: -8px;
 `
 
-/* 행 안 작은 동작 — 터치 영역 36(DESIGN.md §8 small). */
+/*
+  행 안 작은 동작 — 보이는 높이 36(DESIGN.md §Touch Targets small). 모바일은 히트 영역만 44(#633).
+  이웃 버튼과 가로 간격이 4 다. 히트 영역은 폭이 44 에 못 미칠 때만 가로로 늘고 한쪽 확장은 (44 - 폭) / 2 라,
+  폭이 36 이상이면 한쪽 4 이하로 간격 4 를 넘지 않는다(좋아요 숫자 한 자리가 가장 좁고 약 44 다). 위아래는 4씩
+  늘며 위는 본문 글자, 아래는 행 여백·다음 행 동작이다 — 실제 배치는 `e2e/community/touch-targets.spec.ts` 가 잰다.
+*/
 const RowActionButton = styled.button<{ $active?: boolean }>`
   min-height: 36px;
   display: inline-flex;
@@ -229,6 +235,8 @@ const RowActionButton = styled.button<{ $active?: boolean }>`
     cursor: progress;
     opacity: 1;
   }
+
+  ${touchHitArea()}
 `
 
 const ReplyToggleButton = styled(RowActionButton)`
