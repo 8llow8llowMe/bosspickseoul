@@ -60,4 +60,20 @@ describe('LoginForm — 비밀번호 표시 토글', () => {
       container.querySelector('input[name="password"]')?.getAttribute('type'),
     ).toBe('password')
   })
+
+  it('누를 때 포커스를 입력칸에 남긴다 — 공용 TextField revealable 과 같은 동작(#583)', () => {
+    const { container, getByRole } = render(createElement(LoginForm))
+    const password = container.querySelector<HTMLInputElement>(
+      'input[name="password"]',
+    )!
+    password.focus()
+    const toggle = getByRole('button', { name: '비밀번호 표시' })
+
+    // fireEvent 는 기본 동작을 막았으면 false 를 돌려준다.
+    expect(fireEvent.pointerDown(toggle)).toBe(false)
+    expect(fireEvent.mouseDown(toggle)).toBe(false)
+    fireEvent.click(toggle)
+
+    expect(document.activeElement).toBe(password)
+  })
 })
