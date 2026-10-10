@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Eye, EyeOff } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Check, Eye, EyeOff, Minus } from 'lucide-react'
 import styled from 'styled-components'
 import AuthShell, {
   AuthForm,
@@ -17,6 +17,11 @@ import AuthShell, {
   SecondaryButton,
   TextInput,
 } from '@/components/auth/auth-shell'
+import {
+  buildSignupCompleteLoginHref,
+  getBrowserSessionStorage,
+  rememberSignupEmail,
+} from '@/components/auth/auth-flow'
 import GuestOnly from '@/components/auth/guest-only'
 import SignupConsentFieldset, {
   useSignupConsentFocus,
@@ -30,28 +35,36 @@ import {
   type AuthErrorField,
 } from '@/lib/api/auth-errors'
 import {
+  EMAIL_FORMAT_MESSAGE,
   EMAIL_PATTERN,
   INITIAL_REGISTER_STATE,
   NAME_MAX_LENGTH,
   NICKNAME_MAX_LENGTH,
-  PASSWORD_PATTERN,
+  PASSWORD_RULES,
+  REGISTER_PROFILE_FIELDS,
   canSubmit,
   onCodeSent,
   onEmailChanged,
   onVerified,
+  registerFieldErrors,
+  validateRegisterField,
   type RegisterForm as RegisterFormValues,
+  type RegisterProfileField,
 } from '@/components/auth/register-machine'
+import { buildLoginHref, safeReturnPath } from '@/lib/auth/return-path'
 import { RESEND_COOLDOWN_SECONDS } from '@/lib/auth/verification-cooldown'
 import {
   EMPTY_SIGNUP_CONSENT,
   SOCIAL_SIGNUP_CONSENT_REQUIRED_MESSAGE,
   isSignupConsentComplete,
+  missingSignupConsent,
   signupConsentErrorKeys,
   type SignupConsent,
   type SignupConsentKey,
 } from '@/lib/auth/signup-consent'
 import { normalizeApiResponseFailure } from '@/lib/api/api-error'
 import type { ApiResponse } from '@/types/api'
+import { PASSWORD_REVEAL_LABEL } from '@/components/ui/text-field'
 import { touchHitArea } from '@/styles/touch-target'
 
 const INITIAL_FORM: RegisterFormValues = {
@@ -120,6 +133,53 @@ const ResendButton = styled.button`
   }
 `
 
+/** 비밀번호 규칙 체크리스트(#578). 항목마다 지켰는지를 아이콘·색·숨은 문구 세 가지로 말한다. */
+const PasswordRuleList = styled.ul`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+`
+
+const PasswordRuleItem = styled.li<{ $met: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* 지킨 항목은 초록 글자(green700, 흰 바탕 5.36:1 — DESIGN.md §2 Success Green Text). */
+  color: ${props =>
+    props.$met ? 'var(--color-green-700)' : 'var(--color-text-500)'};
+  font-size: 13px;
+  line-height: 20px;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+  }
+`
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+`
+
+const PASSWORD_RULES_ID = 'register-password-rules'
+
+const fieldErrorId = (field: RegisterProfileField) => `register-${field}-error`
+
+/** `aria-describedby` 에 넣을 id 들. 빈 값은 빼고, 남는 게 없으면 속성을 달지 않는다. */
+const describedBy = (...ids: Array<string | false | null | undefined>) =>
+  ids.filter(Boolean).join(' ') || undefined
+
 const parseJsonResponse = async (
   res: Response,
 ): Promise<ApiResponse<unknown> | null> =>
@@ -129,12 +189,30 @@ const NETWORK_ERROR_MESSAGE = '네트워크 연결을 확인한 뒤 다시 시�
 
 const CONSENT_ID_PREFIX = 'register-consent'
 
-export default function RegisterForm() {
+export type RegisterFormProps = {
+  /** 서버가 세션 쿠키가 없다고 확인했다 — `GuestOnly` 참고(#579). */
+  assumeGuest?: boolean
+}
+
+export default function RegisterForm({
+  assumeGuest = false,
+}: RegisterFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // 로그인 화면에서 넘어온 「원래 가려던 화면」. 로그인과 같은 판정을 쓴다(#576).
+  const returnTo = safeReturnPath(searchParams.get('redirect'))
   const [state, setState] = useState(INITIAL_REGISTER_STATE)
   const [form, setForm] = useState<RegisterFormValues>(INITIAL_FORM)
   const [code, setCode] = useState('')
   const [error, setError] = useState<FormError>(null)
+  // 인증 뒤 칸(비밀번호·이름·닉네임)의 오류. 가입 버튼이 잠긴 이유를 각 칸 옆에서 말한다(#578).
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<RegisterProfileField, string>>
+  >({})
+  // 오류가 커밋된 **뒤** 그 칸으로 포커스한다(`useSignupConsentFocus` 와 같은 이유).
+  const [focusRequest, setFocusRequest] = useState<{
+    field: RegisterProfileField
+  } | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [isSendingCode, setIsSendingCode] = useState(false)
   const [isVerifyingCode, setIsVerifyingCode] = useState(false)
@@ -153,17 +231,64 @@ export default function RegisterForm() {
     return () => clearInterval(timer)
   }, [cooldown])
 
+  useEffect(() => {
+    if (!focusRequest) return
+    document
+      .querySelector<HTMLInputElement>(`input[name="${focusRequest.field}"]`)
+      ?.focus()
+  }, [focusRequest])
+
   const handleEmailChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const next = event.target.value
     setForm(current => ({ ...current, email: next }))
-    setState(current => onEmailChanged(current, next))
+    const nextState = onEmailChanged(state, next)
+    if (nextState !== state) {
+      // 보낸 코드는 옛 주소에 묶여 있다. 입력한 코드와 재전송 대기를 함께 버린다(#578).
+      setCode('')
+      setCooldown(0)
+      if (error?.field === 'code') setError(null)
+    }
+    setState(nextState)
+    // 고쳐서 형식이 맞으면 이메일 오류를 바로 걷는다. 틀린 동안은 blur·발송 때 다시 말한다.
+    if (error?.field === 'email' && EMAIL_PATTERN.test(next.trim())) {
+      setError(null)
+    }
+  }
+
+  /** 이메일 칸을 떠날 때 형식을 본다. 비어 있으면 아직 말하지 않는다. */
+  const handleEmailBlur = () => {
+    const email = form.email.trim()
+    if (email && !EMAIL_PATTERN.test(email)) {
+      setError({ field: 'email', message: EMAIL_FORMAT_MESSAGE })
+    }
   }
 
   const handleFieldChange =
-    (key: 'password' | 'name' | 'nickname') =>
+    (key: RegisterProfileField) =>
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      setForm(current => ({ ...current, [key]: event.target.value }))
+      const value = event.target.value
+      setForm(current => ({ ...current, [key]: value }))
+      // 이미 오류를 보이는 칸은 고치는 동안 다시 판정해, 맞는 순간 오류를 걷는다.
+      if (fieldErrors[key] && !validateRegisterField(key, value)) {
+        setFieldErrors(current => ({ ...current, [key]: undefined }))
+      }
     }
+
+  /**
+   * 칸을 떠날 때 판정한다. 아직 아무것도 적지 않은 칸은 지나가도 탓하지 않는다.
+   *
+   * 비밀번호는 blur 로 오류를 **새로 붙이지 않는다**(맞으면 걷기만 한다). 바로 아래 체크리스트가
+   * 이미 항목별로 실시간으로 말하고 있고, blur 때 오류 줄이 끼어들면 「회원가입」 버튼이 아래로
+   * 밀려 그 버튼을 누르던 클릭이 빗나간다(mousedown 이 blur 를 일으키고 mouseup 은 밀린 자리에
+   * 떨어진다 — 375px 실측). 오류 문구는 제출 때 붙는다.
+   */
+  const handleFieldBlur = (key: RegisterProfileField) => () => {
+    const value = form[key]
+    if (!value) return
+    const message = validateRegisterField(key, value)
+    if (message && key === 'password') return
+    setFieldErrors(current => ({ ...current, [key]: message ?? undefined }))
+  }
 
   const handleConsentChange = (next: SignupConsent) => {
     setConsent(next)
@@ -188,10 +313,8 @@ export default function RegisterForm() {
   const handleSendCode = async () => {
     const email = form.email.trim()
     if (!EMAIL_PATTERN.test(email)) {
-      setError({
-        field: 'email',
-        message: '올바른 이메일 형식을 입력해주세요.',
-      })
+      // 버튼을 잠그지 않고 누르면 여기서 이유를 말한다(#578).
+      setError({ field: 'email', message: EMAIL_FORMAT_MESSAGE })
       return
     }
 
@@ -276,7 +399,28 @@ export default function RegisterForm() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!canSubmit(state, form, consent) || isSubmitting) return
+    if (isSubmitting) return
+
+    if (!canSubmit(state, form, consent)) {
+      // 버튼은 켜 두고, 막힌 이유를 각 칸 옆에서 말한 뒤 첫 칸으로 데려간다(#578).
+      const errors = registerFieldErrors(form)
+      setFieldErrors(errors)
+      const missing = missingSignupConsent(consent)
+      setConsentInvalid(missing)
+      const firstField = REGISTER_PROFILE_FIELDS.find(field => errors[field])
+      if (firstField) {
+        setFocusRequest({ field: firstField })
+      } else if (missing.length > 0) {
+        focusConsent(missing[0])
+      } else {
+        // 인증한 이메일과 지금 이메일이 어긋난 경우다. 이메일 칸은 인증 뒤 잠기므로 방어용이다.
+        setError({
+          field: 'general',
+          message: '이메일 인증을 다시 진행해주세요.',
+        })
+      }
+      return
+    }
 
     setError(null)
     setIsSubmitting(true)
@@ -298,7 +442,16 @@ export default function RegisterForm() {
       const data = await parseJsonResponse(res)
 
       if (res.ok && data?.dataHeader?.success) {
-        router.replace('/login')
+        /*
+         * 가입 응답은 세션을 주지 않는다(BE #595 전). 그래서 로그인 화면으로 보내되, 가입을 마쳤다는
+         * 안내(`?signup=1`)와 원래 가려던 화면(`redirect`)을 함께 넘기고 이메일은 미리 채운다(#576).
+         *
+         * TODO(BE #595): 가입 응답이 세션(토큰)을 실어 주면 여기서 BFF 로그인 라우트처럼 세션을 봉인한
+         * 뒤 `await useAuthStore.getState().hydrate()` → `router.replace(returnTo)` 로 바로 보낸다.
+         * 그때 `rememberSignupEmail` 과 로그인 화면의 `signup=1` 안내는 걷는다.
+         */
+        rememberSignupEmail(getBrowserSessionStorage(), form.email)
+        router.replace(buildSignupCompleteLoginHref(returnTo))
         return
       }
 
@@ -326,18 +479,22 @@ export default function RegisterForm() {
   }
 
   const isVerified = state.step === 'verified'
-  const passwordHelperText =
-    form.password.length > 0 && !PASSWORD_PATTERN.test(form.password)
-      ? '공백 없이 영문, 숫자, 특수문자를 포함한 8~20자로 입력해주세요.'
-      : '공백 없이 영문, 숫자, 특수문자를 포함한 8~20자.'
 
   return (
-    <GuestOnly>
+    <GuestOnly assumeGuest={assumeGuest} redirectTo={returnTo}>
       <AuthShell
         eyebrow="회원가입"
         title="BossPickSeoul 계정을 시작합니다."
         description="이메일 인증 후 비밀번호와 프로필 정보를 입력하면 가입이 완료됩니다."
       >
+        {/* 카카오를 맨 위에 둔다(#577). 카카오 가입도 아래 동의 fieldset 을 쓴다(#495) —
+            동의가 모자란 채 누르면 이동하지 않고 그 체크박스로 포커스를 옮긴다. */}
+        <SocialLogin
+          consent={consent}
+          onConsentIncomplete={handleSocialConsentIncomplete}
+          returnTo={returnTo}
+        />
+
         {/* 브라우저 기본 검증을 끈다. type="email" 이 켜져 있으면 크롬이 자체
             말풍선을 띄우며 제출을 가로채, 아래 EMAIL_PATTERN 검사와 DESIGN.md
             §Error (inline field) 규격의 인라인 에러가 아예 도달하지 못한다.
@@ -361,6 +518,7 @@ export default function RegisterForm() {
               placeholder="name@example.com"
               value={form.email}
               onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
               readOnly={isVerified}
               aria-invalid={error?.field === 'email' || undefined}
               aria-describedby={
@@ -372,11 +530,12 @@ export default function RegisterForm() {
             ) : null}
           </Field>
 
+          {/* 형식이 틀려도 잠그지 않는다 — 누르면 위 칸에 이유가 나온다(#578). */}
           {state.step === 'email-entry' ? (
             <SecondaryButton
               type="button"
               onClick={handleSendCode}
-              disabled={isSendingCode || !EMAIL_PATTERN.test(form.email.trim())}
+              disabled={isSendingCode}
             >
               {isSendingCode ? '발송 중...' : '인증코드 발송'}
             </SecondaryButton>
@@ -423,11 +582,12 @@ export default function RegisterForm() {
             </Field>
           ) : null}
 
+          {/* 비어 있어도 잠그지 않는다 — 누르면 코드 칸에 「인증코드를 입력해주세요.」가 나온다(#578). */}
           {state.step === 'code-sent' ? (
             <SecondaryButton
               type="button"
               onClick={handleVerifyCode}
-              disabled={isVerifyingCode || !code.trim()}
+              disabled={isVerifyingCode}
             >
               {isVerifyingCode ? '확인 중...' : '인증 확인'}
             </SecondaryButton>
@@ -445,11 +605,25 @@ export default function RegisterForm() {
                     placeholder="비밀번호를 입력하세요."
                     value={form.password}
                     onChange={handleFieldChange('password')}
+                    onBlur={handleFieldBlur('password')}
+                    aria-invalid={Boolean(fieldErrors.password) || undefined}
+                    aria-describedby={describedBy(
+                      PASSWORD_RULES_ID,
+                      fieldErrors.password && fieldErrorId('password'),
+                    )}
                   />
+                  {/*
+                    공용 `TextField revealable` 과 같은 동작이다(#583). 이 폼은 AuthShell 입력칸을 쓰고
+                    칸 아래에 규칙 체크리스트(<ul>)를 두어 TextField 로 옮기지 않았다 — 이유는
+                    profile.md S4-1 「가입 폼 이관」. 누를 때 포커스를 입력칸에 남긴다: 버튼으로 옮겨 가면
+                    칸이 blur 되고 캐럿이 사라진다. 터치는 pointerdown 에서 막아야 호환 mousedown 까지 막힌다.
+                  */}
                   <PasswordToggle
                     type="button"
+                    onPointerDown={event => event.preventDefault()}
+                    onMouseDown={event => event.preventDefault()}
                     onClick={() => setShowPassword(current => !current)}
-                    aria-label="비밀번호 표시"
+                    aria-label={PASSWORD_REVEAL_LABEL}
                     aria-pressed={showPassword}
                   >
                     {showPassword ? (
@@ -459,7 +633,26 @@ export default function RegisterForm() {
                     )}
                   </PasswordToggle>
                 </PasswordFieldWrapper>
-                <HelperText>{passwordHelperText}</HelperText>
+                {/* 규칙을 항목별로 보여 준다. 입력칸이 aria-describedby 로 이 목록을 읽는다(#578). */}
+                <PasswordRuleList id={PASSWORD_RULES_ID}>
+                  {PASSWORD_RULES.map(rule => {
+                    const met = rule.test(form.password)
+                    return (
+                      <PasswordRuleItem key={rule.key} $met={met}>
+                        {met ? <Check aria-hidden /> : <Minus aria-hidden />}
+                        {rule.label}
+                        <VisuallyHidden>
+                          {met ? ' 충족' : ' 미충족'}
+                        </VisuallyHidden>
+                      </PasswordRuleItem>
+                    )
+                  })}
+                </PasswordRuleList>
+                {fieldErrors.password ? (
+                  <FieldError id={fieldErrorId('password')}>
+                    {fieldErrors.password}
+                  </FieldError>
+                ) : null}
               </Field>
 
               <Field>
@@ -472,7 +665,17 @@ export default function RegisterForm() {
                   placeholder="실명을 입력하세요."
                   value={form.name}
                   onChange={handleFieldChange('name')}
+                  onBlur={handleFieldBlur('name')}
+                  aria-invalid={Boolean(fieldErrors.name) || undefined}
+                  aria-describedby={describedBy(
+                    fieldErrors.name && fieldErrorId('name'),
+                  )}
                 />
+                {fieldErrors.name ? (
+                  <FieldError id={fieldErrorId('name')}>
+                    {fieldErrors.name}
+                  </FieldError>
+                ) : null}
               </Field>
 
               <Field>
@@ -485,12 +688,22 @@ export default function RegisterForm() {
                   placeholder="서비스에서 사용할 닉네임"
                   value={form.nickname}
                   onChange={handleFieldChange('nickname')}
+                  onBlur={handleFieldBlur('nickname')}
+                  aria-invalid={Boolean(fieldErrors.nickname) || undefined}
+                  aria-describedby={describedBy(
+                    fieldErrors.nickname && fieldErrorId('nickname'),
+                  )}
                 />
+                {fieldErrors.nickname ? (
+                  <FieldError id={fieldErrorId('nickname')}>
+                    {fieldErrors.nickname}
+                  </FieldError>
+                ) : null}
               </Field>
             </>
           ) : null}
 
-          {/* 단계와 무관하게 늘 보인다 — 아래 카카오 가입도 이 동의를 쓴다(#495). */}
+          {/* 단계와 무관하게 늘 보인다 — 위 카카오 가입도 이 동의를 쓴다(#495). */}
           <SignupConsentFieldset
             value={consent}
             onChange={handleConsentChange}
@@ -504,24 +717,18 @@ export default function RegisterForm() {
             </Notice>
           ) : null}
 
+          {/* 입력이 모자라도 잠그지 않는다 — 누르면 막힌 칸마다 이유를 말하고 첫 칸으로 간다(#578). */}
           {isVerified ? (
-            <PrimaryButton
-              type="submit"
-              disabled={!canSubmit(state, form, consent) || isSubmitting}
-            >
+            <PrimaryButton type="submit" disabled={isSubmitting}>
               {isSubmitting ? '가입 처리 중...' : '회원가입'}
             </PrimaryButton>
           ) : null}
         </AuthForm>
 
-        <SocialLogin
-          consent={consent}
-          onConsentIncomplete={handleSocialConsentIncomplete}
-        />
-
         <FooterRow>
           <span>이미 계정이 있나요?</span>
-          <FooterLink href="/login">로그인</FooterLink>
+          {/* 원래 가려던 화면을 로그인 화면에도 들고 간다(#576). */}
+          <FooterLink href={buildLoginHref(returnTo)}>로그인</FooterLink>
         </FooterRow>
       </AuthShell>
     </GuestOnly>
