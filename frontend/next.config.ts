@@ -40,6 +40,20 @@ const nextConfig: NextConfig = {
   compiler: {
     styledComponents: true,
   },
+  // page 없이 하위 경로만 있는 기능 루트를 목록으로 보낸다. 주소를 줄여 치거나 외부 링크로 오면
+  // 404 를 보던 곳이다(#636). `/community/` 끝 슬래시도 같은 규칙이 받고 쿼리는 그대로 이어진다.
+  // 임시(307)로 둔다 — 나중에 루트가 랜딩이 될 수 있어 브라우저가 영구 캐시하지 않게 한다.
+  // `/profile` 은 가야 할 곳(북마크·설정)이 갈려 여기서 정하지 않는다.
+  async redirects() {
+    return [
+      {
+        source: '/community',
+        destination: '/community/list',
+        permanent: false,
+      },
+      { source: '/chatting', destination: '/chatting/list', permanent: false },
+    ]
+  },
 }
 
 export default nextConfig
