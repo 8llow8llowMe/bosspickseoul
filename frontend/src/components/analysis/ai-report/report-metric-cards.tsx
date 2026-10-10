@@ -5,6 +5,7 @@ import type {
   MetricCardModel,
   MetricTone,
 } from '@/lib/analysis/report-section-state'
+import { CHANGE_TONE_TEXT_COLOR } from '@/lib/metrics/metric-polarity'
 
 const Grid = styled.div<{ $variant: 'full' | 'compact' }>`
   display: grid;
@@ -27,18 +28,22 @@ const Card = styled.div<{ $variant: 'full' | 'compact' }>`
   background: var(--color-surface-muted);
   padding: ${props => (props.$variant === 'compact' ? '12px' : '16px')};
 
-  span {
+  /* 라벨만이다 — 값 안의 화살표 span 까지 캡션 크기로 줄이지 않는다. */
+  > span {
     color: var(--color-text-caption);
     font-size: 12px;
   }
 `
 
-// 값은 글자다(17·19px). grey100 카드 위 green500·red500 은 2.5 / 3.4:1 이라 -text 토큰을 쓴다.
-const toneColor = (tone?: MetricTone) => {
-  if (tone === 'positive') return 'var(--color-positive-text)'
-  if (tone === 'negative') return 'var(--color-negative-text)'
-  return 'var(--color-text-900)'
-}
+/*
+  값은 글자다(17·19px). grey100 카드 위 green500·red500 은 2.5 / 3.4:1 이라 -text 토큰을 쓴다.
+  색은 오름·내림이 아니라 **좋고 나쁨**이다(DESIGN.md §Charts, D-1) — `tone` 은 지표 극성으로
+  이미 판정돼 들어온다. 판단하지 않는 값(보합·데이터 없음·tone 없음)은 본문 색이다.
+*/
+const toneColor = (tone?: MetricTone) =>
+  tone === 'positive' || tone === 'negative'
+    ? CHANGE_TONE_TEXT_COLOR[tone]
+    : 'var(--color-text-900)'
 
 /**
  * 로딩 중에는 값 대신 `--`(`METRIC_PENDING_DISPLAY`)가 들어온다 — skeleton 블록을 쓰지
@@ -57,6 +62,22 @@ const Value = styled.strong<{
   line-height: ${props => (props.$variant === 'compact' ? '24px' : '28px')};
 `
 
+const ValueLine = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+`
+
+/** 「개선」·「악화」. 색만으로 좋고 나쁨을 전하지 않는다(WCAG 1.4.1). 글자색은 값과 같다. */
+const ToneLabel = styled.em<{ $tone?: MetricTone }>`
+  color: ${props => toneColor(props.$tone)};
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 18px;
+`
+
 export default function ReportMetricCards({
   cards,
   variant = 'full',
@@ -69,9 +90,17 @@ export default function ReportMetricCards({
       {cards.map(card => (
         <Card key={card.label} $variant={variant} aria-busy={card.loading}>
           <span>{card.label}</span>
-          <Value $tone={card.tone} $variant={variant} $pending={card.loading}>
-            {card.display}
-          </Value>
+          <ValueLine>
+            <Value $tone={card.tone} $variant={variant} $pending={card.loading}>
+              {card.arrow ? (
+                <span aria-hidden="true">{card.arrow} </span>
+              ) : null}
+              {card.display}
+            </Value>
+            {card.toneLabel ? (
+              <ToneLabel $tone={card.tone}>{card.toneLabel}</ToneLabel>
+            ) : null}
+          </ValueLine>
         </Card>
       ))}
     </Grid>

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import AnalysisTrendSummary, {
   describeFlatTrend,
+  resolveTrendChangeTone,
   resolveTrendSectionState,
   shortPeriod,
   sparklineDomain,
@@ -138,5 +139,81 @@ describe('AnalysisTrendSummary', () => {
     expect(markup).toContain('매출 정보를 불러오지 못했어요.')
     expect(markup).toContain('다시 시도')
     expect(markup).not.toContain('제공되는 분기별 값이 없어요')
+  })
+
+  /* D-1 — 증감 색은 오름·내림이 아니라 지표 극성으로 판정한 좋고 나쁨이다. */
+  it('방향과 극성으로 개선·악화를 정하고, 보합·중립 지표는 판단하지 않는다', () => {
+    expect(resolveTrendChangeTone('INCREASE', 'higher-is-better')).toEqual({
+      tone: 'positive',
+      label: '개선',
+    })
+    expect(resolveTrendChangeTone('DECREASE', 'higher-is-better')).toEqual({
+      tone: 'negative',
+      label: '악화',
+    })
+    expect(resolveTrendChangeTone('INCREASE', 'lower-is-better')).toEqual({
+      tone: 'negative',
+      label: '악화',
+    })
+    expect(resolveTrendChangeTone('STAGNANT', 'higher-is-better')).toEqual({
+      tone: 'neutral',
+      label: '',
+    })
+    expect(resolveTrendChangeTone('INCREASE', 'neutral')).toEqual({
+      tone: 'neutral',
+      label: '',
+    })
+    expect(resolveTrendChangeTone(null, undefined)).toEqual({
+      tone: 'neutral',
+      label: '',
+    })
+  })
+
+  it('색을 칠한 증감 옆에 「개선/악화」 글자를 두고, 중립 지표·보합에는 두지 않는다', () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalysisTrendSummary, {
+        items: [
+          {
+            key: 'SALES',
+            label: '매출',
+            subject: '매출이',
+            unit: '원',
+            polarity: 'higher-is-better',
+            points: [pt('2025년 4분기', 200), pt('2026년 1분기', 150)],
+          },
+          {
+            key: 'STORE',
+            label: '일반 점포 수',
+            subject: '일반 점포 수가',
+            unit: '개',
+            polarity: 'neutral',
+            definition: '프랜차이즈 점포를 뺀 이 업종 점포 수예요.',
+            points: [pt('2025년 4분기', 10), pt('2026년 1분기', 20)],
+          },
+          {
+            key: 'FOOT_TRAFFIC',
+            label: '유동인구',
+            subject: '유동인구가',
+            unit: '명',
+            polarity: 'higher-is-better',
+            points: [pt('2025년 4분기', 1000), pt('2026년 1분기', 1005)],
+          },
+        ],
+      }),
+    )
+    expect(markup).toContain('매출이 직전 분기보다 25% 줄었어요')
+    expect(markup.match(/악화/g)).toHaveLength(1)
+    // 문장과 판단 글자 사이에 스크린리더용 쉼표를 둔다 — 「줄었어요악화」로 붙어 읽히지 않게.
+    expect(markup).toMatch(
+      /줄었어요<span[^>]*>, <\/span><\/span><em[^>]*>악화</,
+    )
+    expect(markup).not.toContain('개선')
+    // 점포 수는 중립 — 두 배가 됐어도 판단 글자가 없다.
+    expect(markup).toContain('일반 점포 수가 직전 분기보다 100% 늘었어요')
+    // 화살표는 스크린리더에 숨긴다. 문장이 방향을 말한다.
+    expect(markup).toMatch(/aria-hidden="true"[^>]*>▼</)
+    // 용어 도움말이 붙은 행만 물음표 버튼이 있다.
+    expect(markup.match(/aria-label="일반 점포 수 뜻"/g)).toHaveLength(1)
+    expect(markup).not.toContain('aria-label="매출 뜻"')
   })
 })

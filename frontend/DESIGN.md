@@ -298,7 +298,12 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
   지표는 「상승=초록」이 나쁜 소식을 좋게 보이게 한다. 그래서 색은 판단만 맡는다.
   - **지표마다 극성을 둔다** — 높을수록 좋음 / 낮을수록 좋음 / 중립. 정본은
     `src/lib/metrics/metric-polarity.ts` 하나다(추천 점수 `METRIC_POLARITY`, 구별현황
-    `STATUS_METRIC_POLARITY` — 폐업만 낮을수록 좋다). 화면이 극성을 따로 적지 않는다.
+    `STATUS_METRIC_POLARITY` — 폐업만 낮을수록 좋다, 상권분석 `ANALYSIS_METRIC_POLARITY` — 매출·유동인구는
+    높을수록, 폐업은 낮을수록 좋고 **점포 수·개업은 중립**이다. 창업하려는 사람에게 같은 업종 점포가 는
+    것은 활기이자 경쟁이라 화면이 판단하지 않는다). 화면이 극성을 따로 적지 않는다.
+  - 서버나 화면이 이미 방향(`INCREASE`·`DECREASE`·`STAGNANT`)을 판정했으면 그 방향에서 톤을 낸다
+    (`resolveDirectionChangeTone`). 보합 경계(±1%)를 두 번 적용하면 문장은 「거의 같아요」인데 색은
+    「개선」이 된다.
   - **극성이 있으면** 좋아진 쪽은 positive, 나빠진 쪽은 negative 시맨틱 토큰이다. 글자는
     `--color-positive-text`·`--color-negative-text`, 면적(칩 틴트·테두리·막대)은 `--color-positive`·
     `--color-negative`(`CHANGE_TONE_TEXT_COLOR`·`CHANGE_TONE_AREA_COLOR`). **변동 없음·데이터 없음·
@@ -310,15 +315,14 @@ B 이니셜을 **4열 × 7행 모듈 격자**로 재구성한다. `viewBox="0 0 
     (「증감은 직전 분기 대비예요.」), 문장이면 문장 안에 적는다.
   - 색 없이 문장으로 말하는 자리(「▼ 매출이 직전 분기보다 4.2% 줄었어요」)는 그대로 둬도 된다 —
     색을 칠할 때만 위 규칙을 지킨다.
-  - **적용 현황(2026-10-10).** 적용됨: 구별현황 목록·상세 머리(#560). **아직 옮기지 않은 화면** — 손댈 때
-    이 규칙으로 맞춘다.
+  - **적용 현황(2026-10-10).** 적용됨: 구별현황 목록·상세 머리(#560), 상권분석 「분기별 변화」
+    (`AnalysisTrendSummary` — 기호와 「개선/악화」에만 색, 문장은 본문 색, 점포 수는 중립이라 무채색),
+    AI 리포트 지표 카드 「성장률」(`report-metric-cards.tsx` — ▲▼·부호 + 「개선/악화」). **아직 옮기지
+    않은 화면** — 손댈 때 이 규칙으로 맞춘다.
     - 홈 `components/home/district-tooltip.tsx` — 극성 색(`getStatusChangeTone`)은 쓰지만 「개선/악화」
       글자가 없다.
     - 홈 `components/home/rank-bar-list.tsx` — 극성이 아니라 오름·내림(`changeDirection`)으로 초록·빨강을
       칠한다.
-    - 상권분석 `components/analysis/ai-report/report-metric-cards.tsx` — `tone` 으로 글자색을 칠하고 판단
-      글자를 같이 두는지 확인되지 않았다.
-    - 상권분석 트렌드(`AnalysisTrendSummary`) — 무채색 문장이다. 색을 싣게 되면 위 규칙을 따른다.
 - **성별은 남성 `--color-primary-600`, 여성 `--color-chart-female`.** 파랑 두 톤으로 나누면
   범례 없이는 구분되지 않는다.
 - **Y 축 위에 단위를 한 번 적는다**(「(원)」·「(명)」). 눈금 「8000만」은 크기만 말한다.

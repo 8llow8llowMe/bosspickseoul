@@ -6,29 +6,61 @@ import {
 import type { SalesGrowth } from '@/lib/analysis/commercial-chart-selectors'
 import type { AiReportState } from '@/hooks/use-ai-report'
 import type { CommercialProfile } from '@/types/recommend'
+import {
+  ANALYSIS_METRIC_POLARITY,
+  describeChangeTone,
+  resolveDirectionChangeTone,
+  type ChangeTone,
+} from '@/lib/metrics/metric-polarity'
 
-export type MetricTone = 'positive' | 'negative' | 'neutral'
+/** 증감의 좋고 나쁨(D-1). 방향이 아니다 — `lib/metrics/metric-polarity` 의 `ChangeTone` 과 같다. */
+export type MetricTone = ChangeTone
 export type MetricCardModel = {
   label: string
   display: string
   loading: boolean
   tone?: MetricTone
+  /** 화면용 방향 기호(▲▼–). 스크린리더에는 숨긴다 — 부호가 든 `display` 가 방향을 읽힌다. */
+  arrow?: '▲' | '▼' | '–' | null
+  /**
+   * 「개선」·「악화」. 색을 칠한 값 옆에 늘 둔다(WCAG 1.4.1). 보합·데이터 없음이면 빈 문자열이다.
+   */
+  toneLabel?: string
 }
 
-const formatGrowth = (
+const GROWTH_ARROW = { INCREASE: '▲', DECREASE: '▼', STAGNANT: '–' } as const
+
+/**
+ * 「성장률」 카드. 색은 **매출의 극성**(높을수록 좋다)으로 정한다(D-1) — 결과는 지금과 같아도
+ * 오름=초록이라는 가정을 코드에 두지 않는다. 보합 경계는 서버 `trendDirection`(±1%)을 따른다.
+ */
+export const formatGrowth = (
   growth: SalesGrowth,
-): { display: string; tone: MetricTone } => {
+): {
+  display: string
+  tone: MetricTone
+  arrow: '▲' | '▼' | '–' | null
+  toneLabel: string
+} => {
   if (growth.changeRate === null)
-    return { display: '데이터 없음', tone: 'neutral' }
+    return {
+      display: '데이터 없음',
+      tone: 'neutral',
+      arrow: null,
+      toneLabel: '',
+    }
   const pct = growth.changeRate * 100
   const sign = pct > 0 ? '+' : ''
-  const tone: MetricTone =
-    growth.direction === 'INCREASE'
-      ? 'positive'
-      : growth.direction === 'DECREASE'
-        ? 'negative'
-        : 'neutral'
-  return { display: `${sign}${pct.toFixed(1)}%`, tone }
+  const tone = resolveDirectionChangeTone(
+    growth.direction,
+    ANALYSIS_METRIC_POLARITY.sales,
+  )
+  return {
+    display: `${sign}${pct.toFixed(1)}%`,
+    tone,
+    arrow: growth.direction ? GROWTH_ARROW[growth.direction] : null,
+    toneLabel: describeChangeTone(tone),
+  }
 }
 
 /**
@@ -93,6 +125,8 @@ export const resolveMetricCards = ({
       loading: growthLoading,
       display: growthLoading ? METRIC_PENDING_DISPLAY : g.display,
       tone: growthLoading ? undefined : g.tone,
+      arrow: growthLoading ? null : g.arrow,
+      toneLabel: growthLoading ? '' : g.toneLabel,
     },
   ]
 }
