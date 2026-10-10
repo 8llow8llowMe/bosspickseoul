@@ -182,6 +182,59 @@ const useRecommendationSheetFocusEffect = selectRecommendationSheetFocusEffect(
   useEffect,
 )
 
+/** 맞춤 높이를 재는 이펙트도 그리기 전에 돈다 — 펼침 높이로 한 번 그렸다가 줄어드는 깜빡임을 막는다. */
+const useRecommendationSheetMeasureEffect = useRecommendationSheetFocusEffect
+
+/** 시트 위 테두리(`border: 1px`). 높이는 테두리를 포함해 잰다. */
+const SHEET_BORDER_TOP = 1
+
+type RecommendationSheetContentBox = {
+  /** 첫 자식의 위쪽 끝(px, 뷰포트 기준). */
+  firstTop: number
+  /** 마지막 자식의 아래쪽 끝(px, 뷰포트 기준). */
+  lastBottom: number
+  paddingTop: number
+  paddingBottom: number
+}
+
+/**
+ * 내용에 맞춘 시트 높이(손잡이 줄 + 내용 + 위 테두리). 내용 칸은 시트 높이만큼 늘어나 있어
+ * `scrollHeight` 로는 내용 높이를 알 수 없다. 그래서 첫 자식 위부터 마지막 자식 아래까지를
+ * 재고 칸의 위아래 여백을 더한다. 잴 수 없으면 `null` — 시트는 펼침 높이를 그대로 쓴다.
+ */
+export const resolveRecommendationSheetFitHeight = (
+  box: RecommendationSheetContentBox | null,
+): number | null => {
+  if (!box) return null
+
+  const contentHeight =
+    box.lastBottom - box.firstTop + box.paddingTop + box.paddingBottom
+
+  if (!Number.isFinite(contentHeight) || contentHeight <= 0) return null
+
+  return Math.ceil(
+    BOTTOM_SHEET_COLLAPSED_HEIGHT + SHEET_BORDER_TOP + contentHeight,
+  )
+}
+
+const readRecommendationSheetContentBox = (
+  content: HTMLElement,
+): RecommendationSheetContentBox | null => {
+  const first = content.firstElementChild
+  const last = content.lastElementChild
+
+  if (!first || !last) return null
+
+  const style = window.getComputedStyle(content)
+
+  return {
+    firstTop: first.getBoundingClientRect().top,
+    lastBottom: last.getBoundingClientRect().bottom,
+    paddingTop: Number.parseFloat(style.paddingTop) || 0,
+    paddingBottom: Number.parseFloat(style.paddingBottom) || 0,
+  }
+}
+
 export const finishRecommendationSheetPointer = (
   startSnap: RecommendationSheetSnap,
   deltaY: number,
@@ -201,15 +254,18 @@ export const finishRecommendationSheetPointer = (
 
 const Sheet = styled.section<{
   $dragDeltaY: number
+  $fitHeight: number | null
   $isDragging: boolean
   $snap: RecommendationSheetSnap
 }>`
   --recommend-sheet-collapsed-height: ${BOTTOM_SHEET_COLLAPSED_HEIGHT}px;
+  /* 맞춤 높이가 있으면(조건 화면) 펼침 상한 안에서 내용만큼만 올라온다. */
   --recommend-sheet-expanded-height: max(
     ${BOTTOM_SHEET_COLLAPSED_HEIGHT}px,
     min(
       ${BOTTOM_SHEET_EXPANDED_RATIO * 100}%,
       calc(100% - ${BOTTOM_SHEET_MINIMUM_MAP_HEIGHT}px)
+        ${props => (props.$fitHeight === null ? '' : `, ${props.$fitHeight}px`)}
     )
   );
 
@@ -337,6 +393,12 @@ const SheetBody = styled.div<{ $isExpanded: boolean }>`
 type RecommendMobileSheetProps = PropsWithChildren<{
   snap: RecommendationSheetSnap
   view: RecommendationView
+  /**
+   * 펼친 시트를 **내용 높이에 맞춘다.** 조건 화면은 카드 하나라 펼침 높이(72%)를 다 쓰면
+   * 아래가 절반쯤 비고 지도만 가린다. 그래서 처음에는 낮게 열고, 선택 목록·결과처럼 긴
+   * 화면으로 넘어갈 때 시트가 더 올라온다. 내용이 펼침 상한보다 길면 상한에서 멈추고 스크롤한다.
+   */
+  fitContent?: boolean
   /** 접힘 높이에 보이는 첫 줄. `resolveRecommendSheetHeadline` 이 정한다. */
   title: string
   summary: string
@@ -346,6 +408,7 @@ type RecommendMobileSheetProps = PropsWithChildren<{
 export default function RecommendMobileSheet({
   snap,
   view,
+  fitContent = false,
   title,
   summary,
   onSnapChange,
@@ -368,6 +431,40 @@ export default function RecommendMobileSheet({
   const suppressPointerClickRef = useRef(false)
   const [dragVisualState, setDragVisualState] =
     useState<DragVisualState | null>(null)
+  const [fitHeight, setFitHeight] = useState<number | null>(null)
+  const appliedFitHeight = fitContent ? fitHeight : null
+
+  /*
+   * 내용 칸(`[data-panel-view]`)은 뷰가 바뀔 때마다 새로 붙으므로 `view` 로 다시 찾는다. 칸 안
+   * 자식(제목·조건 폼)의 크기가 바뀌면(오류 문구·「이전 결과로 돌아가기」 상자) 다시 잰다.
+   */
+  useRecommendationSheetMeasureEffect(() => {
+    if (!fitContent) return
+
+    const content =
+      bodyRef.current?.querySelector<HTMLElement>('[data-panel-view]')
+
+    if (!content) return
+
+    const measure = () => {
+      const next = resolveRecommendationSheetFitHeight(
+        readRecommendationSheetContentBox(content),
+      )
+      setFitHeight(current => (current === next ? current : next))
+    }
+
+    measure()
+
+    if (typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(content)
+    for (const child of Array.from(content.children)) {
+      observer.observe(child)
+    }
+
+    return () => observer.disconnect()
+  }, [fitContent, view])
 
   const clearPointerState = () => {
     pointerIdRef.current = null
@@ -481,7 +578,18 @@ export default function RecommendMobileSheet({
     pointerIdRef.current = event.pointerId
     startYRef.current = event.clientY
     startSnapRef.current = effectiveSnap
-    dragBoundsRef.current = getBottomSheetHeightBounds(viewportHeight)
+    const bounds = getBottomSheetHeightBounds(viewportHeight)
+    // 맞춤 높이로 펼친 시트는 그 높이가 여정의 끝이다 — 스냅 판정도 같은 높이로 한다.
+    dragBoundsRef.current =
+      appliedFitHeight === null
+        ? bounds
+        : {
+            ...bounds,
+            expandedHeight: Math.max(
+              bounds.collapsedHeight,
+              Math.min(bounds.expandedHeight, appliedFitHeight),
+            ),
+          }
     lastPointerSampleRef.current = {
       y: event.clientY,
       time: event.timeStamp,
@@ -612,6 +720,7 @@ export default function RecommendMobileSheet({
     <Sheet
       ref={sheetRef}
       $dragDeltaY={isDraggingCurrentSnap ? dragVisualState.deltaY : 0}
+      $fitHeight={appliedFitHeight}
       $isDragging={isDraggingCurrentSnap}
       $snap={effectiveSnap}
       aria-label="상권 추천"
