@@ -20,6 +20,9 @@ import AnalysisMap, {
 } from '@/components/analysis/analysis-map'
 import { AnalysisMapShellProvider } from '@/components/analysis/analysis-map-shell-context'
 import AnalysisMobileSheet from '@/components/analysis/analysis-mobile-sheet'
+import AnalysisNameSearch, {
+  type NameSearchPickOutcome,
+} from '@/components/analysis/analysis-name-search'
 import { type PopularCommercialJump } from '@/components/analysis/popular-commercials-shortcut'
 import AnalysisSelectionPanel, {
   ANALYSIS_STEP_LABELS,
@@ -44,9 +47,19 @@ import {
   fetchAdministrations,
   fetchCommercialMapAreas,
   fetchCommercialProfile,
+  fetchCommercialRegion,
   fetchCommercials,
   fetchDistrictMapAreas,
 } from '@/lib/api/recommend'
+import { trackEvent } from '@/lib/analytics/events'
+import {
+  buildAreaNameEntries,
+  buildSearchSelection,
+  createPointProbeBounds,
+  resolvePlaceArea,
+  type NameSearchResult,
+  type SearchSelectionTarget,
+} from '@/lib/analysis/name-search'
 import { useNarrowViewport } from '@/hooks/use-narrow-viewport'
 import { useResolvedAnalysisPeriod } from '@/hooks/use-resolved-analysis-period'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
@@ -86,6 +99,7 @@ import {
   createBounds,
   findContainingArea,
   normalizeBoundary,
+  type MapPoint,
 } from '@/lib/map/geometry'
 import type { ApiResponse } from '@/types/api'
 import type { CommercialServiceCategory } from '@/types/commercial-analysis'
@@ -931,8 +945,16 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
    * (`resolveSelectionHistoryMode`, #562) — 뒤로가기가 분석 화면 밖이 아니라 이전 단계로 간다.
    * 카메라 갱신·정합성 정리는 이 함수를 쓰지 않고 항상 `replace` 다.
    */
+  /**
+   * 이름 검색 고르기의 차례 번호(#596). 검색 결과는 역조회·경계 조회를 기다린 뒤에 선택을 바꾸는데, 그
+   * 사이 사용자가 목록·지도·인기 상권으로 이미 다른 곳을 골랐을 수 있다. 선택을 바꾸는 모든 길이 번호를
+   * 올리고, 검색은 기다린 뒤 번호가 그대로일 때만 반영한다.
+   */
+  const pickSeqRef = useRef(0)
+
   const navigateSelection = useCallback(
     (step: AnalysisStep, next: AnalysisSelection) => {
+      pickSeqRef.current += 1
       const href = createAnalysisExplorerHref(next, camera)
       if (resolveSelectionHistoryMode(step) === 'push') router.push(href)
       else router.replace(href)
@@ -949,6 +971,9 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
           ? applyRememberedService(selected, rememberedService)
           : selected
       navigateSelection(step, next)
+      if (step !== 'service') {
+        trackEvent('analysis_step_select', { step, method: 'list' })
+      }
       if (step === 'service') {
         const name = serviceCandidates.find(item => item.code === code)?.name
         if (name) rememberLastAnalysisService({ code, name })
@@ -963,6 +988,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     if (mapLayer === 'district') {
       const next = selectAnalysisValue(selection, 'district', code)
       navigateSelection('district', next)
+      trackEvent('analysis_step_select', { step: 'district', method: 'map' })
       setRequestedStep('administration')
       setPreviewedCode(null)
       requestFit(code, ADMINISTRATION_ZOOM_LEVEL)
@@ -971,6 +997,10 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
     if (mapLayer === 'administration') {
       const next = selectAdministrationWithParent(selection, code)
       navigateSelection('administration', next)
+      trackEvent('analysis_step_select', {
+        step: 'administration',
+        method: 'map',
+      })
       setRequestedStep('commercial')
       setPreviewedCode(null)
       requestFit(code, COMMERCIAL_ZOOM_LEVEL)
@@ -996,6 +1026,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       'commercial',
       applyRememberedService(selected, rememberedService),
     )
+    trackEvent('analysis_step_select', { step: 'commercial', method: 'map' })
     setRequestedStep('service')
     setPreviewedCode(null)
     // 상권 선택 완료 → 다음은 업종 선택. 모바일 시트를 펼쳐 선택을 유도한다.
@@ -1033,6 +1064,10 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
         rememberedService,
       )
       navigateSelection('commercial', next)
+      trackEvent('analysis_step_select', {
+        step: 'commercial',
+        method: 'popular',
+      })
       setRequestedStep('service')
       setPreviewedCode(null)
 
@@ -1071,6 +1106,244 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       requestFitToCenter,
       selection,
     ],
+  )
+
+  /**
+   * 이름 검색 결과를 선택으로 확정한다(#596). 고른 깊이까지 상위 단계를 한 번에 채우고 URL 은
+   * `navigateSelection` 한 통로로 `push` 한다(D4-8). 상권이면 마지막 업종을 기본값으로 둔다.
+   */
+  const applySearchTarget = useCallback(
+    (target: SearchSelectionTarget, center: MapPoint | undefined) => {
+      const { step, next, nextStep } = buildSearchSelection(selection, target)
+      navigateSelection(
+        step,
+        step === 'commercial'
+          ? applyRememberedService(next, rememberedService)
+          : next,
+      )
+      trackEvent('analysis_step_select', { step, method: 'search' })
+      setRequestedStep(nextStep)
+      setPreviewedCode(null)
+
+      const level = PANEL_FIT_LEVEL_BY_STEP[step]
+      const code =
+        target.kind === 'district'
+          ? target.districtCode
+          : target.kind === 'administration'
+            ? target.administrationCode
+            : target.commercialCode
+      if (level !== null) {
+        if (center) requestFitToCenter(center, level)
+        else requestFit(code, level)
+      }
+      // 상권까지 정해졌으면 다음은 업종이다. 모바일 시트를 펼쳐 업종 목록을 보인다.
+      if (step === 'commercial') setSheetExpandSignal(signal => signal + 1)
+    },
+    [
+      navigateSelection,
+      rememberedService,
+      requestFit,
+      requestFitToCenter,
+      selection,
+    ],
+  )
+
+  /**
+   * 상권의 공식 소속 행정동. 목록이 소속을 모르는 상권(지도에서만 본 상권·장소 좌표로 찾은 상권)에서
+   * **고른 한 건만** 역조회한다. 실패하면 좌표로 찾은 행정동(`fallback`)을 쓴다 — 그 행정동의 상권
+   * 목록에 없으면 셸의 정합성 정리가 상권을 지우고 행정동까지만 남긴다.
+   */
+  const resolveCommercialAdministration = useCallback(
+    async (commercialCode: string, fallback: string | null) => {
+      try {
+        const response = await queryClient.fetchQuery({
+          queryKey: ['analysis', 'commercial-region', commercialCode],
+          queryFn: () => fetchCommercialRegion(commercialCode),
+          retry: retryUnlessClientError(1),
+        })
+        const administrationCode = isApiSuccess(response)
+          ? response?.dataBody?.administrationCode
+          : null
+        if (administrationCode) return String(administrationCode)
+      } catch {
+        // 역조회 실패는 좌표로 찾은 행정동으로 대신한다.
+      }
+      return fallback
+    },
+    [queryClient],
+  )
+
+  /*
+    TODO(BE #592): 이름 검색 API 가 생기면 장소 → 경계 매핑(아래 place 갈래)과 상권 역조회가 빠지고,
+    응답의 상위 코드로 `applySearchTarget` 만 부른다(explorer.md 「이름 검색」).
+  */
+  const handleNameSearchPick = useCallback(
+    async (result: NameSearchResult): Promise<NameSearchPickOutcome> => {
+      pickSeqRef.current += 1
+      const seq = pickSeqRef.current
+      /** 기다리는 사이 다른 선택(또는 다른 검색 결과)이 끼어들었으면 이 결과는 버린다. */
+      const superseded = () => pickSeqRef.current !== seq
+      const cancelled = { ok: false, cancelled: true } as const
+
+      if (result.kind === 'district') {
+        applySearchTarget(
+          { kind: 'district', districtCode: result.code },
+          undefined,
+        )
+        return { ok: true }
+      }
+      if (result.kind === 'administration') {
+        applySearchTarget(
+          { kind: 'administration', administrationCode: result.code },
+          result.center,
+        )
+        return { ok: true }
+      }
+      if (result.kind !== 'place') {
+        const administrationCode =
+          result.administrationCode ??
+          (await resolveCommercialAdministration(result.code, null))
+        if (superseded()) return cancelled
+        if (!administrationCode) {
+          return {
+            ok: false,
+            message: `「${result.name}」 상권이 속한 행정동을 찾지 못했습니다. 자치구부터 차례로 골라 주세요.`,
+          }
+        }
+        applySearchTarget(
+          {
+            kind: 'commercial',
+            commercialCode: result.code,
+            administrationCode,
+          },
+          result.center,
+        )
+        return { ok: true }
+      }
+
+      // 장소: 좌표를 품은 상권 → 없으면 행정동. 그 점 둘레의 경계만 받는다.
+      const probe = createPointProbeBounds(result.point)
+      const [commercialResponse, administrationResponse] =
+        await Promise.allSettled([
+          queryClient.fetchQuery({
+            queryKey: ['analysis', 'map', 'commercials', probe],
+            queryFn: () => fetchCommercialMapAreas(probe),
+            retry: retryUnlessClientError(1),
+          }),
+          queryClient.fetchQuery({
+            queryKey: ['analysis', 'map', 'administrations', probe],
+            queryFn: () => fetchAdministrationMapAreas(probe),
+            retry: retryUnlessClientError(1),
+          }),
+        ])
+      if (superseded()) return cancelled
+      if (
+        commercialResponse.status === 'rejected' &&
+        administrationResponse.status === 'rejected'
+      ) {
+        return {
+          ok: false,
+          message:
+            '고른 장소 주변의 상권 경계를 불러오지 못했습니다. 잠시 후 다시 골라 주세요.',
+        }
+      }
+      const match = resolvePlaceArea(result.point, {
+        commercialAreas:
+          commercialResponse.status === 'fulfilled'
+            ? unwrapMapAreas(commercialResponse.value)
+            : [],
+        administrationAreas:
+          administrationResponse.status === 'fulfilled'
+            ? unwrapMapAreas(administrationResponse.value)
+            : [],
+      })
+      if (!match) {
+        return {
+          ok: false,
+          message: `서울 상권·행정동 경계 안에서 「${result.name}」 위치를 찾지 못했습니다. 가까운 동 이름으로 다시 찾아 주세요.`,
+        }
+      }
+      if (match.kind === 'administration') {
+        applySearchTarget(
+          {
+            kind: 'administration',
+            administrationCode: match.administrationCode,
+          },
+          result.point,
+        )
+        return { ok: true }
+      }
+      const administrationCode = await resolveCommercialAdministration(
+        match.commercialCode,
+        match.fallbackAdministrationCode,
+      )
+      if (superseded()) return cancelled
+      if (!administrationCode) {
+        return {
+          ok: false,
+          message: `「${match.commercialName}」 상권이 속한 행정동을 찾지 못했습니다. 자치구부터 차례로 골라 주세요.`,
+        }
+      }
+      applySearchTarget(
+        {
+          kind: 'commercial',
+          commercialCode: match.commercialCode,
+          administrationCode,
+        },
+        result.point,
+      )
+      return { ok: true }
+    },
+    [applySearchTarget, queryClient, resolveCommercialAdministration],
+  )
+
+  /*
+    검색 색인: 화면이 이미 받아 둔 목록·지도 경계 이름만 쓴다(추가 요청 0회).
+    TODO(BE #592): 이름 검색 API 응답으로 바뀌면 이 색인이 빠진다.
+  */
+  const nameSearchEntries = useMemo(
+    () =>
+      buildAreaNameEntries({
+        districts: districtCandidates,
+        administrations: administrations.map(item => ({
+          code: String(item.administrationCode),
+          name: item.administrationName,
+          center:
+            Number.isFinite(item.centerLat) && Number.isFinite(item.centerLng)
+              ? { lat: item.centerLat, lng: item.centerLng }
+              : undefined,
+        })),
+        commercials: commercials.map(item => ({
+          code: String(item.commercialCode),
+          name: item.commercialName,
+          center:
+            Number.isFinite(item.centerLat) && Number.isFinite(item.centerLng)
+              ? { lat: item.centerLat, lng: item.centerLng }
+              : undefined,
+        })),
+        selectedDistrictCode: selection.districtCode,
+        selectedAdministrationCode: selection.administrationCode,
+        administrationAreas: allAdministrationAreas,
+        commercialAreas: allCommercialAreas,
+      }),
+    [
+      administrations,
+      allAdministrationAreas,
+      allCommercialAreas,
+      commercials,
+      districtCandidates,
+      selection.administrationCode,
+      selection.districtCode,
+    ],
+  )
+  const nameSearch = useMemo(
+    () => (
+      <AnalysisNameSearch
+        entries={nameSearchEntries}
+        onPick={handleNameSearchPick}
+      />
+    ),
+    [handleNameSearchPick, nameSearchEntries],
   )
 
   // 패널 재시도/제출 콜백 안정화. activeQuery는 매 렌더 새 객체라 latest-ref로 참조.
@@ -1125,6 +1398,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       onRetry={handlePanelRetry}
       onSubmit={handlePanelSubmit}
       onPopularCommercialJump={handlePopularCommercialJump}
+      nameSearch={nameSearch}
     />
   )
   // 모바일 시트 전용: 데스크탑 panel과 동일한 props를 참조 동일성 유지한 채
@@ -1144,6 +1418,7 @@ function AnalysisMapShellBody({ children }: { children: ReactNode }) {
       onRetry={handlePanelRetry}
       onSubmit={handlePanelSubmit}
       onPopularCommercialJump={handlePopularCommercialJump}
+      nameSearch={nameSearch}
       variant="sheet"
     />
   )

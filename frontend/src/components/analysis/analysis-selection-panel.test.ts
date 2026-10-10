@@ -457,3 +457,37 @@ describe('데스크톱 업종은 2열 선택지다 (#587)', () => {
     expect(markup).toContain('lucide-chevron-right')
   })
 })
+
+describe('1단계 이름 검색 칸 (#596)', () => {
+  const districtItems = Array.from({ length: 25 }, (_, index) => ({
+    code: String(11110 + index * 10),
+    name: `자치구${index + 1}`,
+  }))
+
+  it('이름 검색 칸이 있으면 자치구 목록의 검색 칸을 숨기고 그 칸을 맨 위에 둔다', () => {
+    const markup = renderPanel({
+      activeStep: 'district',
+      items: districtItems,
+      nameSearch: createElement('div', null, 'NAME_SEARCH'),
+    })
+    expect(markup).toContain('NAME_SEARCH')
+    expect(markup).not.toContain('placeholder="자치구 검색"')
+    expect(markup.indexOf('NAME_SEARCH')).toBeLessThan(
+      markup.indexOf('분석 조건 단계'),
+    )
+  })
+
+  it('이름 검색 칸이 없으면 자치구 목록의 검색 칸을 그대로 둔다', () => {
+    const markup = renderPanel({ activeStep: 'district', items: districtItems })
+    expect(markup).toContain('placeholder="자치구 검색"')
+  })
+
+  it('2단계부터는 이름 검색 칸을 두지 않는다', () => {
+    const markup = renderPanel({
+      activeStep: 'commercial',
+      items: districtItems,
+      nameSearch: createElement('div', null, 'NAME_SEARCH'),
+    })
+    expect(markup).not.toContain('NAME_SEARCH')
+  })
+})

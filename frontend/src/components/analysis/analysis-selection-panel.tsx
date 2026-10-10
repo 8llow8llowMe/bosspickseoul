@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useMemo } from 'react'
+import { memo, useMemo, type ReactNode } from 'react'
 import Link from 'next/link'
 import { RotateCcw } from 'lucide-react'
 import styled from 'styled-components'
@@ -76,6 +76,11 @@ export type AnalysisSelectionPanelProps = {
    * 렌더하는 테스트가 순위 API 를 부르지 않게 하려고 optional 로 뒀다.
    */
   onPopularCommercialJump?: (target: PopularCommercialJump) => void
+  /**
+   * 「상권·지하철역·동 이름으로 찾기」 칸(#596). 1단계에서 패널 맨 위(모바일 시트도 같은 자리)에
+   * 둔다. 셸이 만든 요소를 그대로 받는다 — 넘기지 않으면 칸이 없다.
+   */
+  nameSearch?: ReactNode
   variant?: 'panel' | 'sheet'
 }
 
@@ -130,6 +135,12 @@ const Title = styled.h1`
   font-weight: 700;
   line-height: 34px;
   word-break: keep-all;
+`
+
+/* 이름 검색 칸. 단계 탭보다 위, 패널 맨 위다 — 지도·4단계를 거치지 않는 첫 길이라서다. */
+const SearchSlot = styled.div`
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border-200);
 `
 
 const StepList = styled.ol`
@@ -317,6 +328,7 @@ function AnalysisSelectionPanel({
   onRetry,
   onSubmit,
   onPopularCommercialJump,
+  nameSearch,
   variant = 'panel',
 }: AnalysisSelectionPanelProps) {
   const selectedCode = selectionCodeByStep(selection, activeStep)
@@ -363,6 +375,10 @@ function AnalysisSelectionPanel({
         <Header>
           <Title>분석할 지역을 선택해 주세요</Title>
         </Header>
+      ) : null}
+
+      {activeStep === 'district' && nameSearch ? (
+        <SearchSlot>{nameSearch}</SearchSlot>
       ) : null}
 
       <StepList aria-label="분석 조건 단계">
@@ -479,6 +495,15 @@ function AnalysisSelectionPanel({
               activeStep === 'service' ? POPULAR_SERVICE_FALLBACK : undefined
             }
             searchPlaceholder={`${ANALYSIS_STEP_LABELS[activeStep]} 검색`}
+            /*
+              1단계에 이름 검색 칸이 있으면 자치구 목록의 검색 칸은 숨긴다(#596). 검색 칸 두 개가 위아래로
+              서면 어느 쪽에 입력할지 헷갈린다. 자치구 이름은 이름 검색 칸에서도 찾는다.
+            */
+            searchThreshold={
+              activeStep === 'district' && nameSearch
+                ? Number.POSITIVE_INFINITY
+                : undefined
+            }
             onPreviewChange={onPreviewChange}
             onSelect={onSelect}
           />
