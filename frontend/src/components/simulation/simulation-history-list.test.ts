@@ -93,24 +93,6 @@ describe('SimulationHistoryList', () => {
     ).not.toContain('disabled')
   })
 
-  it('여러 건이 함께 떠 있으면 그 카드들만 잠근다', () => {
-    // 잠금이 단일 값이면 먼저 끝난 삭제가 남의 잠금까지 풀어 버린다.
-    const html = render({
-      histories: [
-        item({ historyId: '1' }),
-        item({ historyId: '2', districtName: '마포구' }),
-        item({ historyId: '3', districtName: '용산구' }),
-      ],
-      deletingHistoryIds: ['1', '3'],
-    })
-    const openTag = (label: string) =>
-      (html.match(/<button[^>]*>/g) ?? []).find(tag => tag.includes(label))
-
-    expect(openTag('강동구')).toContain('aria-busy="true"')
-    expect(openTag('용산구')).toContain('aria-busy="true"')
-    expect(openTag('마포구')).not.toContain('aria-busy')
-  })
-
   it('카드마다 삭제 버튼을 두고 어느 이력인지 라벨로 밝힌다', () => {
     // 카드가 여러 장이면 "삭제"라는 글자만으로는 무엇을 지우는지 알 수 없다.
     const html = render()
@@ -121,20 +103,22 @@ describe('SimulationHistoryList', () => {
     )
   })
 
-  it('삭제 중인 항목의 버튼만 잠근다', () => {
-    // 한 건을 지우는 동안 다른 카드의 삭제까지 잠기면 목록 전체가 멈춘 것처럼 보인다.
+  it('삭제 버튼은 잠그지 않는다 — 지연 삭제라 요청이 화면 밖에서 진행된다', () => {
     const html = render({
       histories: [
         item({ historyId: '1' }),
         item({ historyId: '2', districtName: '마포구' }),
       ],
-      deletingHistoryIds: ['2'],
     })
-    const openTag = (label: string) =>
-      (html.match(/<button[^>]*>/g) ?? []).find(tag => tag.includes(label))
+    const deleteTags = (html.match(/<button[^>]*>/g) ?? []).filter(tag =>
+      tag.includes('저장 기록 삭제'),
+    )
 
-    expect(openTag('마포구')).toContain('aria-busy="true"')
-    expect(openTag('강동구')).not.toContain('aria-busy')
+    expect(deleteTags).toHaveLength(2)
+    for (const tag of deleteTags) {
+      expect(tag).not.toContain('aria-busy')
+      expect(tag).not.toContain('disabled')
+    }
   })
 
   it('한 페이지뿐이면 페이지 이동을 그리지 않는다', () => {
