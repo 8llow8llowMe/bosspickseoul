@@ -180,6 +180,41 @@ const DesktopAuthLink = styled(ActionLink)`
 `
 
 /*
+ * 모바일·태블릿(≤960) 게스트의 로그인 입구(#601). 예전에는 로그인·회원가입이 모두 햄버거 뒤에 있어
+ * 게스트가 입구를 찾아야 했다. 「로그인」 한 개만 햄버거 옆에 꺼낸다 — 회원가입은 로그인 화면과 패널이
+ * 잇는다. 넓은 폭에서는 데스크톱 버튼(DesktopAuthLink)이 같은 일을 해서 숨긴다.
+ * 테두리 없는 글자 버튼이다 — 햄버거(테두리 상자)와 나란히 서도 버튼 두 개가 겨루지 않는다.
+ * 터치 영역은 44px 이다(DESIGN.md §8).
+ */
+const MobileLoginLink = styled(Link)`
+  display: none;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  /* 좌우 6px — 320px 폭에서 [로고 167][로그인][햄버거 44] 가 한 줄에 들어야 한다(실측 283 ≤ 288). 10px 이면
+     291px 로 넘쳐 로그인·햄버거가 둘째 줄로 내려갔다. 글자 폭(약 36px)+여백이라 44px 하한은 그대로 지킨다. */
+  padding: 0 6px;
+  border-radius: var(--radius-control);
+  color: var(--color-text-700);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+
+  @media (max-width: 960px) {
+    display: inline-flex;
+  }
+
+  &:hover {
+    background: var(--color-primary-100);
+    color: var(--color-text-primary-on-light);
+  }
+`
+
+/*
  * 세션 확인 전 자리(#579). 로그인 여부를 모르는 동안 「로그인·회원가입」도 아바타도 그리지 않는다 —
  * 회원에게 새로고침마다 비로그인 버튼이 깜빡였다. 대신 비로그인 버튼 두 개와 **같은 상자**
  * (높이·여백·글자 폭)를 회색 면으로 잡아 둔다. 대부분인 비로그인 방문자는 확인이 끝나도 폭이 그대로다.
@@ -324,10 +359,11 @@ const DropdownItem = styled.button`
   }
 `
 
+// 터치 영역 44px(DESIGN.md §8, #601). 예전 40×40 은 기준에 못 미쳤다.
 const MobileToggle = styled.button`
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-control);
   background: var(--color-surface);
@@ -610,6 +646,19 @@ export default function SiteHeader() {
           ))}
         </Nav>
         <Actions>
+          {/* 세션 확인이 끝난 게스트에게만 — 확인 전에는 비워 둔다(#579). 회원은 패널 안 계정 영역이다. */}
+          {hasHydrated && !(isLoggedIn && memberInfo) ? (
+            <MobileLoginLink
+              href="/login"
+              data-mobile-login=""
+              onClick={() => {
+                setIsMobileOpen(false)
+                setIsDropdownOpen(false)
+              }}
+            >
+              로그인
+            </MobileLoginLink>
+          ) : null}
           <MobileToggle
             aria-expanded={isMobileOpen}
             aria-label={isMobileOpen ? '메뉴 닫기' : '메뉴 열기'}
