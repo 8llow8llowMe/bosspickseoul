@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Scale } from 'lucide-react'
+import { ArrowLeft, Link2, MapPinned, Scale } from 'lucide-react'
 import styled from 'styled-components'
 
 import SimulationErrorNotice from '@/components/simulation/simulation-error-notice'
@@ -12,8 +12,14 @@ import SimulationReportView from '@/components/simulation/report/simulation-repo
 import SimulationSaveButton, {
   SimulationSaveFeedback,
 } from '@/components/simulation/report/simulation-save-button'
-import { ButtonLink } from '@/components/ui/button'
+import { Button, ButtonLink } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui'
+import { useToast } from '@/components/ui/toast'
+import { createRecommendHrefFromCodes } from '@/lib/recommend/recommend-url'
+import {
+  deliverShareUrl,
+  REPORT_LINK_MESSAGES,
+} from '@/lib/share/share-delivery'
 import { Skeleton } from '@/components/ui/skeleton'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { createSimulationReport } from '@/lib/api/simulation'
@@ -142,6 +148,16 @@ const Head = styled.header`
   }
 `
 
+/*
+  리포트 밖으로 나가는 보조 행동(#566 · #573). 요약 열의 버튼 묶음은 ≤1023 에서 숨고 하단 바는
+  저장·비교만 담으므로, 모든 폭에서 보이는 머리줄에 둔다. 셋 다 ghost — 주 행동(저장)과 무게를 나눈다.
+*/
+const HeadActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+`
+
 /**
  * 상세 리포트 화면. **조건의 정본은 쿼리스트링**이다.
  *
@@ -158,6 +174,7 @@ export default function SimulationReportPage({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { showToast } = useToast()
   // 조건 상태를 먼저 복원하고 거기서 요청을 뽑는다. 상태를 따로 들고 있어야
   // 되돌아가기 링크가 **미완성 조건까지** 실어 보낼 수 있다(요청은 미완성이면 null 이다).
   const conditionState = useMemo(
@@ -227,19 +244,64 @@ export default function SimulationReportPage({
   const report = error ? null : getResponseBody(query.data)
   const isLoading = !report && (query.isPending || query.isFetching)
   const currentHref = `${pathname}?${searchParams}`
+  // 리포트 조건은 자치구·업종까지다. 행정동은 추천 화면에서 고른다.
+  const recommendHref = createRecommendHrefFromCodes({
+    districtCode: request.districtCode,
+    serviceCode: request.serviceCode,
+  })
+
+  /**
+   * 「링크 복사」(#573). 리포트는 URL 이 조건의 정본이라(위 `useQuery` 주석) 지금 주소가 곧 공유 링크다
+   * — V2 공유 코드를 따로 발급하지 않는다(백엔드 `ShareTargetType` 에 시뮬레이션이 없다, share.md S0).
+   */
+  const handleCopyLink = async () => {
+    try {
+      const result = await deliverShareUrl({
+        url: window.location.href,
+        title: '창업 시뮬레이션 리포트',
+      })
+      if (result === 'aborted') return
+      showToast({
+        message: REPORT_LINK_MESSAGES[result],
+        dedupeKey: 'simulation-report-link',
+      })
+    } catch {
+      showToast({
+        message: REPORT_LINK_MESSAGES.failed,
+        tone: 'error',
+        dedupeKey: 'simulation-report-link',
+      })
+    }
+  }
 
   return (
     <Page>
       <Container>
         <Head>
           <h1>창업 시뮬레이션 리포트</h1>
-          <ButtonLink
-            variant="ghost"
-            href={builderHref}
-            leftIcon={<ArrowLeft />}
-          >
-            조건 다시 고르기
-          </ButtonLink>
+          <HeadActions>
+            <ButtonLink
+              variant="ghost"
+              href={builderHref}
+              leftIcon={<ArrowLeft />}
+            >
+              조건 다시 고르기
+            </ButtonLink>
+            <Button
+              variant="ghost"
+              leftIcon={<Link2 />}
+              onClick={() => void handleCopyLink()}
+            >
+              링크 복사
+            </Button>
+            <ButtonLink
+              variant="ghost"
+              href={recommendHref}
+              leftIcon={<MapPinned />}
+            >
+              이 구에서 상권 추천받기
+            </ButtonLink>
+          </HeadActions>
         </Head>
 
         {/*

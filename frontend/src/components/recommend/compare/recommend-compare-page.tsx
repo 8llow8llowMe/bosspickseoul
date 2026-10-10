@@ -3,16 +3,29 @@
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { PenLine, RotateCcw } from 'lucide-react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Calculator, PenLine, RotateCcw, Share2 } from 'lucide-react'
 import styled from 'styled-components'
 
 import { Button, ButtonLink } from '@/components/ui/button'
 import EmptyState from '@/components/ui/empty-state'
+import { useToast } from '@/components/ui/toast'
 import { findSimulationCategoryByCode } from '@/data/simulation-catalog'
 import { isRetryable, resolveApiError } from '@/lib/api/api-error'
 import { fetchCommercialComparison } from '@/lib/api/commercial-comparison'
-import { isApiSuccess } from '@/lib/api/response'
+import { createShareLink, createShareUrl } from '@/lib/api/share'
+import { classifyShareLinkError } from '@/lib/api/share-errors'
+import {
+  getApiMessage,
+  getResponseBody,
+  isApiSuccess,
+} from '@/lib/api/response'
+import { buildCommercialComparisonPayload } from '@/lib/share/payload'
+import {
+  deliverShareUrl,
+  SHARE_LINK_READY_MESSAGE,
+} from '@/lib/share/share-delivery'
+import { createSimulationHrefFromCodes } from '@/lib/simulation/report-route'
 import {
   COMPARE_MAX_COMMERCIALS,
   COMPARE_MIN_COMMERCIALS,
@@ -131,6 +144,61 @@ export default function RecommendComparePage() {
    */
   const returnTo = `/recommend/compare?${searchParams.toString()}`
 
+  const { showToast } = useToast()
+  /*
+   * 공유(#573). 받는 쪽 `ROUTE_BUILDERS.COMMERCIAL_COMPARISON` 이 같은 payload 를 `createCompareHref`
+   * 로 되돌린다 — 빌더와 복원기가 한 쌍이라 여기서 키를 손으로 적지 않는다(payload.ts).
+   * 조건이 불완전하면 null 이고 버튼이 아예 없다(아래 렌더는 isComplete 일 때만 닿는다).
+   */
+  const sharePayload = useMemo(
+    () =>
+      buildCommercialComparisonPayload({
+        districtCode: state.districtCode,
+        administrationCode: state.administrationCode,
+        serviceCode: state.serviceCode,
+        commercialCodes: state.commercialCodes,
+      }),
+    [state],
+  )
+  const shareMutation = useMutation({ mutationFn: createShareLink })
+
+  /** 분석 결과 화면의 공유(`analysis-result-view.tsx` `handleShare`)와 같은 흐름·같은 문구다. */
+  const handleShare = async () => {
+    if (!sharePayload) return
+    try {
+      const response = await shareMutation.mutateAsync({
+        shareType: 'COMMERCIAL_COMPARISON',
+        payload: sharePayload,
+      })
+      if (!isApiSuccess(response)) {
+        throw new Error(
+          getApiMessage(response, '공유 링크를 발급하지 못했어요.'),
+        )
+      }
+      const shareCode = getResponseBody(response)?.shareCode
+      if (!shareCode) throw new Error('공유 링크를 발급하지 못했어요.')
+
+      const result = await deliverShareUrl({
+        url: createShareUrl(shareCode, window.location.origin),
+        title: '상권 비교 결과',
+      })
+      if (result === 'aborted') return
+      showToast({ message: SHARE_LINK_READY_MESSAGE, dedupeKey: 'share' })
+    } catch (shareError) {
+      showToast({
+        message: classifyShareLinkError(shareError).message,
+        tone: 'error',
+        dedupeKey: 'share',
+      })
+    }
+  }
+
+  // 비교 → 창업 비용 계산(#566). 두 상권이 같은 행정동이라 자치구·업종도 하나다.
+  const simulationHref = createSimulationHrefFromCodes({
+    districtCode: state.districtCode,
+    serviceCode: state.serviceCode,
+  })
+
   const comparisonQuery = useQuery({
     queryKey: recommendComparisonKey({
       leftCommercialCode,
@@ -238,6 +306,25 @@ export default function RecommendComparePage() {
             >
               이 비교로 글쓰기
             </ButtonLink>
+          ) : null}
+          <ButtonLink
+            href={simulationHref}
+            size="medium"
+            variant="secondary"
+            leftIcon={<Calculator />}
+          >
+            창업 비용 계산
+          </ButtonLink>
+          {sharePayload ? (
+            <Button
+              size="medium"
+              variant="secondary"
+              leftIcon={<Share2 />}
+              isLoading={shareMutation.isPending}
+              onClick={() => void handleShare()}
+            >
+              공유
+            </Button>
           ) : null}
         </Actions>
       </Header>
