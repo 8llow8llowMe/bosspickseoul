@@ -115,15 +115,16 @@ PLAYWRIGHT_BASE_URL=http://localhost:5197 pnpm test:e2e
 빌드는 x86_64 에이전트에서 도커 이미지 없이 돌아 Chromium 과 시스템 의존성이 없어서, Jenkins 대신 Actions
 러너에 붙였다.
 
-| 슈트                                | CI   | 이유                                                                                                                                                                                                |
-| ----------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `e2e/community/*`                   | 돈다 | BFF·`/api/auth/me` 를 `e2e/fixtures/community.ts` 가 받는다(아래 3절)                                                                                                                               |
-| `e2e/auth/*`                        | 돈다 | `/api/bff/*`·`/api/auth/login`·`/api/auth/me` 를 스펙 안 `routeAuthApi` 가 받는다. 가로채지 못한 BFF 호출은 501 + `unhandled` 로 실패한다. 카카오 SDK 를 띄우지 않는다(버튼 배치·색만 본다)         |
-| `e2e/layout/*`                      | 돈다 | 없는 주소 404 화면과 기능 루트 redirect(응답만, `request.get` 으로 최종 주소를 본다 — 목록 화면을 그리지 않는다)를 본다. 세션 쿠키가 없으면 `/api/auth/me` 는 백엔드에 가지 않는다                  |
-| `e2e/home/invariants.spec.ts`       | 돈다 | 가로 넘침·h1 하나·링크 허용 목록·콘솔 오류 0·**합니다체 0**·첫 페인트 BFF 호출 ≤3. 첫 페인트 세 호출은 `e2e/fixtures/home.ts` 가 받는다. 서버 종류·데이터 값과 무관한 단언만 둔다                   |
-| `e2e/home/home-metrics.spec.ts`     | 로컬 | 래칫. 기준선이 dev 서버 + 실응답으로 잰 수치(문서 높이·sticky 비중·첫 CTA 위치·대비·글자 크기·터치 타깃)라 프로덕션 빌드·고정 응답에서는 어긋난다. 문체·BFF 호출 수는 위 불변식이 CI 에서 같이 본다 |
-| `e2e/home/hero.spec.ts`             | 로컬 | 데스크톱 호버 툴팁은 `GET /districts/{code}` 실응답, 값 다섯 단계 칠은 `districts/rankings` 실응답에 기댄다. 피커·탭 동작은 백엔드 없이도 돌지만 파일 단위로 로컬에 둔다                            |
-| `e2e/home/ranking-mini-map.spec.ts` | 로컬 | 지표 순위가 실응답이다(조회 순위만 고정). 백엔드가 없으면 섹션이 dual 로 그려지지 않는다                                                                                                            |
+| 슈트                                | CI   | 이유                                                                                                                                                                                                                                                                                          |
+| ----------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/community/*`                   | 돈다 | BFF·`/api/auth/me` 를 `e2e/fixtures/community.ts` 가 받는다(아래 3절)                                                                                                                                                                                                                         |
+| `e2e/auth/*`                        | 돈다 | `/api/bff/*`·`/api/auth/login`·`/api/auth/me` 를 스펙 안 `routeAuthApi` 가 받는다. 가로채지 못한 BFF 호출은 501 + `unhandled` 로 실패한다. 카카오 SDK 를 띄우지 않는다(버튼 배치·색만 본다)                                                                                                   |
+| `e2e/layout/*`                      | 돈다 | 없는 주소 404 화면과 기능 루트 redirect(응답만, `request.get` 으로 최종 주소를 본다 — 목록 화면을 그리지 않는다)를 본다. 세션 쿠키가 없으면 `/api/auth/me` 는 백엔드에 가지 않는다                                                                                                            |
+| `e2e/home/invariants.spec.ts`       | 돈다 | 가로 넘침·h1 하나·링크 허용 목록·콘솔 오류 0·**합니다체 0**·첫 페인트 BFF 호출 ≤3. 첫 페인트 세 호출은 `e2e/fixtures/home.ts` 가 받는다. 서버 종류·데이터 값과 무관한 단언만 둔다                                                                                                             |
+| `e2e/analysis/*`                    | 돈다 | 상권분석 모바일 시트 첫 화면 자리(#648) — 지름길이 목록 스크롤 안인지, 자치구 카드 줄 수(390·440 ≥2, 375 는 칩 줄 온전 + 카드 비침), 2단계 목록 필터 고정·탭 줄 ≤56. BFF 는 `e2e/fixtures/analysis.ts` 가 받고 가로채지 못한 호출은 501 + `unhandled` 로 실패한다. mobile 프로젝트에서만 돈다 |
+| `e2e/home/home-metrics.spec.ts`     | 로컬 | 래칫. 기준선이 dev 서버 + 실응답으로 잰 수치(문서 높이·sticky 비중·첫 CTA 위치·대비·글자 크기·터치 타깃)라 프로덕션 빌드·고정 응답에서는 어긋난다. 문체·BFF 호출 수는 위 불변식이 CI 에서 같이 본다                                                                                           |
+| `e2e/home/hero.spec.ts`             | 로컬 | 데스크톱 호버 툴팁은 `GET /districts/{code}` 실응답, 값 다섯 단계 칠은 `districts/rankings` 실응답에 기댄다. 피커·탭 동작은 백엔드 없이도 돌지만 파일 단위로 로컬에 둔다                                                                                                                      |
+| `e2e/home/ranking-mini-map.spec.ts` | 로컬 | 지표 순위가 실응답이다(조회 순위만 고정). 백엔드가 없으면 섹션이 dual 로 그려지지 않는다                                                                                                                                                                                                      |
 
 `e2e/home` 디렉터리를 통째로 넣지 않는 이유: 위 로컬 전용 셋은 CI 에서 결정적으로 돌지 않는다(백엔드가 없으면
 500 → 콘솔 오류·폴백 화면). **슈트를 더할 때는 `frontend-ci.yml` 의 실행 줄에 경로를 더한다.** 백엔드 없이 도는지는
@@ -132,10 +133,10 @@ PLAYWRIGHT_BASE_URL=http://localhost:5197 pnpm test:e2e
 - 언제: `frontend/` 코드를 바꾼 PR 과 develop push. 문서만 바뀐 PR 과 프론트와 무관한 PR 은 잡이 skipped 로
   끝난다(`verify` 와 같은 판정, `scripts/classify-frontend-changes.sh`).
 - 어떻게: 자리표시자 env 로 `pnpm build` → `pnpm start -p 5173` → 응답을 기다린 뒤
-  `PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts --fail-on-flaky-tests`.
+  `PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts e2e/analysis --fail-on-flaky-tests`.
   백엔드는 없다. BFF 는 위 표의 고정 응답이 받는다.
 - 실행 시간(로컬 M 시리즈, 프로덕션 빌드, 백엔드 없음, 2026-10-10 develop `a2ef930f` 기준 실측): 커뮤니티만
-  46건(32 통과·14 스킵) 약 15~19초 → 지금 72건(57 통과·15 스킵) 약 25초. 잡 시간은 빌드·브라우저 설치가 대부분이라 `timeout-minutes: 25` 로 충분하다.
+  46건(32 통과·14 스킵) 약 15~19초 → 72건(57 통과·15 스킵) 약 25초 → `e2e/analysis` 를 더한 지금(2026-10-10, #648) 82건(63 통과·19 스킵) 약 48초. 잡 시간은 빌드·브라우저 설치가 대부분이라 `timeout-minutes: 25` 로 충분하다.
 - **`verify` 와 함께 develop 의 필수 체크로 지정한다**(develop branch protection, 저장소 소유자가 적용).
   관찰 기간(`continue-on-error`)은 끝났다. 이 잡이 깨지면 머지가 막힌다. 예외로 두던 「빨간불이어도 머지」
   규칙도 없어졌다.
@@ -154,7 +155,7 @@ PLAYWRIGHT_BASE_URL=http://localhost:5197 pnpm test:e2e
 
 ```bash
 # dev 서버(5173)
-pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts
+pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts e2e/analysis
 
 # CI 와 같은 조건 — 프로덕션 빌드 + 자리표시자 env, .env.local 없이(백엔드에 닿지 않는지 함께 본다).
 # dev 서버를 먼저 끈다(빌드가 .next 를 다시 쓴다). 5173 이 차 있으면 다른 포트를 쓴다.
@@ -166,7 +167,7 @@ pnpm start -p 5173 &
 # 서버가 응답하기 전에 테스트를 시작하면 webServer 가 dev 서버를 띄워 프로덕션 빌드가 아닌 것을 잰다
 until curl -sf http://localhost:5173/ >/dev/null; do sleep 1; done
 CI=1 PLAYWRIGHT_BASE_URL=http://localhost:5173 \
-  pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts --fail-on-flaky-tests
+  pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts e2e/analysis --fail-on-flaky-tests
 ```
 
 `.env.local` 이 있으면 `next build` 가 그 값을 읽는다. CI 조건을 재려면 잠시 옮겨 두고 빌드한다.
@@ -183,6 +184,7 @@ CI=1 PLAYWRIGHT_BASE_URL=http://localhost:5173 \
 | `e2e/home/hero.spec.ts`             | 히어로 호버 툴팁, 모바일 첫 화면 스크린샷            |
 | `e2e/fixtures/analysis-rankings.ts` | `/api/bff/analysis-rankings` 고정 응답               |
 | `e2e/fixtures/home.ts`              | 불변식용 첫 페인트 BFF 세 호출 고정 응답             |
+| `e2e/fixtures/analysis.ts`          | 상권분석 시트 측정용 BFF 고정 응답(#648)             |
 | `e2e/baselines/home.<project>.json` | 프로젝트(desktop·mobile)별 기준선                    |
 
 - **랭킹만 고정한다.** 「지금 많이 본 지역」은 집계 결과에 따라 dual/솔로/섹션 제거로
