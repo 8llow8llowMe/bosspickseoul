@@ -5,12 +5,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
-  Archive,
   ArrowUpRight,
   Bookmark,
-  Check,
-  ExternalLink,
+  BookmarkCheck,
+  Lock,
   Share2,
+  Sparkles,
   X,
 } from 'lucide-react'
 import styled, { css } from 'styled-components'
@@ -26,6 +26,13 @@ import {
 } from 'lucide-react'
 
 import AnalysisResultSection from '@/components/analysis/analysis-result-section'
+import AnalysisSaveSheet from '@/components/analysis/analysis-save-sheet'
+import {
+  buildAnalysisSaveOptions,
+  resolveAnalysisSaveAction,
+  type AnalysisSaveOptionKey,
+} from '@/lib/analysis/save-options'
+import TermHelp from '@/components/analysis/term-help'
 import ExpenseProvenanceNote from '@/components/analysis/expense-provenance-note'
 import AnalysisSummaryCards, {
   type SummaryCard,
@@ -73,6 +80,11 @@ import {
   deleteAnalysisBookmark,
 } from '@/lib/api/analysis-bookmark'
 import { createShareLink, createShareUrl } from '@/lib/api/share'
+import {
+  deliverShareUrl,
+  SHARE_LINK_READY_MESSAGE,
+} from '@/lib/share/share-delivery'
+import { ANALYSIS_TREND_POLARITY } from '@/lib/metrics/metric-polarity'
 import { classifyShareLinkError } from '@/lib/api/share-errors'
 import {
   buildCommercialAnalysisPayload,
@@ -96,6 +108,8 @@ import {
   splitPeerStoreRows,
   toPeerStoreChangeRows,
   toPeerStoreRows,
+  ANALYSIS_TERM_DEFINITIONS,
+  describeSalesPerStoreIndexTerm,
 } from '@/lib/analysis/presentation'
 import {
   createRows,
@@ -139,6 +153,7 @@ import {
   type MapCamera,
 } from '@/lib/analysis/map-camera'
 import {
+  createAiReportHref,
   createAnalysisExplorerHref,
   createAnalysisResultHref,
   isCompleteAnalysisSelection,
@@ -666,9 +681,11 @@ const ChartStack = styled.div`
   gap: 20px;
 `
 
+/*
+  선택 업종만 말한다. 다음 행동 버튼은 핵심 지표 아래로 내렸다(#563) — 첫 화면에 숫자가 먼저 보이고,
+  버튼은 숫자를 읽은 뒤에 고르는 자리에 둔다.
+*/
 const ContextHero = styled.section`
-  /* 액션 버튼 세 칸이 아이콘을 둘 수 있는지 이 폭으로 정한다(ActionRow). */
-  container: context-hero / inline-size;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -703,11 +720,13 @@ const ContextCopy = styled.div`
 `
 
 /**
- * 데스크톱은 한 줄 [시뮬레이션][공유][화면 보관][상권 저장]. 히어로가 1열이 되는 ≤760px 은
- * 시뮬레이션(primary)이 한 줄을 다 쓰고 나머지 셋이 그 아래 한 줄 세 칸이다. 2×2 로 흘리던 때는
- * 오른쪽 칸이 비고 primary 가 셋째 줄 끝에 있었다(#482).
+ * 핵심 지표 바로 아래의 다음 행동(#563). 데스크톱은 한 줄 [창업 비용 계산][공유][저장].
+ * ≤760px 은 주 버튼이 한 줄을 다 쓰고 공유·저장이 그 아래 두 칸이다.
  *
- * DOM 도 시뮬레이션이 먼저다 — `order` 로 자리만 바꾸면 키보드 순서와 보이는 순서가 갈린다.
+ * 저장은 하나다(결정 D-2) — 누르면 시트에서 「이 분석 화면」과 「관심 상권」을 고른다. 예전에는
+ * 「화면 보관」·「상권 저장」 두 버튼이었고 차이가 `title` 툴팁에만 있었다.
+ *
+ * DOM 도 주 버튼이 먼저다 — `order` 로 자리만 바꾸면 키보드 순서와 보이는 순서가 갈린다.
  */
 const ActionRow = styled.div`
   display: flex;
@@ -722,7 +741,7 @@ const ActionRow = styled.div`
 
   @media (max-width: 760px) {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 
     && button {
       width: 100%;
@@ -735,17 +754,23 @@ const ActionRow = styled.div`
       grid-column: 1 / -1;
     }
   }
+`
 
-  /*
-    320px 뷰포트(또는 375px 확대)면 칸이 약 81px 인데 아이콘 + 「화면 보관」은 약 92px 라
-    옆 칸과 겹친다. 그 폭에서는 아이콘을 빼고 글자만 남긴다 — 상태(「보관됨」·「저장됨」)는
-    글자가 말한다. 시뮬레이션은 한 줄을 다 쓰므로 아이콘을 둔다.
-  */
-  @container context-hero (max-width: 339px) {
-    /* 아이콘 칸(IconSlot)째 뺀다 — svg 만 숨기면 빈 칸과 gap 이 남아 글자가 한쪽으로 밀린다. */
-    && button:not(:first-child) span[aria-hidden='true'] {
-      display: none;
-    }
+/** 비로그인에게 자물쇠 표시가 무슨 뜻인지 글자로 말한다 — 아이콘만으로는 알 수 없다. */
+const GuestNote = styled.p`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--color-text-caption-on-band);
+  font-size: 13px;
+  line-height: 20px;
+  word-break: keep-all;
+
+  svg {
+    flex: none;
+    width: 14px;
+    height: 14px;
   }
 `
 
@@ -891,6 +916,14 @@ const IndexItem = styled.div`
     font-variant-numeric: tabular-nums;
     word-break: keep-all;
   }
+`
+
+/** 지수 라벨 + 용어 도움말(#564). 정의 줄은 `flex-basis: 100%` 로 다음 줄을 쓴다. */
+const IndexLabel = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
 `
 
 /** 비교 타일 안 값 아래 보조 줄(점포 수 · 월 매출 총액). 좁은 폭의 2열 배치에서도 한 줄을 다 쓴다. */
@@ -1091,6 +1124,8 @@ export default function AnalysisResultView({
       ? archived.bookmarkId
       : null
   const isArchived = archived?.payloadKey === sharePayloadKey
+  /** 「저장」 시트(#563, D-2). 저장·해제는 시트 안에서 하고, 시트는 사용자가 닫을 때만 닫힌다. */
+  const [saveSheetOpen, setSaveSheetOpen] = useState(false)
 
   const spyId = useScrollSpy(REPORT_SECTION_IDS)
   const spyTab = normalizeAnalysisTab(spyId.replace('report-', ''))
@@ -1712,30 +1747,47 @@ export default function AnalysisResultView({
         shareCode,
         typeof window === 'undefined' ? null : window.location.origin,
       )
-      if (typeof navigator.share === 'function') {
-        await navigator.share({
-          title: `${profile?.commercialName ?? '상권'} 분석 결과`,
-          url: shareUrl,
-        })
-      } else {
-        await navigator.clipboard.writeText(shareUrl)
-      }
-      notify('share', '공유 링크를 준비했어요. 링크는 90일간 열 수 있어요.')
+      // 공유 시트 → 복사 폴백 규칙은 추천 비교·시뮬레이션 리포트와 같은 함수가 정한다(share.md D3).
+      const delivered = await deliverShareUrl({
+        title: `${profile?.commercialName ?? '상권'} 분석 결과`,
+        url: shareUrl,
+      })
+      // 사용자가 공유 시트를 닫은 것은 실패가 아니다.
+      if (delivered === 'aborted') return
+      notify('share', SHARE_LINK_READY_MESSAGE)
     } catch (error) {
-      // 사용자가 공유 시트를 닫은 것(AbortError)은 실패가 아니다.
-      if (error instanceof Error && error.name === 'AbortError') return
       notify('share', classifyShareLinkError(error).message, 'error')
     }
   }
 
   const handleBookmark = () => {
-    if (!hasHydrated) return
+    if (!hasHydrated || bookmarkMutation.isPending) return
     if (!isLoggedIn) {
       router.push(getCommercialBookmarkLoginHref(currentHref))
       return
     }
     bookmarkMutation.mutate()
   }
+
+  /** 저장 시트의 두 항목. 분석 화면 = 분석 북마크(보관함), 관심 상권 = 회원 북마크(상권). */
+  const handleSaveToggle = (key: AnalysisSaveOptionKey) => {
+    if (resolveAnalysisSaveAction(key) === 'archive') {
+      handleArchive()
+      return
+    }
+    handleBookmark()
+  }
+  const isGuest = hasHydrated && !isLoggedIn
+  const hasAnySaved = isArchived || Boolean(bookmark)
+  const saveBusy = archiveMutation.isPending || bookmarkMutation.isPending
+  const saveOptions = buildAnalysisSaveOptions({
+    archived: isArchived,
+    archivePending: archiveMutation.isPending,
+    canArchive: Boolean(sharePayload),
+    commercialSaved: Boolean(bookmark),
+    bookmarkPending: bookmarkMutation.isPending,
+    profilePending: profileQuery.isPending,
+  })
 
   /*
     요약 카드의 **비교 맥락**. 전부 이 탭이 이미 받아 둔 응답에서 나온다 — 새 호출은
@@ -1842,6 +1894,7 @@ export default function AnalysisResultView({
       value: monthlySalesPerStore,
       unit: '원',
       icon: Banknote,
+      definition: ANALYSIS_TERM_DEFINITIONS.salesPerStore,
       emptyText: describeSalesPerStoreEmpty(storeCount, monthlySales),
       context: totalSalesCaption === null ? null : { text: totalSalesCaption },
     },
@@ -1850,6 +1903,7 @@ export default function AnalysisResultView({
       value: totalFootTraffic,
       unit: '명',
       icon: Footprints,
+      definition: ANALYSIS_TERM_DEFINITIONS.footTraffic,
       context:
         footTrafficPerResident === null
           ? null
@@ -1868,6 +1922,7 @@ export default function AnalysisResultView({
       value: storeCount,
       unit: '개',
       icon: Store,
+      definition: ANALYSIS_TERM_DEFINITIONS.storeCount,
       context: null,
     },
     {
@@ -1875,6 +1930,7 @@ export default function AnalysisResultView({
       value: residentPopulation,
       unit: '명',
       icon: Users,
+      definition: ANALYSIS_TERM_DEFINITIONS.residentPopulation,
       context: residentGenderContext,
     },
   ]
@@ -2058,66 +2114,7 @@ export default function AnalysisResultView({
               <p>선택 업종</p>
               <h2>{serviceName}</h2>
             </ContextCopy>
-            <ActionRow>
-              <Button
-                size="medium"
-                rightIcon={<ExternalLink />}
-                onClick={() =>
-                  // V2 계약은 코드로 받는다. 예전에는 `gugun`(자치구 *이름*)과 빈
-                  // `serviceCodeName` 을 보내는 V1 형태였는데, `districtCode` 가 없어
-                  // 시뮬레이션 쪽 컨텍스트 카드가 자치구를 복원하지 못했다.
-                  router.push(
-                    `/analysis/simulation?${new URLSearchParams({
-                      districtCode,
-                      administrationCode,
-                      commercialCode,
-                      serviceCode,
-                    })}`,
-                  )
-                }
-              >
-                시뮬레이션
-              </Button>
-              <Button
-                size="medium"
-                variant="secondary"
-                leftIcon={<Share2 />}
-                isLoading={shareMutation.isPending}
-                disabled={!sharePayload}
-                onClick={() => void handleShare()}
-              >
-                공유
-              </Button>
-              <Button
-                size="medium"
-                variant="secondary"
-                leftIcon={isArchived ? <Check /> : <Archive />}
-                isLoading={archiveMutation.isPending}
-                disabled={!hasHydrated || !sharePayload}
-                onClick={handleArchive}
-                title="업종·기간 조건까지 포함한 지금 화면을 보관함에 저장합니다"
-              >
-                {isArchived ? '보관됨' : '화면 보관'}
-              </Button>
-              <Button
-                size="medium"
-                variant="secondary"
-                leftIcon={bookmark ? <Check /> : <Bookmark />}
-                isLoading={bookmarkMutation.isPending}
-                disabled={!hasHydrated || profileQuery.isPending}
-                onClick={handleBookmark}
-                title="상권 자체를 지역 북마크에 저장합니다"
-              >
-                {bookmark ? '저장됨' : '상권 저장'}
-              </Button>
-            </ActionRow>
           </ContextHero>
-
-          {/* 이건 토스트로 옮기지 않는다. 동작의 결과가 아니라 **목록 조회 실패**라
-              상태가 지속되는 동안 계속 보여야 한다 — 자동으로 사라지면 안 된다. */}
-          {bookmarksQuery.errorMessage ? (
-            <Feedback>{bookmarksQuery.errorMessage}</Feedback>
-          ) : null}
 
           <ReportSection
             id={createReportSectionId('summary')}
@@ -2152,6 +2149,82 @@ export default function AnalysisResultView({
               </FullSpanItem>
 
               {/*
+                다음 행동(#563). 핵심 지표 **아래**다 — 첫 화면에 숫자가 먼저 보이고, 버튼은 숫자를
+                읽은 뒤에 고른다. 주 버튼은 무엇을 하는지 말한다(「이 상권 창업 비용 계산하기」).
+                같은 탭 이동이라 외부 링크 아이콘을 달지 않는다.
+              */}
+              <FullSpanItem>
+                <ActionRow>
+                  <Button
+                    size="medium"
+                    onClick={() =>
+                      // V2 계약은 코드로 받는다. 예전에는 `gugun`(자치구 *이름*)과 빈
+                      // `serviceCodeName` 을 보내는 V1 형태였는데, `districtCode` 가 없어
+                      // 시뮬레이션 쪽 컨텍스트 카드가 자치구를 복원하지 못했다.
+                      router.push(
+                        `/analysis/simulation?${new URLSearchParams({
+                          districtCode,
+                          administrationCode,
+                          commercialCode,
+                          serviceCode,
+                        })}`,
+                      )
+                    }
+                  >
+                    이 상권 창업 비용 계산하기
+                  </Button>
+                  <Button
+                    size="medium"
+                    variant="secondary"
+                    leftIcon={<Share2 />}
+                    isLoading={shareMutation.isPending}
+                    disabled={!sharePayload}
+                    onClick={() => void handleShare()}
+                  >
+                    공유
+                  </Button>
+                  <Button
+                    size="medium"
+                    variant="secondary"
+                    leftIcon={
+                      isGuest ? (
+                        <Lock />
+                      ) : hasAnySaved ? (
+                        <BookmarkCheck />
+                      ) : (
+                        <Bookmark />
+                      )
+                    }
+                    aria-haspopup="dialog"
+                    aria-expanded={saveSheetOpen}
+                    aria-busy={saveBusy || undefined}
+                    disabled={!hasHydrated}
+                    onClick={() => setSaveSheetOpen(true)}
+                  >
+                    저장
+                  </Button>
+                </ActionRow>
+                {isGuest ? (
+                  <GuestNote>
+                    <Lock aria-hidden="true" />
+                    자물쇠가 붙은 저장과 AI 해석은 로그인한 뒤 쓸 수 있어요.
+                  </GuestNote>
+                ) : null}
+                {/* 이건 토스트로 옮기지 않는다. 동작의 결과가 아니라 **목록 조회 실패**라
+                    상태가 지속되는 동안 계속 보여야 한다 — 자동으로 사라지면 안 된다. */}
+                {bookmarksQuery.errorMessage ? (
+                  <Feedback>{bookmarksQuery.errorMessage}</Feedback>
+                ) : null}
+                <AnalysisSaveSheet
+                  open={saveSheetOpen}
+                  requiresLogin={isGuest}
+                  onClose={() => setSaveSheetOpen(false)}
+                  onToggle={handleSaveToggle}
+                  options={saveOptions}
+                />
+              </FullSpanItem>
+
+              {/*
                 지원 정책은 **새 호출 없이** 그린다 — 이미 도는 `profileQuery` 의
                 `policyRecommendations` 를 읽는다. 백엔드가 진작 내려주고 있었는데
                 타입에 없어서 버리고 있던 값이다.
@@ -2179,6 +2252,25 @@ export default function AnalysisResultView({
                 </AnalysisResultSection>
               </FullSpanItem>
             </DashboardGrid>
+            {/*
+              요약 끝의 AI 해석 진입(#563). 결과 화면에서 AI 리포트로 가는 길이 없었다. 숫자를 다 읽은
+              자리에 둔다. 비로그인이면 리포트 화면이 잠금 안내를 보여 주므로 자물쇠로 미리 알린다.
+            */}
+            <RecommendHandoff>
+              <RecommendHandoffNote>
+                AI가 이 상권의 숫자를 문장으로 풀어 강점과 주의할 점을 정리해
+                줘요.
+              </RecommendHandoffNote>
+              <RecommendHandoffLink
+                data-analysis-ai-report-link="true"
+                href={createAiReportHref(selection)}
+              >
+                {isGuest ? <Lock aria-hidden /> : <Sparkles aria-hidden />}
+                {isGuest
+                  ? '로그인하고 이 상권 AI 해석 보기'
+                  : '이 상권 AI 해석 보기'}
+              </RecommendHandoffLink>
+            </RecommendHandoff>
           </ReportSection>
 
           <ReportSection
@@ -2765,6 +2857,12 @@ export default function AnalysisResultView({
                     label,
                     subject,
                     unit,
+                    // 증감은 좋고 나쁨으로 칠한다(D-1). 점포 수는 극성이 중립이라 무채색이다.
+                    polarity: ANALYSIS_TREND_POLARITY[metric],
+                    definition:
+                      metric === 'STORE'
+                        ? ANALYSIS_TERM_DEFINITIONS.generalStoreCount
+                        : undefined,
                     points: toTrendPoints(data),
                     error: resolveApiError(query),
                     onRetry: () => void query.refetch(),
@@ -2807,7 +2905,15 @@ export default function AnalysisResultView({
                         <IndexGrid>
                           {benchmarkSales.indices.map(index => (
                             <IndexItem key={index.scope}>
-                              <span>{index.baseName} 대비 지수</span>
+                              <IndexLabel>
+                                <span>{index.baseName} 대비 지수</span>
+                                <TermHelp
+                                  label={`${index.baseName} 대비 지수`}
+                                  definition={describeSalesPerStoreIndexTerm(
+                                    index.baseName,
+                                  )}
+                                />
+                              </IndexLabel>
                               <strong>
                                 {formatSalesPerStoreIndex(index.value)}
                               </strong>
