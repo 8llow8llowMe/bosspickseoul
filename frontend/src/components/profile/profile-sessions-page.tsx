@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { LogOut } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
@@ -9,6 +9,7 @@ import {
   CardGrid,
   ContentCard,
   CardTitle,
+  DangerGhostButton,
   EmptyState,
   MetaItem,
   MetaList,
@@ -18,8 +19,8 @@ import {
   SectionStack,
   SectionTitle,
 } from '@/components/profile/profile-ui'
+import { useUndoableRemoval } from '@/components/profile/use-undoable-removal'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { normalizeApiError } from '@/lib/api/api-error'
 import { fetchAuthSessions, revokeAuthSession } from '@/lib/api/auth-session'
 import {
@@ -27,6 +28,10 @@ import {
   getResponseBody,
   isApiSuccess,
 } from '@/lib/api/response'
+import {
+  excludeHiddenItems,
+  requestRemoval,
+} from '@/lib/profile/removal-request'
 import {
   CURRENT_SESSION_NOTICE,
   canRevokeSession,
@@ -59,11 +64,9 @@ const CardActions = styled.div`
 export function ProfileSessionCards({
   sessions,
   onRevoke,
-  busySessionId,
 }: {
   sessions: readonly AuthSessionItem[]
-  onRevoke: (sessionId: string) => void
-  busySessionId?: string | null
+  onRevoke: (session: AuthSessionItem) => void
 }) {
   return (
     <CardGrid>
@@ -92,14 +95,13 @@ export function ProfileSessionCards({
 
             {revocable ? (
               <CardActions>
-                <Button
-                  size="tiny"
-                  variant="secondary"
-                  isLoading={busySessionId === session.sessionId}
-                  onClick={() => onRevoke(session.sessionId)}
+                <DangerGhostButton
+                  aria-label={`${describeDeviceLabel(session.deviceInfo)} 로그인 해제`}
+                  leftIcon={<LogOut />}
+                  onClick={() => onRevoke(session)}
                 >
                   해제
-                </Button>
+                </DangerGhostButton>
               </CardActions>
             ) : (
               <SectionNotice $tone="info">
@@ -113,13 +115,14 @@ export function ProfileSessionCards({
   )
 }
 
+/**
+ * 로그인 기기 목록과 해제.
+ *
+ * 해제도 다른 보관함 삭제와 같은 「숨기고 → 10초 되돌리기 → 그 뒤에 요청」이다(#574). 다른 기기를 잘못 해제하면
+ * 그 기기에서 다시 로그인해야 하는데, 되돌리기 시간 동안은 요청을 보내지 않으므로 그 수고가 없다.
+ */
 export default function ProfileSessionsPage() {
   const queryClient = useQueryClient()
-  const [feedback, setFeedback] = useState<{
-    error: boolean
-    message: string
-  } | null>(null)
-  const [busySessionId, setBusySessionId] = useState<string | null>(null)
 
   const query = useQuery({
     queryKey: [AUTH_SESSIONS_QUERY_KEY],
@@ -129,33 +132,30 @@ export default function ProfileSessionsPage() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: [AUTH_SESSIONS_QUERY_KEY] })
 
-  const revokeMutation = useMutation({
-    mutationFn: (sessionId: string) => revokeAuthSession(sessionId),
-    onSuccess: async response => {
-      if (!isApiSuccess(response)) {
-        setFeedback({
-          error: true,
-          message: getApiMessage(response, '기기를 해제하지 못했어요.'),
-        })
-        return
+  const removal = useUndoableRemoval({
+    scope: 'profile-session-revoke',
+    commit: async sessionId => {
+      try {
+        await requestRemoval(
+          () => revokeAuthSession(sessionId),
+          '기기를 해제하지 못했어요.',
+        )
+      } finally {
+        /*
+         * 해제는 멱등이지만, 목록을 띄워 둔 사이 다른 기기가 로그아웃하면 행 자체가 사라진다. 실패든 아니든
+         * 목록을 다시 받아 화면과 서버를 맞춘다 — 안 하면 이미 없는 행에 계속 해제를 누르게 된다.
+         */
+        await invalidate()
       }
-      setFeedback({ error: false, message: '기기를 해제했어요.' })
-      await invalidate()
     },
-    /*
-     * 해제는 멱등이라 404 가 오지 않는 게 정상이지만, 목록을 띄워 둔 사이 다른 기기가
-     * 로그아웃하면 행 자체가 사라진다. 실패든 아니든 목록을 다시 받아 화면과 서버를
-     * 맞춘다 — 안 하면 이미 없는 행에 계속 해제를 누르게 된다.
-     */
-    onError: async error => {
-      await invalidate()
-      setFeedback({ error: true, message: normalizeApiError(error).message })
-    },
-    onSettled: () => setBusySessionId(null),
   })
 
   const body = getResponseBody(query.data)
-  const sessions = body?.sessions ?? []
+  const sessions = excludeHiddenItems(
+    body?.sessions ?? [],
+    removal.hiddenKeys,
+    session => session.sessionId,
+  )
 
   if (query.isPending) {
     return (
@@ -182,15 +182,6 @@ export default function ProfileSessionsPage() {
         </SectionBody>
       </SectionPanel>
 
-      {feedback ? (
-        <SectionNotice
-          $tone={feedback.error ? 'error' : 'success'}
-          role="status"
-        >
-          {feedback.message}
-        </SectionNotice>
-      ) : null}
-
       {sessions.length === 0 ? (
         <EmptyState>
           표시할 기기가 없어요. 로그인 상태라면 잠시 후 다시 열어 보세요.
@@ -198,10 +189,14 @@ export default function ProfileSessionsPage() {
       ) : (
         <ProfileSessionCards
           sessions={sessions}
-          busySessionId={busySessionId}
-          onRevoke={sessionId => {
-            setBusySessionId(sessionId)
-            revokeMutation.mutate(sessionId)
+          onRevoke={session => {
+            const label = describeDeviceLabel(session.deviceInfo)
+            removal.remove(session.sessionId, {
+              removed: `${label} 기기의 로그인을 해제했어요.`,
+              restored: `${label} 기기의 로그인을 해제하지 못해 다시 보여 드려요.`,
+              failed: `${label} 기기의 로그인을 해제하지 못했어요.`,
+              alreadyDone: `${label} 기기는 이미 해제됐어요.`,
+            })
           }}
         />
       )}

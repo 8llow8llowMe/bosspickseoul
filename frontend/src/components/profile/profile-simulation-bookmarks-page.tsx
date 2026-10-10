@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   SectionBody,
@@ -10,22 +10,19 @@ import {
   SectionStack,
   SectionTitle,
 } from '@/components/profile/profile-ui'
+import { useUndoableRemoval } from '@/components/profile/use-undoable-removal'
 import SimulationHistoryList from '@/components/simulation/simulation-history-list'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  normalizeApiError,
-  resolveApiError,
-  retryUnlessClientError,
-} from '@/lib/api/api-error'
+import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import {
   deleteSimulationHistory,
   fetchSimulationHistories,
 } from '@/lib/api/simulation'
+import { getResponseBody } from '@/lib/api/response'
 import {
-  getApiMessage,
-  getResponseBody,
-  isApiSuccess,
-} from '@/lib/api/response'
+  excludeHiddenItems,
+  requestRemoval,
+} from '@/lib/profile/removal-request'
 import { describeSimulationHistoryCondition } from '@/lib/simulation/history-presentation'
 import {
   SIMULATION_HISTORY_QUERY_SCOPE,
@@ -45,6 +42,7 @@ const PAGE_SIZE = 10
  * 따로 `totalPages`를 볼 필요가 없다.
  *
  * 이 함수는 "한 번에 한 건"을 가정한다. 그 가정이 깨지는 경로는 `resolveClampedPage`가 받는다.
+ * 지연 삭제(#574)에서는 실제 DELETE 가 나가는 순간의 서버 항목 수를 `visibleCount` 로 넣는다.
  */
 export const resolvePageAfterDelete = ({
   page,
@@ -75,31 +73,6 @@ export const resolveClampedPage = ({
 }): number => Math.min(page, Math.max(0, totalPages - 1))
 
 /**
- * 삭제 실패를 화면 문구와 후속 동작으로 환산한다.
- *
- * `404 SIMULATION_006`은 미존재와 타인 항목을 구분하지 않는다(타인 이력의 존재 여부를
- * 노출하지 않기 위함). 재시도해도 같은 404이므로 **재시도를 권하지 않고**, 이미 없어진
- * 항목으로 안내한 뒤 목록만 다시 부른다.
- */
-export const resolveHistoryDeleteFailure = (
-  error: unknown,
-): { alreadyGone: boolean; message: string } => {
-  const normalized = normalizeApiError(error)
-
-  if (normalized.kind === 'not-found') {
-    return {
-      alreadyGone: true,
-      message: '이미 삭제된 기록이에요. 목록을 다시 불러왔어요.',
-    }
-  }
-
-  return { alreadyGone: false, message: normalized.message }
-}
-
-/** 뮤테이션 변수. `label`은 안내 문구에만 쓴다 — 요청 본문에는 들어가지 않는다. */
-type DeleteVariables = { historyId: string; label: string }
-
-/**
  * 저장한 시뮬레이션 결과 목록.
  *
  * 인증 처리를 여기서 하지 않는다 — `profile-shell.tsx`가 이미 비로그인 사용자를 `/login`으로
@@ -108,18 +81,13 @@ type DeleteVariables = { historyId: string; label: string }
  * 페이지 번호를 URL에 담지 않은 이유: 이 목록은 프로필 탭 안의 보조 화면이라 특정 페이지를
  * 링크로 공유할 상황이 없다. (리포트는 반대로 조건이 URL 정본이다 — 거기선 공유·새로고침이
  * 실제로 일어난다.)
+ *
+ * 삭제는 다른 보관함과 같은 「숨기고 → 10초 되돌리기 → 그 뒤에 DELETE」다(#574, `use-undoable-removal`).
+ * 404(다른 기기에서 먼저 지운 기록)는 바란 상태와 같으므로 성공으로 본다(`requestRemoval`).
  */
 export default function ProfileSimulationBookmarksPage() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(0)
-  const [feedback, setFeedback] = useState<{
-    error: boolean
-    message: string
-  } | null>(null)
-  /** 떠 있는 삭제 요청들. 단일 값으로 두면 먼저 끝난 쪽이 남의 잠금까지 풀어 버린다. */
-  const [deletingHistoryIds, setDeletingHistoryIds] = useState<
-    readonly string[]
-  >([])
 
   const query = useQuery({
     queryKey: simulationHistoriesQueryKey(page, PAGE_SIZE),
@@ -129,7 +97,13 @@ export default function ProfileSimulationBookmarksPage() {
 
   const error = resolveApiError({ error: query.error, data: query.data })
   const body = error ? null : getResponseBody(query.data)
-  const histories = body?.histories ?? []
+  const serverHistories = body?.histories ?? []
+
+  /** 지연 삭제가 실제로 나갈 때 읽을 「지금 이 페이지의 서버 항목 수」. 10초 사이에 페이지가 바뀌었을 수 있다. */
+  const serverCountRef = useRef(0)
+  useEffect(() => {
+    serverCountRef.current = serverHistories.length
+  })
 
   // 조회가 성공했을 때만 가둔다. 로딩 중에는 `body`가 없어 0페이지로 튕겨 버린다.
   const clampedPage = body
@@ -148,39 +122,30 @@ export default function ProfileSimulationBookmarksPage() {
       queryKey: [SIMULATION_HISTORY_QUERY_SCOPE],
     })
 
-  const deleteMutation = useMutation({
+  const removal = useUndoableRemoval({
+    scope: 'profile-simulation-history-delete',
     // ⚠️ 문자열. 경로 세그먼트라 숫자로 바꿀 이유가 없고, 바꾸면 큰 값에서 손상된다.
-    mutationFn: ({ historyId }: DeleteVariables) =>
-      deleteSimulationHistory(historyId),
-    onSuccess: async (response, { label }) => {
-      if (!isApiSuccess(response)) {
-        setFeedback({
-          error: true,
-          message: getApiMessage(response, '삭제하지 못했어요.'),
-        })
-        return
-      }
-
+    commit: async historyId => {
+      await requestRemoval(
+        () => deleteSimulationHistory(historyId),
+        '저장한 기록을 삭제하지 못했어요.',
+      )
       // 지운 항목이 이 페이지의 마지막이었다면 빈 페이지가 남는다.
       setPage(current =>
         resolvePageAfterDelete({
           page: current,
-          visibleCount: histories.length,
+          visibleCount: serverCountRef.current,
         }),
       )
-      // 대상을 문구에 넣는다. 같은 문장이 반복되면 `role="status"`가 두 번째를 알리지 않는다.
-      setFeedback({ error: false, message: `${label} 기록을 삭제했어요.` })
-      // 잠금은 재조회가 끝난 뒤에 풀린다(`onSettled`). 사라질 행을 다시 누를 수 없다.
       await invalidate()
     },
-    onError: async unknownError => {
-      const failure = resolveHistoryDeleteFailure(unknownError)
-      if (failure.alreadyGone) await invalidate()
-      setFeedback({ error: true, message: failure.message })
-    },
-    onSettled: (_data, _error, { historyId }) =>
-      setDeletingHistoryIds(ids => ids.filter(id => id !== historyId)),
   })
+
+  const histories = excludeHiddenItems(
+    serverHistories,
+    removal.hiddenKeys,
+    history => history.historyId,
+  )
 
   return (
     <SectionStack>
@@ -191,15 +156,6 @@ export default function ProfileSimulationBookmarksPage() {
           금액이며, 리포트를 열면 지금 기준으로 다시 계산합니다.
         </SectionBody>
       </SectionPanel>
-
-      {feedback ? (
-        <SectionNotice
-          $tone={feedback.error ? 'error' : 'success'}
-          role="status"
-        >
-          {feedback.message}
-        </SectionNotice>
-      ) : null}
 
       {query.isPending ? (
         <SectionStack aria-label="저장 목록 불러오는 중" role="status">
@@ -212,23 +168,20 @@ export default function ProfileSimulationBookmarksPage() {
         </SectionNotice>
       ) : (
         <SimulationHistoryList
-          histories={histories}
+          histories={[...histories]}
           page={body?.page ?? page}
           totalPages={body?.totalPages ?? 0}
-          onPageChange={nextPage => {
-            setFeedback(null)
-            setPage(nextPage)
-          }}
-          deletingHistoryIds={deletingHistoryIds}
+          onPageChange={setPage}
           onDelete={historyId => {
             const history = histories.find(item => item.historyId === historyId)
             if (!history) return
 
-            setFeedback(null)
-            setDeletingHistoryIds(ids => [...ids, historyId])
-            deleteMutation.mutate({
-              historyId,
-              label: describeSimulationHistoryCondition(history),
+            const condition = describeSimulationHistoryCondition(history)
+            removal.remove(historyId, {
+              removed: `${condition} 기록을 삭제했어요.`,
+              restored: `${condition} 기록을 삭제하지 못해 다시 보여 드려요.`,
+              failed: `${condition} 기록을 삭제하지 못했어요.`,
+              alreadyDone: `${condition} 기록은 이미 삭제됐어요.`,
             })
           }}
         />

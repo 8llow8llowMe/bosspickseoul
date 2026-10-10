@@ -1,16 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowRight, BookmarkMinus, Trash2 } from 'lucide-react'
 import styled from 'styled-components'
 
 import {
   CardEyebrow,
   CardGrid,
+  CardHeaderRow,
+  CardOverlayAction,
+  CardStretchedLink,
   CardText,
   CardTitle,
   ContentCard,
+  DangerGhostButton,
   EmptyState,
   MetaItem,
   MetaList,
@@ -20,8 +25,9 @@ import {
   SectionTitle,
   SectionBody,
 } from '@/components/profile/profile-ui'
-import { Button } from '@/components/ui/button'
-import { TabButton, TabList } from '@/components/ui/tabs'
+import { useUndoableRemoval } from '@/components/profile/use-undoable-removal'
+import { Button, ButtonLink } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { TextField } from '@/components/ui/text-field'
 import { useMemberBookmarks } from '@/hooks/use-member-bookmarks'
 import {
@@ -35,6 +41,20 @@ import {
   getResponseBody,
   isApiSuccess,
 } from '@/lib/api/response'
+import { removeMemberBookmark } from '@/lib/api/user'
+import {
+  type AnalysisBookmarkTab,
+  BOOKMARK_TAB_PARAM,
+  createAnalysisBookmarkTabHref,
+  createRegionBookmarkHref,
+  describeRegionBookmarkParent,
+  parseAnalysisBookmarkTab,
+} from '@/lib/profile/bookmark-links'
+import {
+  excludeHiddenItems,
+  requestRemoval,
+} from '@/lib/profile/removal-request'
+import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { SHARE_TYPE_LABELS, type ShareType } from '@/lib/share/payload'
 import {
   buildShareRoute,
@@ -68,18 +88,40 @@ const targetLabels: Record<ProfileRegionBookmarkItem['targetType'], string> = {
 
 export function ProfileRegionBookmarkCards({
   bookmarks,
+  onRemove,
 }: {
   bookmarks: readonly ProfileRegionBookmarkItem[]
+  onRemove: (bookmark: ProfileRegionBookmarkItem) => void
 }) {
   return (
     <CardGrid>
       {bookmarks.map(bookmark => (
         <ContentCard key={bookmark.bookmarkId}>
-          <CardEyebrow>{targetLabels[bookmark.targetType]}</CardEyebrow>
-          <CardTitle>{bookmark.targetName}</CardTitle>
-          <CardText>지역 코드 {bookmark.targetCode}</CardText>
+          <CardHeaderRow>
+            <div>
+              <CardEyebrow>{targetLabels[bookmark.targetType]}</CardEyebrow>
+              <CardTitle>
+                <CardStretchedLink
+                  href={createRegionBookmarkHref(bookmark)}
+                  aria-label={`${bookmark.targetName} 상권 분석 열기`}
+                >
+                  {bookmark.targetName}
+                </CardStretchedLink>
+              </CardTitle>
+            </div>
+            <CardOverlayAction>
+              <DangerGhostButton
+                aria-label={`${bookmark.targetName} 북마크 해제`}
+                leftIcon={<BookmarkMinus />}
+                onClick={() => onRemove(bookmark)}
+              >
+                해제
+              </DangerGhostButton>
+            </CardOverlayAction>
+          </CardHeaderRow>
+          <CardText>{describeRegionBookmarkParent(bookmark)}</CardText>
           <MetaList>
-            <MetaItem>{formatDateTime(bookmark.createdAt)}</MetaItem>
+            <MetaItem>저장 {formatDateTime(bookmark.createdAt)}</MetaItem>
           </MetaList>
         </ContentCard>
       ))}
@@ -142,8 +184,14 @@ const ArchiveCardHeader = styled.div`
 const ArchiveActions = styled.div`
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-top: 12px;
+`
+
+/* 삭제는 「화면 열기·이름 수정」과 떨어뜨려 오른쪽 끝에 둔다 — 8px 옆에 붙어 있으면 잘못 누른다(#574). */
+const ArchiveDangerSlot = styled.div`
+  margin-left: auto;
 `
 
 const RenameRow = styled.div`
@@ -168,7 +216,7 @@ export function ProfileAnalysisArchiveCards({
   items: readonly AnalysisBookmark[]
   onOpen: (item: AnalysisBookmark) => void
   onRename: (bookmarkId: string, bookmarkName: string | null) => void
-  onDelete: (bookmarkId: string) => void
+  onDelete: (item: AnalysisBookmark) => void
   busyBookmarkId?: string | null
 }) {
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(
@@ -253,14 +301,15 @@ export function ProfileAnalysisArchiveCards({
                 >
                   이름 수정
                 </Button>
-                <Button
-                  size="tiny"
-                  variant="secondary"
-                  isLoading={busy}
-                  onClick={() => onDelete(item.bookmarkId)}
-                >
-                  삭제
-                </Button>
+                <ArchiveDangerSlot>
+                  <DangerGhostButton
+                    aria-label={`${getArchiveItemTitle(item)} 보관 삭제`}
+                    leftIcon={<Trash2 />}
+                    onClick={() => onDelete(item)}
+                  >
+                    삭제
+                  </DangerGhostButton>
+                </ArchiveDangerSlot>
               </ArchiveActions>
             )}
 
@@ -279,11 +328,8 @@ export function ProfileAnalysisArchiveCards({
 function ProfileAnalysisArchiveTab() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { showToast } = useToast()
   const [shareType, setShareType] = useState<ShareType | null>(null)
-  const [feedback, setFeedback] = useState<{
-    error: boolean
-    message: string
-  } | null>(null)
   const [busyBookmarkId, setBusyBookmarkId] = useState<string | null>(null)
 
   const query = useQuery({
@@ -296,6 +342,10 @@ function ProfileAnalysisArchiveTab() {
       queryKey: [ANALYSIS_BOOKMARKS_QUERY_KEY],
     })
 
+  /*
+    결과 문구는 토스트로 낸다(#574). 예전에는 목록 위 안내 줄이라, 아래쪽 카드를 지우거나 고치면 화면 밖에서
+    떠서 보이지 않았다.
+  */
   const renameMutation = useMutation({
     mutationFn: ({
       bookmarkId,
@@ -307,44 +357,37 @@ function ProfileAnalysisArchiveTab() {
     }) => updateAnalysisBookmarkName(bookmarkId, bookmarkName),
     onSuccess: async response => {
       if (!isApiSuccess(response)) {
-        setFeedback({
-          error: true,
+        showToast({
           message: getApiMessage(response, '이름을 수정하지 못했어요.'),
+          tone: 'error',
         })
         return
       }
-      setFeedback({ error: false, message: '이름을 수정했어요.' })
+      showToast({ message: '보관한 화면의 이름을 수정했어요.' })
       await invalidate()
     },
     onError: error =>
-      setFeedback({ error: true, message: normalizeApiError(error).message }),
+      showToast({ message: normalizeApiError(error).message, tone: 'error' }),
     onSettled: () => setBusyBookmarkId(null),
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: (bookmarkId: string) => deleteAnalysisBookmark(bookmarkId),
-    onSuccess: async response => {
-      if (!isApiSuccess(response)) {
-        setFeedback({
-          error: true,
-          message: getApiMessage(response, '삭제하지 못했어요.'),
-        })
-        return
-      }
-      setFeedback({ error: false, message: '보관 항목을 삭제했어요.' })
+  const removal = useUndoableRemoval({
+    scope: 'profile-archive-delete',
+    commit: async bookmarkId => {
+      await requestRemoval(
+        () => deleteAnalysisBookmark(bookmarkId),
+        '보관한 화면을 삭제하지 못했어요.',
+      )
       await invalidate()
     },
-    onError: async error => {
-      const normalized = normalizeApiError(error)
-      // 404: 이미 없어진 항목이다. 재시도 대신 목록을 새로고침한다.
-      if (normalized.kind === 'not-found') await invalidate()
-      setFeedback({ error: true, message: normalized.message })
-    },
-    onSettled: () => setBusyBookmarkId(null),
   })
 
   const body = getResponseBody(query.data)
-  const items = body?.bookmarks ?? []
+  const items = excludeHiddenItems(
+    body?.bookmarks ?? [],
+    removal.hiddenKeys,
+    item => item.bookmarkId,
+  )
 
   if (query.isPending) {
     return (
@@ -385,19 +428,18 @@ function ProfileAnalysisArchiveTab() {
         ))}
       </FilterRow>
 
-      {feedback ? (
-        <SectionNotice
-          $tone={feedback.error ? 'error' : 'success'}
-          role="status"
-        >
-          {feedback.message}
-        </SectionNotice>
-      ) : null}
-
       {items.length === 0 ? (
         <EmptyState>
-          아직 보관한 분석 화면이 없어요. 분석 결과 화면의 &lsquo;화면
-          보관&rsquo; 버튼으로 저장할 수 있어요.
+          아직 보관한 분석 화면이 없어요. 상권 분석 결과 화면에서 &lsquo;화면
+          보관&rsquo; 버튼을 누르면 조건까지 이곳에 저장돼요.
+          <ButtonLink
+            href="/analysis"
+            size="medium"
+            variant="secondary"
+            rightIcon={<ArrowRight />}
+          >
+            상권 분석하러 가기
+          </ButtonLink>
         </EmptyState>
       ) : (
         <ProfileAnalysisArchiveCards
@@ -412,9 +454,14 @@ function ProfileAnalysisArchiveTab() {
             setBusyBookmarkId(bookmarkId)
             renameMutation.mutate({ bookmarkId, bookmarkName })
           }}
-          onDelete={bookmarkId => {
-            setBusyBookmarkId(bookmarkId)
-            deleteMutation.mutate(bookmarkId)
+          onDelete={item => {
+            const title = getArchiveItemTitle(item)
+            removal.remove(item.bookmarkId, {
+              removed: `「${title}」 보관을 삭제했어요.`,
+              restored: `「${title}」 보관을 삭제하지 못해 다시 보여 드려요.`,
+              failed: `「${title}」 보관을 삭제하지 못했어요.`,
+              alreadyDone: `「${title}」 보관은 이미 삭제됐어요.`,
+            })
           }}
         />
       )}
@@ -426,12 +473,73 @@ function ProfileAnalysisArchiveTab() {
  * 페이지 — 두 개념을 탭으로 분리한다
  * ------------------------------------------------------------------------- */
 
-type AnalysisBookmarkTab = 'region' | 'archive'
+/*
+  안쪽 선택은 바깥 탭(지역·화면 / 상권 / 시뮬레이션, 밑줄 탭)과 위계를 나누려고 알약형 세그먼트로 그린다(#606).
+  같은 밑줄 탭이 두 줄이면 어느 쪽이 위인지 읽히지 않았다. 생김새는 구별 현황 지표 세그먼트(status-metric-tabs)와
+  같다 — 회색 바탕 위 선택 칸만 흰 바탕으로 떠오른다.
+*/
+const SegmentList = styled.div`
+  display: inline-grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  justify-self: start;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+
+  @media (max-width: 640px) {
+    justify-self: stretch;
+  }
+`
+
+const SegmentButton = styled.button<{ $selected: boolean }>`
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: ${props =>
+    props.$selected ? 'var(--color-surface)' : 'transparent'};
+  box-shadow: ${props => (props.$selected ? 'var(--shadow-level-1)' : 'none')};
+  color: ${props =>
+    props.$selected ? 'var(--color-text-900)' : 'var(--color-text-700)'};
+  font-size: 14px;
+  font-weight: ${props => (props.$selected ? 700 : 600)};
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+`
+
+const ANALYSIS_BOOKMARK_TABS: readonly {
+  value: AnalysisBookmarkTab
+  label: string
+}[] = [
+  { value: 'region', label: '지역 북마크' },
+  { value: 'archive', label: '화면 보관함' },
+]
 
 function ProfileRegionBookmarkTab() {
+  const queryClient = useQueryClient()
   const memberId = useAuthStore(auth => auth.memberInfo?.memberId ?? null)
   const query = useMemberBookmarks(memberId, true)
-  const bookmarks = createProfileRegionBookmarkView(query.bookmarks)
+  const removal = useUndoableRemoval({
+    scope: 'profile-region-bookmark-remove',
+    commit: async bookmarkId => {
+      await requestRemoval(
+        () => removeMemberBookmark(bookmarkId),
+        '북마크를 해제하지 못했어요.',
+      )
+      if (memberId) await invalidateMemberBookmarksQuery(queryClient, memberId)
+    },
+  })
+  const bookmarks = excludeHiddenItems(
+    createProfileRegionBookmarkView(query.bookmarks),
+    removal.hiddenKeys,
+    bookmark => bookmark.bookmarkId,
+  )
 
   if (query.isLoading) {
     return (
@@ -454,43 +562,77 @@ function ProfileRegionBookmarkTab() {
       <SectionPanel>
         <SectionTitle>지역 북마크</SectionTitle>
         <SectionBody>
-          자치구·행정동 <strong>지역 자체</strong>를 저장한 목록입니다.
-          업종·기간 같은 분석 조건은 포함되지 않습니다 — 조건까지 저장하려면
-          화면 보관함을 쓰세요.
+          자치구·행정동 <strong>지역 자체</strong>를 저장한 목록입니다. 카드를
+          누르면 그 지역을 고른 상권 분석 화면이 열립니다. 업종·기간 같은 분석
+          조건까지 저장하려면 화면 보관함을 쓰세요.
         </SectionBody>
       </SectionPanel>
       {bookmarks.length === 0 ? (
-        <EmptyState>저장한 자치구나 행정동이 아직 없어요.</EmptyState>
+        <EmptyState>
+          저장한 자치구나 행정동이 아직 없어요. 상권 분석에서 지역을 고르고
+          북마크해 두면 여기서 바로 다시 열 수 있어요.
+          <ButtonLink
+            href="/analysis"
+            size="medium"
+            variant="secondary"
+            rightIcon={<ArrowRight />}
+          >
+            상권 분석하러 가기
+          </ButtonLink>
+        </EmptyState>
       ) : (
-        <ProfileRegionBookmarkCards bookmarks={bookmarks} />
+        <ProfileRegionBookmarkCards
+          bookmarks={bookmarks}
+          onRemove={bookmark =>
+            removal.remove(bookmark.bookmarkId, {
+              removed: `${bookmark.targetName} 북마크를 해제했어요.`,
+              restored: `${bookmark.targetName} 북마크를 해제하지 못해 다시 보여 드려요.`,
+              failed: `${bookmark.targetName} 북마크를 해제하지 못했어요.`,
+              alreadyDone: `${bookmark.targetName} 북마크는 이미 해제됐어요.`,
+            })
+          }
+        />
       )}
     </SectionStack>
   )
 }
 
+/**
+ * 지역 북마크와 화면 보관함 — 두 개념을 안쪽 세그먼트로 나눈다.
+ *
+ * 선택은 `?tab=archive` 로 주소에 남긴다(#606). 새로고침·뒤로가기·공유한 주소에서 늘 「지역 북마크」로 돌아가던
+ * 문제를 막는다. 바꿀 때는 **replace** 다 — 탭을 오갈 때마다 기록이 쌓이면 뒤로가기가 탭 사이를 맴돈다.
+ * `window.history.replaceState` 는 App Router 가 `useSearchParams` 와 맞춰 주므로 서버 왕복 없이 바뀐다.
+ */
 export default function ProfileAnalysisBookmarksPage() {
-  const [tab, setTab] = useState<AnalysisBookmarkTab>('region')
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const tab = parseAnalysisBookmarkTab(searchParams.get(BOOKMARK_TAB_PARAM))
+
+  const selectTab = (next: AnalysisBookmarkTab) => {
+    if (next === tab) return
+    window.history.replaceState(
+      window.history.state,
+      '',
+      createAnalysisBookmarkTabHref(pathname, searchParams.toString(), next),
+    )
+  }
 
   return (
     <SectionStack>
-      <TabList aria-label="북마크 종류">
-        <TabButton
-          type="button"
-          $active={tab === 'region'}
-          aria-current={tab === 'region' ? 'true' : undefined}
-          onClick={() => setTab('region')}
-        >
-          지역 북마크
-        </TabButton>
-        <TabButton
-          type="button"
-          $active={tab === 'archive'}
-          aria-current={tab === 'archive' ? 'true' : undefined}
-          onClick={() => setTab('archive')}
-        >
-          화면 보관함
-        </TabButton>
-      </TabList>
+      <SegmentList role="group" aria-label="북마크 종류">
+        {ANALYSIS_BOOKMARK_TABS.map(item => (
+          <SegmentButton
+            key={item.value}
+            type="button"
+            $selected={tab === item.value}
+            aria-pressed={tab === item.value}
+            onClick={() => selectTab(item.value)}
+          >
+            {item.label}
+          </SegmentButton>
+        ))}
+      </SegmentList>
 
       {tab === 'region' ? (
         <ProfileRegionBookmarkTab />

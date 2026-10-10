@@ -1,6 +1,9 @@
 'use client'
 
-import styled from 'styled-components'
+import Link from 'next/link'
+import styled, { css } from 'styled-components'
+
+import { Button } from '@/components/ui/button'
 
 export const SectionStack = styled.div`
   display: grid;
@@ -46,7 +49,7 @@ export const SectionNotice = styled.p<{ $tone?: 'error' | 'success' | 'info' }>`
   color: ${props => {
     if (props.$tone === 'error') return 'var(--color-danger)'
     if (props.$tone === 'success') return 'var(--color-success)'
-    return 'var(--color-primary-700)'
+    return 'var(--color-text-primary-on-light)'
   }};
   font-size: 14px;
   line-height: 1.7;
@@ -64,10 +67,89 @@ export const CardGrid = styled.div`
 `
 
 export const ContentCard = styled.article`
+  /* 카드 전체를 덮는 링크(CardStretchedLink)의 기준 상자다. */
+  position: relative;
   padding: 20px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
   background: var(--color-surface-muted);
+`
+
+/** 카드 머리 — 제목 묶음과 오른쪽 위험 동작(해제·삭제). */
+export const CardHeaderRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+`
+
+/*
+  카드 전체를 누를 수 있게 하는 링크(#574). 링크는 제목 글자에만 걸고 `::after` 로 카드를 덮는다 — 카드 안에
+  해제 버튼이 있어 카드를 통째로 `<a>` 로 감쌀 수 없다(링크 안 버튼은 HTML 위반이다). 덮인 버튼은 `CardOverlayAction`
+  으로 위에 올린다. 포커스 링은 글자가 아니라 카드 둘레에 그린다.
+*/
+const stretchedTarget = css`
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-card);
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &:focus-visible::after {
+    outline: 2px solid var(--color-primary-700);
+    outline-offset: 2px;
+  }
+`
+
+export const CardStretchedLink = styled(Link)`
+  ${stretchedTarget}
+`
+
+/** 주소를 눌러 봐야 아는 카드(상권 → 상위 코드 역조회)용. 생김새는 링크와 같다. */
+export const CardStretchedButton = styled.button.attrs({ type: 'button' })`
+  ${stretchedTarget}
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: progress;
+  }
+`
+
+/** 덮는 링크 위로 올라와 따로 눌리는 동작. */
+export const CardOverlayAction = styled.div`
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+`
+
+/*
+  위험 동작(해제·삭제)은 위험색 ghost 다(#574). 채움 버튼이면 주 행동처럼 보이고, 보조(파란) 버튼이면 「이름 수정」과
+  같은 무게라 옆에 붙은 쪽을 잘못 누른다. 글자색은 면적용 red500 이 아니라 글자용 `--color-negative-text`(AA).
+  히트 영역은 44px(DESIGN.md §Touch Targets).
+*/
+export const DangerGhostButton = styled(Button).attrs({
+  variant: 'ghost',
+  size: 'medium',
+})`
+  min-height: 44px;
+  color: var(--color-negative-text);
+
+  &:hover:not(:disabled) {
+    color: var(--color-negative-text);
+  }
 `
 
 export const CardEyebrow = styled.p`
@@ -111,6 +193,9 @@ export const MetaItem = styled.span`
 `
 
 export const EmptyState = styled.div`
+  display: grid;
+  justify-items: start;
+  gap: 14px;
   padding: 24px;
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-card);
@@ -195,7 +280,7 @@ export const SecondaryButton = styled.button`
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
