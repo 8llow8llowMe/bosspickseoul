@@ -9,6 +9,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import styled from 'styled-components'
+import { Button } from '@/components/ui/button'
 import ChattingShell from '@/components/chatting/chatting-shell'
 import ChattingSidebar from '@/components/chatting/chatting-sidebar'
 import { chatRoomCategories } from '@/data/chat-room-categories'
@@ -92,7 +93,7 @@ const CategoryRow = styled.div`
 `
 
 const CategoryChip = styled.button<{ $active: boolean }>`
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 16px;
   border: 1px solid
     ${props =>
@@ -237,19 +238,6 @@ const Notice = styled.div<{ $tone?: 'error' }>`
       ? 'var(--color-danger)'
       : 'var(--color-primary-700)'};
   line-height: 1.75;
-`
-
-const LoadMoreButton = styled.button`
-  min-height: 46px;
-  width: fit-content;
-  padding: 0 18px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
 `
 
 const dedupeRooms = <
@@ -456,8 +444,10 @@ export default function ChattingListPage() {
                 ))}
               </RoomGrid>
               {roomListQuery.hasNextPage ? (
-                <LoadMoreButton
+                <Button
                   type="button"
+                  size="large"
+                  variant="secondary"
                   onClick={() => {
                     void roomListQuery.fetchNextPage()
                   }}
@@ -465,7 +455,7 @@ export default function ChattingListPage() {
                   {roomListQuery.isFetchingNextPage
                     ? '더 불러오는 중'
                     : '채팅방 더 보기'}
-                </LoadMoreButton>
+                </Button>
               ) : null}
             </>
           ) : (

@@ -10,6 +10,7 @@ import {
   type MouseEvent,
 } from 'react'
 import styled from 'styled-components'
+import { Button } from '@/components/ui/button'
 import {
   getDialogFocusableElements,
   getDialogFocusTargetIndex,
@@ -248,30 +249,10 @@ const Actions = styled.div`
   ${MOBILE} {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-`
 
-const Button = styled.button<{ $primary?: boolean }>`
-  min-height: 48px;
-  padding: 0 20px;
-  border: 1px solid
-    ${props =>
-      props.$primary
-        ? 'var(--color-fill-primary-text)'
-        : 'var(--color-border-300)'};
-  border-radius: var(--radius-control);
-  background: ${props =>
-    props.$primary ? 'var(--color-fill-primary-text)' : 'var(--color-surface)'};
-  color: ${props =>
-    props.$primary ? 'var(--color-surface)' : 'var(--color-text-700)'};
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: var(--button-disabled-opacity-color);
+    > * {
+      width: 100%;
+    }
   }
 `
 
@@ -575,6 +556,8 @@ function CommunityReportDialogContent({
           <Actions>
             <Button
               type="button"
+              size="large"
+              variant="ghost"
               disabled={pending}
               onClick={() => {
                 if (!pending) {
@@ -584,7 +567,7 @@ function CommunityReportDialogContent({
             >
               취소
             </Button>
-            <Button $primary type="submit" disabled={pending}>
+            <Button size="large" type="submit" disabled={pending}>
               {pending ? '신고 중' : '신고하기'}
             </Button>
           </Actions>

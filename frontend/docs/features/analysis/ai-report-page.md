@@ -217,7 +217,7 @@ AI 리포트가 지금은 **텍스트 서술만** 있고(사이드바 패널), �
   | ------------------------------ | --------- | ------------------------------------------------------- |
   | 전용 페이지 `/analysis/report` | `full`    | `ai-report-page-view.tsx`(헤더+본문+푸터, Main 흰 배경) |
   | 사이드바 패널                  | `compact` | `ai-report-panel.tsx`(헤더[크게보기]+본문+푸터)         |
-  | 크게보기 모달                  | `full`    | `ui/dialog.tsx` 재사용 + 본문                           |
+  | 크게보기 모달                  | `full`    | 모달 틀 + 본문(아래 D9-6)                               |
 
 ### D9-4. variant 차이 (같은 데이터, 크기만)
 
@@ -236,7 +236,8 @@ AI 리포트가 지금은 **텍스트 서술만** 있고(사이드바 패널), �
 
 ### D9-6. 크게보기 모달
 
-- `ui/dialog.tsx` 재사용. 내용 = `<AiReportBody selection variant="full" />`.
+- 공용 모달 틀은 없다(`ui/dialog.tsx` 는 사용처가 없어 #582 에서 지웠다). 포커스 가두기·Esc·포커스 복귀는
+  `lib/ui/dialog-focus` 를 쓰고, 구성은 확인 시트(`ui/confirm-sheet.tsx`)를 따른다. 내용 = `<AiReportBody selection variant="full" />`.
 - 데스크톱: 중앙 큰 다이얼로그. 모바일: 전체화면 시트.
 - 접근성: `role="dialog"`, ESC/오버레이 닫기, 포커스 트랩(다이얼로그 컴포넌트 준수), 열기 버튼으로 포커스 복귀.
 
@@ -261,7 +262,7 @@ AI 리포트가 지금은 **텍스트 서술만** 있고(사이드바 패널), �
 
 | 구분   | 대상                                                                                                                                                                           |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 재사용 | `AiReportPageView`의 쿼리/리졸버/섹션 컴포넌트 전부, `ui/dialog.tsx`, `report-{metric-cards,chart-section,insight-section}`, 차트 `height` prop                                |
+| 재사용 | `AiReportPageView`의 쿼리/리졸버/섹션 컴포넌트 전부, `lib/ui/dialog-focus`, `report-{metric-cards,chart-section,insight-section}`, 차트 `height` prop                          |
 | 신규   | `ai-report-body.tsx`(`AiReportBody`, variant), 크게보기 모달 래퍼(패널 내 상태), "크게보기" 버튼                                                                               |
 | 수정   | `ai-report-page-view.tsx`(본문→AiReportBody 위임 + Main 흰 배경), `ai-report-panel.tsx`(본문 교체 + 크게보기 버튼, selection prop), `analysis-page.tsx`(패널에 selection 전달) |
 

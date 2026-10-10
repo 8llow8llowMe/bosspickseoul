@@ -5,6 +5,8 @@ import { forwardRef } from 'react'
 import Link from 'next/link'
 import styled, { css, keyframes } from 'styled-components'
 
+import { touchHitArea } from '@/styles/touch-target'
+
 export type ButtonVariant =
   'primary' | 'secondary' | 'dark' | 'danger' | 'ghost'
 
@@ -19,24 +21,41 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
 }
 
+/**
+ * 버튼 높이 체계 — DESIGN.md §Touch Targets 의 네 단계(36·40·48·56)다. 화면이 높이를 따로 만들지 않고
+ * 이 넷 중 하나를 고른다(커뮤니티·채팅·프로필은 `button-heights.test.ts` 가 잠근다, #582).
+ */
+export const BUTTON_HEIGHTS = {
+  tiny: 36,
+  medium: 40,
+  large: 48,
+  big: 56,
+} as const satisfies Record<ButtonSize, number>
+
+/*
+  tiny·medium 은 보이는 높이가 44px 보다 작다. 모바일(≤1023)에서는 `touchHitArea()` 로 **히트 영역만**
+  44px 로 넓힌다(DESIGN.md §Touch Targets, #582). 보이는 크기는 그대로다. large·big 은 이미 44 이상이다.
+*/
 const sizeStyles = {
   tiny: css`
-    min-height: 36px;
+    min-height: ${BUTTON_HEIGHTS.tiny}px;
     padding: 0 12px;
     font-size: 13px;
+    ${touchHitArea()}
   `,
   medium: css`
-    min-height: 40px;
+    min-height: ${BUTTON_HEIGHTS.medium}px;
     padding: 0 14px;
     font-size: 14px;
+    ${touchHitArea()}
   `,
   large: css`
-    min-height: 48px;
+    min-height: ${BUTTON_HEIGHTS.large}px;
     padding: 0 18px;
     font-size: 15px;
   `,
   big: css`
-    min-height: 56px;
+    min-height: ${BUTTON_HEIGHTS.big}px;
     padding: 0 20px;
     font-size: 16px;
   `,
@@ -48,7 +67,7 @@ const variantStyles = {
     background: var(--color-fill-primary-text);
     color: #ffffff;
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled):not([aria-disabled='true']) {
       border-color: var(--color-fill-primary-text-hover);
       background: var(--color-fill-primary-text-hover);
     }
@@ -56,9 +75,10 @@ const variantStyles = {
   secondary: css`
     border-color: transparent;
     background: var(--color-primary-100);
-    color: var(--color-primary-700);
+    /* blue50 위 blue500 은 2.47:1 로 AA 미달이다 — DESIGN.md §Secondary 대로 blue700 글자다. */
+    color: var(--color-text-primary-on-light);
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled):not([aria-disabled='true']) {
       background: #dff0ff;
     }
   `,
@@ -67,7 +87,7 @@ const variantStyles = {
     background: var(--color-text-900);
     color: #ffffff;
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled):not([aria-disabled='true']) {
       border-color: var(--color-text-800);
       background: var(--color-text-800);
     }
@@ -77,7 +97,7 @@ const variantStyles = {
     background: var(--color-danger);
     color: #ffffff;
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled):not([aria-disabled='true']) {
       filter: brightness(0.96);
     }
   `,
@@ -86,7 +106,7 @@ const variantStyles = {
     background: transparent;
     color: var(--color-text-700);
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled):not([aria-disabled='true']) {
       background: var(--color-surface-muted);
       color: var(--color-text-900);
     }
@@ -139,7 +159,12 @@ const Root = styled.button<{
 }>`
   ${buttonBase}
 
-  &:disabled {
+  /*
+    aria-disabled 는 포커스를 잃지 않아야 하는 비활성(누르면 안내만 하는 버튼)에 쓴다. 클릭을 막는 건
+    호출부 핸들러의 몫이다 — 모양만 disabled 와 같게 맞춘다.
+  */
+  &:disabled,
+  &[aria-disabled='true'] {
     cursor: not-allowed;
     opacity: var(--button-disabled-opacity-color);
   }

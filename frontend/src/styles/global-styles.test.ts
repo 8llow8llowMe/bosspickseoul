@@ -374,7 +374,7 @@ describe('흰 글자를 얹는 파란 채움은 fill-primary-text 다', () => {
       'border-color:var(--color-fill-primary-text);background:var(--color-fill-primary-text);color:#ffffff;',
     )
     expect(primary).toContain(
-      '&:hover:not(:disabled){border-color:var(--color-fill-primary-text-hover);background:var(--color-fill-primary-text-hover);}',
+      "&:hover:not(:disabled):not([aria-disabled='true']){border-color:var(--color-fill-primary-text-hover);background:var(--color-fill-primary-text-hover);}",
     )
   })
 })
@@ -632,7 +632,6 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
     ['src/components/simulation/simulation-condition-section.tsx', 1],
     ['src/components/simulation/simulation-result-panel.tsx', 1],
     ['src/components/ui/badge.tsx', 1],
-    ['src/components/ui/button.tsx', 1],
     ['src/components/ui/option-picker.tsx', 6],
     ['src/components/ui/tabs.tsx', 2],
     ['src/components/ui/toast.tsx', 2],

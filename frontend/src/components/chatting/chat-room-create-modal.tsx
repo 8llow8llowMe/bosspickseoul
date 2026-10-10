@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import styled from 'styled-components'
+import { Button } from '@/components/ui/button'
 import { chatRoomCategories } from '@/data/chat-room-categories'
 import { createChatRoomData } from '@/lib/api/chatting'
 import { getApiMessage, isApiSuccess } from '@/lib/api/response'
@@ -141,37 +142,6 @@ const ActionRow = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-`
-
-const PrimaryButton = styled.button<{ $disabled?: boolean }>`
-  min-height: 48px;
-  padding: 0 18px;
-  border: 1px solid
-    ${props =>
-      props.$disabled
-        ? 'var(--color-border-200)'
-        : 'var(--color-fill-primary-text)'};
-  border-radius: var(--radius-control);
-  background: ${props =>
-    props.$disabled
-      ? 'var(--color-border-200)'
-      : 'var(--color-fill-primary-text)'};
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: ${props => (props.$disabled ? 'default' : 'pointer')};
-`
-
-const SecondaryButton = styled.button`
-  min-height: 48px;
-  padding: 0 18px;
-  border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-control);
-  background: white;
-  color: var(--color-text-700);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
 `
 
 type ChatRoomCreateModalProps = {
@@ -337,9 +307,12 @@ export default function ChatRoomCreateModal({
         {formMessage ? <Notice $tone="error">{formMessage}</Notice> : null}
 
         <ActionRow>
-          <PrimaryButton
+          <Button
             type="button"
-            $disabled={!isValid || createRoomMutation.isPending}
+            size="large"
+            aria-disabled={
+              !isValid || createRoomMutation.isPending || undefined
+            }
             onClick={() => {
               if (!isValid || createRoomMutation.isPending) {
                 return
@@ -350,15 +323,17 @@ export default function ChatRoomCreateModal({
             }}
           >
             {createRoomMutation.isPending ? '생성 중' : '채팅방 만들기'}
-          </PrimaryButton>
-          <SecondaryButton
+          </Button>
+          <Button
             type="button"
+            size="large"
+            variant="ghost"
             onClick={() => {
               onClose()
             }}
           >
             취소
-          </SecondaryButton>
+          </Button>
         </ActionRow>
       </Card>
     </Overlay>

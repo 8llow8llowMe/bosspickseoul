@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { Clock3, Home, MessageCircle } from 'lucide-react'
 import styled from 'styled-components'
+import { ButtonLink } from '@/components/ui/button'
 
 type ChattingUnavailablePageProps = {
   variant: 'list' | 'room'
@@ -88,54 +88,17 @@ const Description = styled.p`
   word-break: keep-all;
 `
 
+/* 좁은 화면에서는 두 링크가 한 줄씩 폭을 채운다. */
+const ActionLink = styled(ButtonLink)`
+  @media (max-width: 480px) {
+    width: 100%;
+  }
+`
+
 const Actions = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-`
-
-const ActionLink = styled(Link)<{ $primary?: boolean }>`
-  min-height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 18px;
-  border: 1px solid
-    ${props =>
-      props.$primary
-        ? 'var(--color-fill-primary-text)'
-        : 'var(--color-border-200)'};
-  border-radius: var(--radius-control);
-  background: ${props =>
-    props.$primary ? 'var(--color-fill-primary-text)' : 'var(--color-surface)'};
-  color: ${props =>
-    props.$primary ? 'var(--color-surface)' : 'var(--color-text-700)'};
-  font-size: 15px;
-  font-weight: 600;
-
-  &:hover {
-    border-color: ${props => (props.$primary ? 'var(--color-fill-primary-text-hover)' : 'var(--color-primary-600)')};
-    background: ${props =>
-      props.$primary
-        ? 'var(--color-fill-primary-text-hover)'
-        : 'var(--color-primary-100)'};
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--color-primary-700);
-    outline-offset: 2px;
-  }
-
-  svg {
-    width: 18px;
-    height: 18px;
-    stroke: currentColor;
-  }
-
-  @media (max-width: 480px) {
-    width: 100%;
-  }
 `
 
 export default function ChattingUnavailablePage({
@@ -164,12 +127,19 @@ export default function ChattingUnavailablePage({
             이용할 수 있습니다.
           </Description>
           <Actions>
-            <ActionLink href="/community/list" $primary>
+            <ActionLink
+              href="/community/list"
+              size="large"
+              rightIcon={<MessageCircle />}
+            >
               커뮤니티 둘러보기
-              <MessageCircle aria-hidden="true" />
             </ActionLink>
-            <ActionLink href="/">
-              <Home aria-hidden="true" />
+            <ActionLink
+              href="/"
+              size="large"
+              variant="secondary"
+              leftIcon={<Home />}
+            >
               홈으로
             </ActionLink>
           </Actions>
