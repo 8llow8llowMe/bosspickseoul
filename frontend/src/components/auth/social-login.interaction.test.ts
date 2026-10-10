@@ -2,7 +2,7 @@
 import { createElement } from 'react'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import SocialLogin, { type SocialLoginProps } from './social-login'
+import SocialLogin, { KAKAO_BRAND, type SocialLoginProps } from './social-login'
 import {
   EMPTY_SIGNUP_CONSENT,
   setAllSignupConsent,
@@ -105,5 +105,41 @@ describe('SocialLogin — 가입 모드 (TC-CON-006)', () => {
       createElement<SocialLoginProps>(SocialLogin, { showDivider: false }),
     )
     expect(withoutDivider.container.textContent).not.toContain('또는')
+  })
+})
+
+describe('SocialLogin — 카카오 규격 버튼(#577, D-5)', () => {
+  it('라벨은 「카카오 로그인」이고 구분선 「또는 이메일로」는 버튼 **아래**에 온다', () => {
+    const view = render(createElement(SocialLogin))
+
+    const button = view.getByRole('button', { name: '카카오 로그인' })
+    const text = view.container.textContent ?? ''
+    expect(text.indexOf('카카오 로그인')).toBeLessThan(
+      text.indexOf('또는 이메일로'),
+    )
+    // 심볼은 장식이다 — 이름은 라벨이 말한다.
+    expect(button.querySelector('svg')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    )
+  })
+
+  it('가이드가 허용하는 다른 라벨(「카카오로 시작하기」)을 받을 수 있다', () => {
+    const view = render(
+      createElement<SocialLoginProps>(SocialLogin, {
+        label: '카카오로 시작하기',
+      }),
+    )
+
+    expect(
+      view.getByRole('button', { name: '카카오로 시작하기' }),
+    ).toBeDefined()
+  })
+
+  it('카카오 규격 색은 가이드 값 그대로다(DESIGN.md 「외부 브랜드 예외」)', () => {
+    expect(KAKAO_BRAND).toEqual({
+      container: '#FEE500',
+      label: 'rgba(0, 0, 0, 0.85)',
+      symbol: '#000000',
+    })
   })
 })
