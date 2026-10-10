@@ -142,16 +142,20 @@ const StepList = styled.ol`
   border-bottom: 1px solid var(--color-border-200);
 `
 
+/*
+  단계 탭은 **고른 값**을 보여 준다(#591). 예전에는 10px 「N단계」 글자가 값보다 먼저 보였고
+  (DESIGN.md 최소 Caption 12px 미만), 값은 12px 로 좁은 칸에서 세 줄로 꺾였다. 순서는 왼쪽→오른쪽
+  배치와 `<ol>` 이 이미 말하므로 번호 글자를 걷어내고, 값은 13px 두 줄까지 보인다.
+  아직 안 고른 단계는 「업종」처럼 단계 이름만 쓴다.
+*/
 const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
   width: 100%;
   height: 100%;
   min-width: 0;
-  min-height: 60px;
+  min-height: 56px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   border: 1px solid
     ${props =>
       props.$active ? 'var(--color-primary-600)' : 'var(--color-border-200)'};
@@ -160,14 +164,14 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
     props.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
     props.$active
-      ? 'var(--color-primary-700)'
+      ? 'var(--color-text-primary-on-light)'
       : props.$completed
         ? 'var(--color-text-800)'
         : 'var(--color-text-caption)'};
-  padding: 10px 8px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.35;
+  padding: 8px 6px;
+  font-size: 13px;
+  font-weight: ${props => (props.$completed ? 700 : 600)};
+  line-height: 18px;
   text-align: center;
   word-break: keep-all;
   cursor: pointer;
@@ -182,19 +186,16 @@ const StepButton = styled.button<{ $active: boolean; $completed: boolean }>`
   }
 `
 
-const StepNumber = styled.span`
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 600;
-  opacity: 0.8;
-`
-
-// 선택명이 길어도 트랙을 넘치지 않도록 한 줄 말줄임. 전체 이름은 버튼 title로 노출.
-/* 이름이 길다고 잘라내지 않는다 — 어느 상권을 보고 있는지가 이 탭의 전부다.
-   keep-all 로 단어를 지키되, 한 단어가 트랙보다 길면 그때만 끊는다. */
+/* 긴 상권명은 **두 줄까지** 보이고 넘치면 말줄임한다(#591). 한 줄 말줄임 + title 툴팁은
+   「홍대 걷고싶은거리」처럼 앞 단어가 같은 상권을 가르지 못하고, 툴팁은 터치에서 안 뜬다.
+   잘린 이름 전체는 버튼의 접근 이름(aria-label)이 읽어 준다. */
 const StepName = styled.span`
+  display: -webkit-box;
   max-width: 100%;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 `
 
 const Body = styled.div<{ $variant: 'panel' | 'sheet' }>`
@@ -331,9 +332,21 @@ function AnalysisSelectionPanel({
   const isFixedFirstStep = activeStep === 'district'
 
   // 자치구·행정동은 짧은 이름 + 설명 없음 → compact 칩 격자.
-  // 상권·업종은 분류/업종 설명이 있어 가독성 위해 행 리스트 유지.
+  // 상권은 분류 설명이 있어 가독성 위해 행 리스트 유지.
   const isChipStep =
     activeStep === 'district' || activeStep === 'administration'
+  /*
+    데스크톱 패널(380px)의 업종은 2열 선택지다(#587). 한 줄에 하나(약 52px)씩 쌓으면 스크롤 없이
+    7개만 보였고, 행 끝 「›」는 하위 화면으로 넘어간다는 신호라 고르는 동작과 맞지 않았다.
+    `grid-wide` 는 좌측정렬 2열 + 선택 체크만 둔다(추천 조건 선택과 같은 규격, 최소 52px).
+    분류(외식업 등)는 그룹 머리로 남아 2열 위에 한 줄로 읽힌다. 모바일 시트는 이미 폭에 맞춰
+    여러 열이라 그대로 둔다.
+  */
+  const optionLayout = isChipStep
+    ? 'grid'
+    : activeStep === 'service' && variant === 'panel'
+      ? 'grid-wide'
+      : 'list'
   // 업종은 카탈로그가 6카테고리를 이미 갖고 있다. 평면으로 펼치면 31개가
   // 구분 없이 쏟아지므로 그룹 그대로 넘긴다.
   const groups = useMemo(
@@ -353,10 +366,13 @@ function AnalysisSelectionPanel({
       ) : null}
 
       <StepList aria-label="분석 조건 단계">
-        {ANALYSIS_STEPS.map((step, index) => {
+        {ANALYSIS_STEPS.map(step => {
           const name = selectedNames[step]
-          const label = name ?? ANALYSIS_STEP_LABELS[step]
-          const completed = Boolean(selectionCodeByStep(selection, step))
+          const stepLabel = ANALYSIS_STEP_LABELS[step]
+          /* 이름을 아직 모르면(목록 로딩 중) 고른 값 대신 단계 이름을 쓴다. */
+          const completed = Boolean(
+            selectionCodeByStep(selection, step) && name,
+          )
           return (
             <li key={step}>
               <StepButton
@@ -364,12 +380,11 @@ function AnalysisSelectionPanel({
                 $active={activeStep === step}
                 $completed={completed}
                 aria-current={activeStep === step ? 'step' : undefined}
+                aria-label={completed ? `${stepLabel}: ${name}` : stepLabel}
                 disabled={!canOpenStep(selection, step)}
-                title={label}
                 onClick={() => onStepChange(step)}
               >
-                <StepNumber>{index + 1}단계</StepNumber>
-                <StepName>{label}</StepName>
+                <StepName>{completed ? name : stepLabel}</StepName>
               </StepButton>
             </li>
           )
@@ -457,7 +472,7 @@ function AnalysisSelectionPanel({
           <OptionPicker
             groups={groups}
             items={groups ? undefined : items}
-            layout={isChipStep ? 'grid' : 'list'}
+            layout={optionLayout}
             selectedCode={selectedCode}
             variant={variant}
             emptyFallback={

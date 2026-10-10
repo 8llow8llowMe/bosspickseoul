@@ -612,7 +612,6 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
     ['src/components/analysis/analysis-policy-list.tsx', 2],
     ['src/components/analysis/analysis-result-nav.tsx', 2],
     ['src/components/analysis/analysis-result-section.tsx', 1],
-    ['src/components/analysis/analysis-selection-panel.tsx', 1],
     ['src/components/analysis/analysis-summary-insights.tsx', 1],
     ['src/components/analysis/popular-commercials-shortcut.tsx', 2],
     ['src/components/auth/password-reset-form.tsx', 1],
