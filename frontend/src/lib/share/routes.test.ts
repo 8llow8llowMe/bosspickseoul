@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { createMapCamera } from '@/lib/analysis/map-camera'
 import { createAnalysisResultHref } from '@/lib/analysis/selection'
 import {
+  createCompareHref,
+  parseCompareUrlState,
+} from '@/lib/recommend/compare-url'
+import {
   buildAdministrationAnalysisPayload,
   buildAiReportPayload,
   buildCommercialAnalysisPayload,
@@ -117,6 +121,26 @@ describe('buildShareRoute 실패 분기', () => {
         commercialCodes: ['3110008'],
       }),
     ).toEqual({ ok: false, reason: 'bad-payload' })
+  })
+
+  // 비교 화면의 공유 버튼(#573)이 만드는 그대로다: 주소창 → 파서 → payload → 공유 해석 → 주소.
+  it('상권 비교 화면 URL 은 공유 링크를 거쳐 같은 URL 로 돌아온다', () => {
+    const href = createCompareHref({
+      districtCode: '11680',
+      administrationCode: '11680510',
+      serviceCode: 'CS100001',
+      commercialCodes: ['3110012', '3110008'],
+    })
+    const state = parseCompareUrlState(
+      new URLSearchParams(href.slice(href.indexOf('?') + 1)),
+    )
+    const payload = buildCommercialComparisonPayload(state)
+
+    expect(payload).not.toBeNull()
+    expect(buildShareRoute('COMMERCIAL_COMPARISON', payload)).toEqual({
+      ok: true,
+      href,
+    })
   })
 
   it('상권 비교 — commercialCodes 가 배열이 아니면 bad-payload', () => {

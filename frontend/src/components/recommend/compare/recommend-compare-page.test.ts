@@ -332,6 +332,17 @@ describe('RecommendComparePage', () => {
     )
   })
 
+  it('창업 비용 계산과 공유로 나가는 길을 준다 (#566, #573)', () => {
+    const markup = render(`${BASE}&commercialCodes=3110008,3110012`)
+
+    // 시뮬레이션 입력 화면이 자치구·업종을 미리 채우는 키다(report-route.test.ts).
+    expect(markup).toContain(
+      'href="/simulation?districtCode=11680&amp;serviceCode=CS100010"',
+    )
+    expect(markup).toContain('창업 비용 계산')
+    expect(markup).toMatch(/<button[^>]*>.*공유<\/button>/)
+  })
+
   it('비교 결과가 아직 없으면 글쓰기 길을 열지 않는다', () => {
     const markup = render(`${BASE}&commercialCodes=3110008,3110012`)
 
