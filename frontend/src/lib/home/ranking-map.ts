@@ -103,7 +103,8 @@ const summarize = ({
     const overlapSentence = overlapNames.length
       ? `둘 다 든 곳은 ${overlapNames.join(', ')}예요.`
       : '겹치는 곳은 없어요.'
-    return `서울 지도에 많이 본 ${viewNames.length}곳과 ${metricLabel} Top ${metricNames.length} 를 표시했어요. ${overlapSentence}`
+    // 지표 목록을 걷어 낸 뒤(#600) 지표 Top 5 의 이름은 이 문장이 말한다 — 지표만 분기와 같은 모양으로 적는다.
+    return `서울 지도에 많이 본 ${viewNames.length}곳과 ${metricLabel} Top ${metricNames.length} 를 표시했어요. ${metricLabel} Top ${metricNames.length}: ${metricNames.join(', ')}. ${overlapSentence}`
   }
   if (hasFills) {
     return `서울 지도에 ${metricLabel} Top ${metricNames.length} 를 진하기로 표시했어요: ${metricNames.join(', ')}.`

@@ -92,3 +92,29 @@ describe('PopularCommercialsShortcut', () => {
     expect(html).toContain('1위 역삼역, 조회 2,104회. 이 상권으로 조건 채우기')
   })
 })
+
+/*
+ * #600(진단 H9). 「조회 2회」는 아무도 쓰지 않는 서비스처럼 읽힌다. 홈·추천과 같은 임계값
+ * (`MIN_VISIBLE_VIEW_COUNT`)으로, 한 곳이라도 그 아래면 순위·이름만 둔다.
+ */
+describe('PopularCommercialsShortcut — 낮은 조회 수(#600)', () => {
+  const low: AnalysisRankingItem[] = [
+    { rank: 1, areaCode: '3110008', areaName: '역삼역', viewCount: 40 },
+    { rank: 2, areaCode: '3110009', areaName: '강남역', viewCount: 2 },
+  ]
+
+  it('임계값 아래인 곳이 있으면 조회 수를 적지 않고 순위·이름은 남긴다', () => {
+    const html = render(createResponse(low))
+
+    expect(html).toContain('역삼역')
+    expect(html).not.toContain('40회')
+    expect(html).not.toContain('2회')
+  })
+
+  it('버튼 이름에서도 조회 수를 뺀다', () => {
+    const html = render(createResponse(low))
+
+    expect(html).toContain('1위 역삼역. 이 상권으로 조건 채우기')
+    expect(html).not.toContain('조회 40회')
+  })
+})

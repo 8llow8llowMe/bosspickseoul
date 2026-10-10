@@ -179,7 +179,7 @@ export default function RecommendLivePopular() {
 
   // 1분마다 다시 읽어 개수가 줄 수 있다. 남은 index 가 범위를 넘지 않게 접는다.
   const item = view.items[index % length]
-  const label = describeLivePopular(item, view.windowLabel)
+  const label = describeLivePopular(item, view.windowLabel, view.showViewCounts)
 
   return (
     <Root
@@ -208,7 +208,10 @@ export default function RecommendLivePopular() {
       <Line key={item.commercialCode} aria-hidden="true">
         <Rank>{item.rank}위</Rank>
         <Name>{item.name}</Name>
-        <ViewCount>조회 {formatViewCount(item.viewCount)}</ViewCount>
+        {/* 조회 수가 임계값 아래면 순위·이름만 둔다(#600, `MIN_VISIBLE_VIEW_COUNT`). */}
+        {view.showViewCounts ? (
+          <ViewCount>조회 {formatViewCount(item.viewCount)}</ViewCount>
+        ) : null}
       </Line>
     </Root>
   )

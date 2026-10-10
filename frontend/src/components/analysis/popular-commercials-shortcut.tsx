@@ -14,7 +14,10 @@ import {
   type PopularCommercial,
   toPopularCommercialsView,
 } from '@/lib/analysis/popular-commercials'
-import { formatViewCount } from '@/lib/rankings/ranking-format'
+import {
+  canShowViewCounts,
+  formatViewCount,
+} from '@/lib/rankings/ranking-format'
 import { computeScrollReach } from '@/lib/ui/scroll-reach'
 
 /** 패널 1단계에 얹는 목록이라 짧게 유지한다. 자치구 25칩을 아래로 밀어내면 안 된다. */
@@ -252,6 +255,8 @@ export function ShortcutTrack({
   onSelect: (commercialCode: string) => void
 }) {
   const listRef = useRef<HTMLOListElement>(null)
+  /* 조회 수가 임계값 아래인 곳이 있으면 순위·이름만 둔다(#600, 홈·추천과 같은 `MIN_VISIBLE_VIEW_COUNT`). */
+  const showViewCounts = canShowViewCounts(items)
   const [reach, setReach] = useState({ left: false, right: false })
 
   useEffect(() => {
@@ -313,12 +318,18 @@ export function ShortcutTrack({
               type="button"
               disabled={busy}
               aria-busy={pendingCode === item.commercialCode || undefined}
-              aria-label={`${item.rank}위 ${item.name}, 조회 ${item.viewCount.toLocaleString('ko-KR')}회. 이 상권으로 조건 채우기`}
+              aria-label={`${item.rank}위 ${item.name}${
+                showViewCounts
+                  ? `, 조회 ${item.viewCount.toLocaleString('ko-KR')}회`
+                  : ''
+              }. 이 상권으로 조건 채우기`}
               onClick={() => onSelect(item.commercialCode)}
             >
               <Rank>{item.rank}</Rank>
               <Name>{item.name}</Name>
-              <ViewCount>{formatViewCount(item.viewCount)}</ViewCount>
+              {showViewCounts ? (
+                <ViewCount>{formatViewCount(item.viewCount)}</ViewCount>
+              ) : null}
             </Row>
           </li>
         ))}

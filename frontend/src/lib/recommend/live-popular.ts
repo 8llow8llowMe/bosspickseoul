@@ -11,7 +11,10 @@ import {
   toPopularCommercialsView,
   type PopularCommercial,
 } from '@/lib/analysis/popular-commercials'
-import { formatViewCount } from '@/lib/rankings/ranking-format'
+import {
+  canShowViewCounts,
+  formatViewCount,
+} from '@/lib/rankings/ranking-format'
 import type { AnalysisRankingBody } from '@/types/status'
 
 /** 돌려 보여 줄 개수. 5개면 한 바퀴가 25초라 같은 이름이 금방 반복되지 않는다. */
@@ -27,6 +30,11 @@ export type LivePopularView = {
   items: PopularCommercial[]
   /** 「최근 24시간」 같은 집계 창. 값이 이상하면 null — 틀린 기간을 적느니 안 적는다. */
   windowLabel: string | null
+  /**
+   * 조회 수를 숫자로 적을지(#600). 돌려 보여 줄 다섯 곳 중 하나라도 임계값(`MIN_VISIBLE_VIEW_COUNT`)
+   * 아래면 모든 줄이 순위·이름만 보인다 — 「조회 2회」는 아무도 쓰지 않는 서비스처럼 읽힌다.
+   */
+  showViewCounts: boolean
 }
 
 export const toLivePopularView = (
@@ -35,7 +43,9 @@ export const toLivePopularView = (
   if (!body) return null
 
   const view = toPopularCommercialsView(body, LIVE_POPULAR_SIZE)
-  return view.items.length > 0 ? view : null
+  return view.items.length > 0
+    ? { ...view, showViewCounts: canShowViewCounts(view.items) }
+    : null
 }
 
 export const nextLivePopularIndex = (index: number, length: number): number =>
@@ -48,5 +58,8 @@ export const nextLivePopularIndex = (index: number, length: number): number =>
 export const describeLivePopular = (
   item: PopularCommercial,
   windowLabel: string | null,
+  showViewCount = true,
 ): string =>
-  `${windowLabel ? `${windowLabel} ` : ''}많이 본 상권 ${item.rank}위, ${item.name}, 조회 ${formatViewCount(item.viewCount)}`
+  `${windowLabel ? `${windowLabel} ` : ''}많이 본 상권 ${item.rank}위, ${item.name}${
+    showViewCount ? `, 조회 ${formatViewCount(item.viewCount)}` : ''
+  }`
