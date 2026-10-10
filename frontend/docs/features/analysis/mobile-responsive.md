@@ -194,7 +194,7 @@ var(--ease-standard)`로 스냅.
 
 ```
 1. analysis-page: aiLevelKey 있으면 aiReport={ title, <AiReportBody/> } 주입
-2. 시트: collapsed 초기 — 핸들 + (가용 시) AI 칩
+2. 시트: expanded 초기(#562, map-shell.md D4-8) — 핸들 + (가용 시) AI 칩 + 선택 본문
 3. 핸들 드래그/탭 → snap 토글(bottom-sheet-state 헬퍼로 스냅 결정)
 4. AI 칩 탭 → view=report(+expanded), 리포트 레이어 크로스페이드·콘텐츠 마운트
 5. ‹ 뒤로 → view=selection / 선택 대상 변경 → 자동 selection
@@ -232,15 +232,15 @@ var(--ease-standard)`로 스냅.
 
 ## D7. 테스트케이스
 
-| #   | 시나리오           | 입력/조작                        | 기대 결과                                            |
-| --- | ------------------ | -------------------------------- | ---------------------------------------------------- |
-| 1   | 기본 접힘 + 접근성 | 초기 렌더                        | `aria-expanded=false`, "선택 패널 펼치기", 단계 라벨 |
-| 2   | AI 칩/제목 노출    | `aiReport` 주입                  | 진입 칩 "AI 리포트" + 리포트 헤더 제목 렌더          |
-| 3   | AI 칩 미노출       | `aiReport` 없음                  | 진입 칩("AI 리포트 보기") 미렌더                     |
-| 4   | 스냅 경계 계산     | `getBottomSheetHeightBounds`     | 지도 최소 여백/비율 규칙대로 펼침 높이 산출          |
-| 5   | 드래그 스냅 판정   | `resolveBottomSheetSnapFromDrag` | 중점 기준 접힘/펼침, 비정상 경계는 시작 스냅 유지    |
-| 6   | 드래그/탭 구분     | `didBottomSheetDrag`             | 임계 초과만 드래그                                   |
-| 7   | click 억제         | `shouldSuppressBottomSheetClick` | 드래그 후 마우스 click만 무시, 키보드 허용           |
+| #   | 시나리오           | 입력/조작                        | 기대 결과                                                |
+| --- | ------------------ | -------------------------------- | -------------------------------------------------------- |
+| 1   | 기본 펼침 + 접근성 | 초기 렌더                        | `aria-expanded=true`, "선택 패널 접기", 단계 라벨 (#562) |
+| 2   | AI 칩/제목 노출    | `aiReport` 주입                  | 진입 칩 "AI 리포트" + 리포트 헤더 제목 렌더              |
+| 3   | AI 칩 미노출       | `aiReport` 없음                  | 진입 칩("AI 리포트 보기") 미렌더                         |
+| 4   | 스냅 경계 계산     | `getBottomSheetHeightBounds`     | 지도 최소 여백/비율 규칙대로 펼침 높이 산출              |
+| 5   | 드래그 스냅 판정   | `resolveBottomSheetSnapFromDrag` | 중점 기준 접힘/펼침, 비정상 경계는 시작 스냅 유지        |
+| 6   | 드래그/탭 구분     | `didBottomSheetDrag`             | 임계 초과만 드래그                                       |
+| 7   | click 억제         | `shouldSuppressBottomSheetClick` | 드래그 후 마우스 click만 무시, 키보드 허용               |
 
 > 스냅/드래그 순수 로직은 `lib/map/bottom-sheet-state.test.ts`, 컴포넌트 SSR 계약은
 > `analysis-mobile-sheet.test.ts`로 검증. 실기기 드래그·크로스페이드·reduced-motion은 로컬

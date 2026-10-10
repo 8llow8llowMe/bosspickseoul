@@ -34,7 +34,7 @@ export type AnalysisMobileSheetProps = PropsWithChildren<{
   aiReport?: { title: string; content: ReactNode } | null
   /**
    * 값이 바뀔 때마다 시트를 펼친다(예: 지도에서 상권 선택 → 업종 선택 유도).
-   * 부모가 증가시키는 카운터를 넘긴다. 마운트 시엔 펼치지 않는다.
+   * 부모가 증가시키는 카운터를 넘긴다. 시트는 펼친 채로 시작하므로 사용자가 접은 뒤에만 의미가 있다.
    */
   expandSignal?: number
 }>
@@ -274,14 +274,20 @@ export default function AnalysisMobileSheet({
   expandSignal,
   children,
 }: AnalysisMobileSheetProps) {
-  const [snap, setSnap] = useState<BottomSheetSnap>('collapsed')
+  /*
+    펼친 채로 시작한다(#562). 접힌 72px 막대(「자치구 선택 · 서울 전체」)로 시작하면 인기 상권
+    지름길과 「상권 추천받기」 링크가 숨어, 첫 화면에서 할 수 있는 일이 보이지 않았다. 구별현황
+    시트와 같은 습관이다. 펼쳐도 지도는 `BOTTOM_SHEET_MINIMUM_MAP_HEIGHT` 이상 남는다
+    (`--analysis-sheet-expanded-height` 의 `calc(100% - …)` 상한).
+  */
+  const [snap, setSnap] = useState<BottomSheetSnap>('expanded')
   const [view, setView] = useState<SheetView>('selection')
   const [dragVisualState, setDragVisualState] =
     useState<DragVisualState | null>(null)
   const bodyId = useId()
 
-  // expandSignal이 바뀌면 시트를 펼친다(상권 선택 → 업종 선택 유도). 마운트 시엔
-  // 펼치지 않고, 이후 사용자가 접으면 다음 신호 전까지 다시 올라오지 않는다.
+  // expandSignal이 바뀌면 시트를 펼친다(상권 선택 → 업종 선택 유도). 사용자가 접으면
+  // 다음 신호 전까지 다시 올라오지 않는다.
   // (effect 대신 렌더 단계 파생 — report view 처리와 동일한 React 권장 패턴)
   const [prevExpandSignal, setPrevExpandSignal] = useState(expandSignal)
   if (expandSignal !== prevExpandSignal) {
