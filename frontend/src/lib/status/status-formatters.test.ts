@@ -5,6 +5,8 @@ import {
   formatStatusRankSummary,
   formatStatusValue,
   getStatusChangeTone,
+  presentStatusChange,
+  STATUS_CHANGE_BASIS,
   toChangeBadge,
 } from './status-formatters'
 
@@ -107,6 +109,48 @@ describe('getStatusChangeTone', () => {
     ['sales', Number.NaN, 'neutral'],
   ] as const)('%s %s → %s', (metric, rate, tone) => {
     expect(getStatusChangeTone(metric, rate)).toBe(tone)
+  })
+})
+
+describe('presentStatusChange', () => {
+  it('적는 기준은 직전 분기다', () => {
+    expect(STATUS_CHANGE_BASIS).toBe('직전 분기 대비')
+  })
+
+  it.each([
+    ['footTraffic', 2.5, '▲', '증가', '+2.5%', '개선', 'positive'],
+    ['sales', -4.3, '▼', '감소', '-4.3%', '악화', 'negative'],
+    // 폐업은 극성이 반대다 — 늘면 악화, 줄면 개선.
+    ['closed', 26.1, '▲', '증가', '+26.1%', '악화', 'negative'],
+    ['closed', -3, '▼', '감소', '-3%', '개선', 'positive'],
+  ] as const)(
+    '%s %s → %s %s %s %s',
+    (metric, rate, arrow, direction, rateText, quality, tone) => {
+      expect(presentStatusChange(metric, rate)).toEqual({
+        tone,
+        arrow,
+        directionLabel: direction,
+        rateText,
+        qualityLabel: quality,
+      })
+    },
+  )
+
+  it('변동 없음과 데이터 없음은 개선·악화를 말하지 않는다', () => {
+    expect(presentStatusChange('sales', 0)).toEqual({
+      tone: 'neutral',
+      arrow: '–',
+      directionLabel: '변동 없음',
+      rateText: '0%',
+      qualityLabel: '',
+    })
+    expect(presentStatusChange('closed', null)).toEqual({
+      tone: 'neutral',
+      arrow: null,
+      directionLabel: '',
+      rateText: '변화율 데이터 없음',
+      qualityLabel: '',
+    })
   })
 })
 

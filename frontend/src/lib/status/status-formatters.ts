@@ -1,3 +1,10 @@
+import {
+  CHANGE_TONE_TEXT_COLOR,
+  describeChangeTone,
+  resolveChangeTone,
+  STATUS_METRIC_POLARITY,
+  type ChangeTone,
+} from '@/lib/metrics/metric-polarity'
 import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
 const koreanNumberFormatter = new Intl.NumberFormat('ko-KR')
@@ -177,29 +184,82 @@ export const toChangeBadge = (
 }
 
 /**
- * 증감이 **좋은 쪽인지 나쁜 쪽인지**. 색은 방향이 아니라 이 판단을 따른다.
+ * 증감이 **좋은 쪽인지 나쁜 쪽인지**. 색은 방향이 아니라 이 판단을 따른다(DESIGN.md §Charts, 결정 D-1).
  *
- * 폐업만 뒤집는다 — 폐업 증가는 나쁘다. 예전 목록은 감소를 주황(warning)으로, 1~3위 배지를
- * 증가와 같은 초록으로 칠해 색이 뜻을 잃었다. 이제 초록=좋음, 빨강=나쁨, 회색=변동 없음 하나다
- * (DESIGN.md 「positive green, negative red」). 목록·상세 머리가 이 함수를 쓴다(지도 툴팁은 색 없는 평문).
+ * 극성은 `lib/metrics/metric-polarity.ts` 의 `STATUS_METRIC_POLARITY` 가 정본이다 — 폐업만 낮을수록
+ * 좋다. 초록=좋아짐, 빨강=나빠짐, 회색=변동 없음·데이터 없음. 목록·상세 머리·홈 툴팁이 이 함수를 쓴다.
  */
-export type StatusChangeTone = 'positive' | 'negative' | 'neutral'
+export type StatusChangeTone = ChangeTone
 
 export const getStatusChangeTone = (
   metric: StatusMetric,
   changeRate: number | null | undefined,
-): StatusChangeTone => {
-  if (!isFiniteNumber(changeRate) || changeRate === 0) return 'neutral'
-
-  const isRising = changeRate > 0
-  const isGood = metric === 'closed' ? !isRising : isRising
-
-  return isGood ? 'positive' : 'negative'
-}
+): StatusChangeTone =>
+  resolveChangeTone(changeRate, STATUS_METRIC_POLARITY[metric])
 
 /** 증감 **글자** 색. 글자는 AA 4.5:1 을 넘어야 해서 -text 토큰이다(green700·red700). */
-export const STATUS_CHANGE_TONE_COLOR: Record<StatusChangeTone, string> = {
-  positive: 'var(--color-positive-text)',
-  negative: 'var(--color-negative-text)',
-  neutral: 'var(--color-text-600)',
+export const STATUS_CHANGE_TONE_COLOR: Readonly<
+  Record<StatusChangeTone, string>
+> = CHANGE_TONE_TEXT_COLOR
+
+/**
+ * 변화율의 비교 기준. 순위 호출에 `previousPeriodCode` 를 보내지 않으면 백엔드가 **직전 분기**를
+ * 기준으로 쓴다(status.md 「백엔드 계약」). 화면에 기준이 없으면 「+2.5%」가 무엇과 비교한 값인지
+ * 알 수 없다(#560).
+ */
+export const STATUS_CHANGE_BASIS = '직전 분기 대비'
+
+export type StatusChangePresentation = {
+  tone: StatusChangeTone
+  /** 화면용 기호. 스크린리더에는 숨기고 `directionLabel` 로 읽힌다. 값이 없으면 null(기호 없음). */
+  arrow: '▲' | '▼' | '–' | null
+  /** 「증가」·「감소」·「변동 없음」. 값이 없으면 빈 문자열이다. */
+  directionLabel: string
+  /**
+   * 「+2.5%」. 값이 없으면 「변화율 데이터 없음」 — 「– 데이터 없음」은 무엇이 없는지 말하지 않는다.
+   * 지도 툴팁(`formatStatusRankSummary`)과 같은 말이다.
+   */
+  rateText: string
+  /** 「개선」·「악화」. 변동 없음·데이터 없음이면 빈 문자열이다. */
+  qualityLabel: string
+}
+
+/**
+ * 증감 한 칸을 그릴 재료. **부호·화살표와 「개선/악화」 글자를 색과 늘 같이 둔다** — 색만으로
+ * 좋고 나쁨을 전하지 않는다(WCAG 1.4.1). 목록 행과 상세 머리 칩이 같이 쓴다.
+ */
+export const presentStatusChange = (
+  metric: StatusMetric,
+  changeRate: number | null | undefined,
+): StatusChangePresentation => {
+  const tone = getStatusChangeTone(metric, changeRate)
+  const rateText = formatStatusChange(changeRate)
+
+  if (!isFiniteNumber(changeRate)) {
+    return {
+      tone,
+      arrow: null,
+      directionLabel: '',
+      rateText: `변화율 ${EMPTY_STATUS_VALUE}`,
+      qualityLabel: '',
+    }
+  }
+
+  if (changeRate === 0) {
+    return {
+      tone,
+      arrow: '–',
+      directionLabel: '변동 없음',
+      rateText,
+      qualityLabel: '',
+    }
+  }
+
+  return {
+    tone,
+    arrow: changeRate > 0 ? '▲' : '▼',
+    directionLabel: changeRate > 0 ? '증가' : '감소',
+    rateText,
+    qualityLabel: describeChangeTone(tone),
+  }
 }

@@ -7,7 +7,7 @@ import {
   getScoreQualityLabel,
   resolveScoreQuality,
   type MetricPolarity,
-} from '@/lib/recommend/metric-polarity'
+} from '@/lib/metrics/metric-polarity'
 
 /**
  * 값 하나짜리 점수 게이지.
