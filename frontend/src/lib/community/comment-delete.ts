@@ -1,5 +1,7 @@
 import type { CommunityComment, CommunityId } from '@/types/community'
 
+/* 지연 실행 큐 `createDeferredCommit` 는 프로필 북마크 삭제도 쓰므로 `lib/ui/deferred-commit` 에 있다. */
+
 /*
   댓글 삭제 — 확인 창 대신 「낙관적 숨김 + 지연 삭제 + 되돌리기」(#581, community.md §S4 「댓글 삭제 되돌리기」).
 
@@ -84,63 +86,4 @@ export const undoCommunityCommentDelete = ({
 
   onAlreadyDeleted()
   return false
-}
-
-type Timer = ReturnType<typeof setTimeout>
-
-export type DeferredCommitOptions<Key> = {
-  delayMs: number
-  commit: (key: Key) => void
-  /** 테스트가 가짜 타이머를 넣는 자리. 기본은 전역 setTimeout. */
-  setTimer?: (callback: () => void, delayMs: number) => Timer
-  clearTimer?: (timer: Timer) => void
-}
-
-/**
- * 「지금은 예약만, 시간이 지나면 실행」 큐. 되돌리면 예약을 지운다. `flush` 는 남은 예약을 즉시 실행한다
- * (페이지 이탈). 같은 키를 두 번 예약하면 앞 예약을 지우고 다시 잰다.
- */
-export const createDeferredCommit = <Key>({
-  delayMs,
-  commit,
-  setTimer = (callback, ms) => setTimeout(callback, ms),
-  clearTimer = timer => clearTimeout(timer),
-}: DeferredCommitOptions<Key>) => {
-  const timers = new Map<Key, Timer>()
-
-  return {
-    schedule: (key: Key) => {
-      const existing = timers.get(key)
-      if (existing !== undefined) {
-        clearTimer(existing)
-      }
-
-      timers.set(
-        key,
-        setTimer(() => {
-          timers.delete(key)
-          commit(key)
-        }, delayMs),
-      )
-    },
-    /** 예약을 지운다. 이미 실행됐거나 없으면 false — 되돌릴 수 없다. */
-    undo: (key: Key) => {
-      const timer = timers.get(key)
-      if (timer === undefined) {
-        return false
-      }
-
-      clearTimer(timer)
-      timers.delete(key)
-      return true
-    },
-    flush: () => {
-      const keys = [...timers.keys()]
-      timers.forEach(timer => clearTimer(timer))
-      timers.clear()
-      keys.forEach(key => commit(key))
-      return keys
-    },
-    has: (key: Key) => timers.has(key),
-  }
 }

@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useToast } from '@/components/ui/toast'
 /*
-  「지금은 예약만, 시간이 지나면 실행」 큐는 커뮤니티 댓글 지연 삭제(#581)가 먼저 만들었다. 같은 큐를 그대로 쓴다 —
-  두 벌로 나뉘면 되돌리기·이탈 규칙이 화면마다 갈린다. 공용 위치(lib/ui)로 옮기는 일은 B18(공용 UI 정리)에 맡긴다.
+  「지금은 예약만, 시간이 지나면 실행」 큐는 커뮤니티 댓글 지연 삭제(#581)와 같은 것(lib/ui/deferred-commit)을 쓴다 —
+  두 벌로 나뉘면 되돌리기·이탈 규칙이 화면마다 갈린다.
 */
-import { createDeferredCommit } from '@/lib/community/comment-delete'
+import { createDeferredCommit } from '@/lib/ui/deferred-commit'
 import { describeRemovalFailure } from '@/lib/profile/removal-request'
 import { TOAST_ACTION_DURATION_MS } from '@/lib/ui/toast-state'
 
@@ -110,7 +110,14 @@ export function useUndoableRemoval({
   const getQueue = () => {
     queueRef.current ??= createDeferredCommit<string>({
       delayMs: TOAST_ACTION_DURATION_MS,
-      commit: key => runRef.current(key),
+      /*
+        되돌리기 기한은 10초로 고정이다. 토스트는 읽는 동안(hover·focus) 멈추지만 기한은 멈추지 않으므로, 삭제를 보내는
+        순간 그 토스트를 닫는다 — 남겨 두면 누를 수는 있는데 되돌릴 것이 없는 버튼이 된다(#584).
+      */
+      commit: key => {
+        dismissRef.current(key)
+        runRef.current(key)
+      },
     })
     return queueRef.current
   }

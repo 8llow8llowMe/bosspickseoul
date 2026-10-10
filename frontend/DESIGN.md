@@ -558,6 +558,11 @@ inline-size` 를 걸고 `@container` 로 열을 바꾼다(결과 화면: 1열 <6
 ### Touch Targets
 
 - Buttons: xlarge (~56px), large (~48px), medium (~40px), small (~36px)
+  — 공용 `Button` 의 `big` 56 · `large` 48 · `medium` 40 · `tiny` 36 이 **버튼 높이의 전부**다(`BUTTON_HEIGHTS`, #582).
+  화면이 42·46 같은 높이를 새로 만들지 않는다. 글자 버튼(주·보조·취소)은 로컬 `styled.button` 대신 공용
+  `Button`/`ButtonLink` 를 쓰고, 칩·탭·아이콘 버튼·텍스트 링크처럼 Button 모양이 아닌 컨트롤은 터치 바닥 44 를 쓴다.
+  목록 행(52)·카드처럼 버튼이 아닌 누름 영역만 예외다. 커뮤니티·채팅·프로필은 `button-heights.test.ts` 가 잠근다.
+- `tiny`·`medium` 은 모바일(≤1023)에서 `touchHitArea()` 로 **히트 영역만** 44 로 넓힌다(보이는 크기 그대로, #582).
 - List items: minimum 52px row height for financial actions
 - Keypad buttons: large targets (56-64px) for secure input
 - 모바일(≤1023px) 터치 대상은 **히트 영역 44px 이상**이다. 보이는 크기가 작으면 `src/styles/touch-target.ts` 의
@@ -937,6 +942,9 @@ stroke 굵기나 파랑 계열을 직접 정하지 않는다.
 **8종 Primitive**
 
 1. **Button** — variant: `primary` / `secondary` / `dark` / `danger` / `ghost`. size: `tiny` / `medium` / `large` / `big`. display: `inline` / `block` / `full`.
+   `secondary` 글자는 `--color-text-primary-on-light`(blue700)다 — blue50 위 blue500 은 2.47:1 로 미달이다.
+   포커스를 잃으면 안 되는 비활성은 `aria-disabled="true"` 로 두면 `disabled` 와 같은 모양이 된다(클릭은 핸들러가 막는다).
+   취소·닫기는 `ghost`, 나란한 보조 행동(목록으로·더 보기·다시 시도)은 `secondary` 다.
 2. **TextField** — bg `grey100`, border `grey200`, focus `blue500` 2px, error `red500` 2px. height 44 또는 48.
    `emphasized` 변형은 **테두리만** `grey300`(§Border Strong)으로 올린다 — 흰 카드 위에서 칩 격자와 나란히 놓여
    `grey200` 테두리로는 "입력 가능한 칸"으로 읽히지 않는 자리에만 쓴다. 기본값은 `grey200`이라 기존 화면은 그대로다.
@@ -1118,6 +1126,20 @@ stroke 굵기나 파랑 계열을 직접 정하지 않는다.
 
 **Toast 위치**
 화면 하단 중앙, 20px 인셋, `motion-fast / ease-enter`로 등장, 3s 후 `motion-fast / ease-exit`.
+
+**Toast 읽기·타이머 (#584, `ui/toast.tsx`)**
+
+- 스크린리더 알림은 **처음부터 DOM 에 있는 빈 live region 두 개**가 맡는다 — 성공·안내는 `role="status"`
+  (`aria-live="polite"`), 오류만 `role="alert"`(`aria-live="assertive"`). 토스트가 뜨면 영역은 그대로 두고 **내용만**
+  넣는다. 내용과 함께 생기는 live region 은 많은 스크린리더가 읽지 않는다. 그래서 영역은 포털이 아니라 서버 렌더부터
+  그린다(`position: fixed` 1px 라 문서 높이에 끼지 않는다). 보이는 카드에는 role 을 달지 않는다(두 번 읽힌다).
+- 동작 버튼이 달린 토스트는 읽는 문장 끝에 `알림에 「되돌리기」 버튼이 있어요.` 처럼 버튼 이름을 붙인다.
+- 포인터가 카드 위에 있거나 카드 안에 포커스가 있는 동안 **모든 토스트의 자동 해제를 멈추고**, 풀리면 남은 시간부터
+  다시 잰다(WCAG 2.2.1). 문구를 읽는 사이에 토스트가 사라지지 않게 하기 위해서다. 멈춤은 지금 떠 있는 카드 기준이다 —
+  붙잡은 카드가 닫히거나 밀려나면 남은 토스트는 다시 잰다.
+- **되돌리기 기한은 멈추지 않는다.** 토스트는 읽는 동안 멈추지만 지연 삭제의 기한은 10초로 고정이고(서버에 되살리는 API 가
+  없어 기한 뒤에는 실제로 지운다), 기한이 지나 삭제를 보내는 순간 그 되돌리기 토스트도 닫는다. 되돌릴 것이 없는 버튼을
+  남기지 않는다(`lib/ui/deferred-commit` 을 쓰는 프로필 보관함 삭제·커뮤니티 댓글 삭제 공통).
 
 **Confirm Dialog**
 
