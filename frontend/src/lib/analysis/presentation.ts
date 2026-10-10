@@ -225,3 +225,39 @@ export const formatSignedPercentPoint = (value: number): string => {
     maximumFractionDigits: 1,
   }).format(Math.abs(rounded))}%p`
 }
+
+/* ─── 지표 용어 한 줄 정의(#564) ──────────────────────────────────────── */
+
+export type AnalysisTerm =
+  | 'salesPerStore'
+  | 'footTraffic'
+  | 'storeCount'
+  | 'generalStoreCount'
+  | 'residentPopulation'
+
+/**
+ * 지표 이름 옆 물음표(`TermHelp`)가 펼치는 정의. **문구는 여기 한 곳에만 둔다** — 상권분석 결과와
+ * 구별현황이 같은 용어를 다르게 풀면 같은 수를 두 가지로 읽는다.
+ *
+ * 비전문가 사장님이 읽는다. 원천 필드 이름(`STOR_CO` 등)은 쓰지 않고, 숫자를 어떻게 읽으면 되는지
+ * 한 문장을 덧붙인다(「유동인구가 상주인구의 1,135배」가 무엇을 말하는지).
+ */
+export const ANALYSIS_TERM_DEFINITIONS: Readonly<Record<AnalysisTerm, string>> =
+  {
+    salesPerStore:
+      '이 상권에 있는 이 업종 점포들의 한 달 매출 합계를 점포 수로 나눈 값이에요. 가게 한 곳이 한 달에 평균 얼마를 파는지 보여 줘요.',
+    footTraffic:
+      '이 상권을 오간 사람 수를 서울시가 추정한 값이에요. 사는 사람뿐 아니라 일하러 오거나 지나가는 사람도 세요. 「상주인구의 N배」는 유동인구를 상주인구로 나눈 값으로, 클수록 사는 사람보다 오가는 사람이 많은 상권이에요.',
+    storeCount:
+      '이 상권에 있는 이 업종 점포 수예요. 일반 점포와 프랜차이즈 점포를 합친 수예요.',
+    generalStoreCount:
+      '프랜차이즈 점포를 뺀 이 업종 점포 수예요. 프랜차이즈를 포함한 「점포 수」와 값이 달라요.',
+    residentPopulation:
+      '이 상권 안에 주소를 두고 사는 사람 수예요. 일하러 오거나 지나가는 사람은 세지 않아요.',
+  }
+
+/**
+ * 「{기준} 대비 지수」의 정의. 기준 이름이 화면마다 달라(자치구·행정동 이름) 함수로 둔다.
+ */
+export const describeSalesPerStoreIndexTerm = (baseName: string): string =>
+  `이 상권 점포 한 곳의 월 매출을 ${baseName} 점포 평균과 견준 값이에요. ${baseName} 평균을 100으로 두고, 100보다 크면 평균보다 많이 팔고 작으면 적게 팔아요.`

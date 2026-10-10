@@ -1,8 +1,10 @@
 'use client'
 
+import { useId } from 'react'
 import styled from 'styled-components'
 import type { LucideIcon } from 'lucide-react'
 
+import TermHelp from '@/components/analysis/term-help'
 import { formatAnalysisValue } from '@/lib/analysis/presentation'
 
 /**
@@ -39,6 +41,11 @@ export type SummaryCard = {
    * 점포 수 0 인 상권의 점포당 매출은 「점포 없음」이다(#561).
    */
   emptyText?: string | null
+  /**
+   * 라벨 옆 물음표가 펼칠 한 줄 정의(#564). 문구는 `ANALYSIS_TERM_DEFINITIONS` 에서 가져온다.
+   * 있으면 카드 묶음(`role="group"`)이 라벨을 이름으로, 정의를 설명으로 읽힌다.
+   */
+  definition?: string
 }
 
 /**
@@ -84,8 +91,10 @@ const Card = styled.div`
 
 const Head = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 0 6px;
+  min-height: 18px;
   color: var(--color-text-caption-on-band);
   font-size: 12px;
 
@@ -157,6 +166,53 @@ export const toBarWidth = (ratio: number | undefined): number | null => {
   return ratio === 0 ? 0 : Math.max(2, ratio * 100)
 }
 
+function SummaryCardItem({ card }: { card: SummaryCard }) {
+  const id = useId()
+  const labelId = `${id}-label`
+  const definitionId = `${id}-definition`
+  const Icon = card.icon
+  const width = toBarWidth(card.context?.ratio)
+
+  return (
+    <Card
+      {...(card.definition
+        ? {
+            role: 'group',
+            'aria-labelledby': labelId,
+            'aria-describedby': definitionId,
+          }
+        : {})}
+    >
+      <Head>
+        {Icon ? <Icon aria-hidden="true" /> : null}
+        <span id={labelId}>{card.label}</span>
+        {card.definition ? (
+          <TermHelp
+            label={card.label}
+            definition={card.definition}
+            definitionId={definitionId}
+            // 카드 묶음이 이미 정의를 설명으로 읽힌다 — 버튼에서 또 읽지 않는다.
+            describe={false}
+          />
+        ) : null}
+      </Head>
+      <Value>
+        {card.value === null || card.value === undefined
+          ? (card.emptyText ?? formatAnalysisValue(card.value, card.unit))
+          : formatAnalysisValue(card.value, card.unit)}
+      </Value>
+      <Context>
+        {width === null ? null : (
+          <Track aria-hidden="true">
+            <Fill $width={width} />
+          </Track>
+        )}
+        {card.context ? <ContextText>{card.context.text}</ContextText> : null}
+      </Context>
+    </Card>
+  )
+}
+
 export default function AnalysisSummaryCards({
   cards,
 }: {
@@ -165,35 +221,9 @@ export default function AnalysisSummaryCards({
   return (
     <Frame>
       <Grid>
-        {cards.map(card => {
-          const Icon = card.icon
-          const width = toBarWidth(card.context?.ratio)
-
-          return (
-            <Card key={card.label}>
-              <Head>
-                {Icon ? <Icon aria-hidden="true" /> : null}
-                <span>{card.label}</span>
-              </Head>
-              <Value>
-                {card.value === null || card.value === undefined
-                  ? (card.emptyText ??
-                    formatAnalysisValue(card.value, card.unit))
-                  : formatAnalysisValue(card.value, card.unit)}
-              </Value>
-              <Context>
-                {width === null ? null : (
-                  <Track aria-hidden="true">
-                    <Fill $width={width} />
-                  </Track>
-                )}
-                {card.context ? (
-                  <ContextText>{card.context.text}</ContextText>
-                ) : null}
-              </Context>
-            </Card>
-          )
-        })}
+        {cards.map(card => (
+          <SummaryCardItem key={card.label} card={card} />
+        ))}
       </Grid>
     </Frame>
   )
