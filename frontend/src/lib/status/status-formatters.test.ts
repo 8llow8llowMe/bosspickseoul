@@ -7,7 +7,6 @@ import {
   getStatusChangeTone,
   presentStatusChange,
   STATUS_CHANGE_BASIS,
-  toChangeBadge,
 } from './status-formatters'
 
 describe('formatStatusValue', () => {
@@ -192,11 +191,5 @@ describe('formatStatusRankSummary', () => {
       '유동인구 데이터 없음',
     )
     expect(formatStatusRankSummary('closed', null)).toBe('폐업 데이터 없음')
-  })
-})
-
-describe('toChangeBadge', () => {
-  it('변화율 null 이면 배지를 만들지 않는다', () => {
-    expect(toChangeBadge(null)).toEqual({})
   })
 })
