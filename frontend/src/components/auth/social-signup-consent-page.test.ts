@@ -29,10 +29,10 @@ describe('SocialSignupConsentPage (TC-CON-004)', () => {
     expect(markup).toContain('카카오로 가입')
     expect(markup).toContain('약관에 동의하면 가입이 끝납니다.')
     expect(markup).toContain(
-      '필수 항목에 동의한 뒤 카카오로 계속하면 가입이 끝나요.',
+      '필수 항목에 동의한 뒤 「카카오로 시작하기」를 누르면 가입이 끝나요.',
     )
     expect(markup).toContain('<fieldset')
-    expect(markup).toContain('카카오로 계속하기')
+    expect(markup).toContain('카카오로 시작하기')
   })
 
   it('reason=terms 면 처음 오신 안내를 보여 주고 체크박스를 강조하지 않는다', () => {

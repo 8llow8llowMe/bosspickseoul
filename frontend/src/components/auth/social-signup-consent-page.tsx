@@ -74,7 +74,7 @@ export default function SocialSignupConsentPage({
       <AuthShell
         eyebrow="카카오로 가입"
         title="약관에 동의하면 가입이 끝납니다."
-        description="필수 항목에 동의한 뒤 카카오로 계속하면 가입이 끝나요."
+        description="필수 항목에 동의한 뒤 「카카오로 시작하기」를 누르면 가입이 끝나요."
       >
         <Notice>{REASON_NOTICE[reason]}</Notice>
 
@@ -96,6 +96,7 @@ export default function SocialSignupConsentPage({
           onConsentIncomplete={handleIncomplete}
           returnTo={returnTo}
           showDivider={false}
+          label="카카오로 시작하기"
         />
 
         <FooterRow>
