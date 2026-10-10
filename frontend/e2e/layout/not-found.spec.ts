@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test'
 /**
  * 없는 주소 화면(docs/features/layout/error-screens.md).
  * `/nope-xyz` 는 루트 not-found(셸을 직접 두름), `/community/abc` 는 (shell)/not-found(셸 없이 화면만)다.
+ * `/community` 는 목록으로 redirect 되므로(#636) 404 예시가 아니다.
  * 어느 쪽이든 셸은 하나여야 한다.
  */
 for (const path of ['/nope-xyz', '/community/abc']) {
