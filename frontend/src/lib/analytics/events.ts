@@ -25,6 +25,14 @@ export type AnalyticsEventMap = {
   }
   home_story_cta_click: { step: string; carried: boolean }
   home_final_cta_click: { cta: 'register' | 'analysis' }
+  /**
+   * 상권분석에서 자치구·행정동·상권을 확정했을 때(#596). `method` 로 어느 길로 왔는지 나눠 이름 검색
+   * 경유 비율을 본다. 업종 선택은 싣지 않는다 — 지역을 찾는 길을 비교하는 이벤트다.
+   */
+  analysis_step_select: {
+    step: 'district' | 'administration' | 'commercial'
+    method: 'list' | 'map' | 'popular' | 'search'
+  }
 }
 
 export type AnalyticsEventName = keyof AnalyticsEventMap
