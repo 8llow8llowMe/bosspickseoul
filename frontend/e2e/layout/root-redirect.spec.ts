@@ -19,20 +19,23 @@ test.describe('기능 루트 redirect', () => {
     })
   }
 
-  // 끝 슬래시는 Next 가 먼저 308 로 떼고(쿼리 유지) 위 규칙이 이어 받는다.
-  test('/community/ 도 최종 주소가 /community/list, 쿼리 유지', async ({
-    page,
-  }) => {
-    await page.goto('/community/?region=1')
-    await expect(page).toHaveURL(/\/community\/list\?region=1$/)
-  })
-
-  test('/community 로 들어가면 최종 주소가 /community/list', async ({
-    page,
-  }) => {
-    await page.goto('/community?region=1')
-    await expect(page).toHaveURL(/\/community\/list\?region=1$/)
-  })
+  /*
+    끝 슬래시는 Next 가 먼저 308 로 떼고(쿼리 유지) 위 규칙이 307 로 이어 받는다.
+    page 로 열지 않는다 — 목록 화면이 그려지면 브라우저가 커뮤니티 BFF 를 불러 백엔드 없는 CI 에서
+    500 이 난다. 레이아웃 슈트는 BFF 를 부르지 않는다(qa.md §2). redirect 연쇄의 최종 주소만 본다.
+  */
+  for (const path of ['/community/', '/community']) {
+    test(`${path}?region=1 — 최종 주소가 /community/list, 쿼리 유지`, async ({
+      request,
+    }) => {
+      const response = await request.get(`${path}?region=1`, {
+        maxRedirects: 5,
+      })
+      const finalUrl = new URL(response.url())
+      expect(finalUrl.pathname).toBe('/community/list')
+      expect(finalUrl.search).toBe('?region=1')
+    })
+  }
 
   test('/chatting — 307 로 /chatting/list (비로그인은 이어서 로그인)', async ({
     request,

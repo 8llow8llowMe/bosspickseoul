@@ -25,6 +25,11 @@ import { measureHomeMetrics, openHome, type HomeMetrics } from './measure'
  * | 모바일 첫 페인트 API 호출   | ≤3          |
  *
  * 폰트 전송량(3,049KB → ≤500KB)은 프로덕션 빌드에서만 뜻이 있어 여기서 재지 않는다.
+ *
+ * **로컬 전용이다 — CI(`frontend-ci / e2e`)에서 돌지 않는다**(#632). 기준선은 dev 서버 + 실응답
+ * (`districts/top-ten` 등)으로 쟀다. CI 는 프로덕션 빌드에 백엔드가 없어 번들·폰트 로딩과 데이터가
+ * 달라 수치가 어긋난다. 서버·데이터와 무관한 불변식(가로 넘침·h1·링크·콘솔·합니다체 0·첫 페인트
+ * BFF 호출 ≤3)은 `invariants.spec.ts` 로 나눠 CI 에서 돈다.
  */
 const TARGET = {
   h1Screen: 0,
@@ -99,29 +104,6 @@ const reportTarget = (label: string, value: number, target: number) => {
       `[target reached] ${label} = ${value} (목표 ≤ ${target}) — 기준선을 내려도 됩니다.`,
     )
   }
-}
-
-/** `main` 안 링크가 갈 수 있는 곳. 홈은 보호 라우트로 보내지 않는다. */
-const ALLOWED_PATHS = [
-  '/status',
-  '/analysis',
-  '/recommend',
-  '/simulation',
-  '/register',
-]
-
-/**
- * 홈이 밖으로 보내도 되는 곳 — 데이터 출처 카드의 공식 원문(data-sources.md D4-4).
- * 위 목록의 목적은 「보호 라우트로 보내지 않는다」라 외부는 공식 데이터 도메인만 연다.
- */
-const ALLOWED_EXTERNAL_HOSTS = ['data.seoul.go.kr', 'www.data.go.kr']
-
-const isAllowedLink = (href: string): boolean => {
-  if (/^https?:\/\//.test(href)) {
-    return ALLOWED_EXTERNAL_HOSTS.includes(new URL(href).host)
-  }
-  const [pathname] = href.split('?')
-  return ALLOWED_PATHS.includes(pathname)
 }
 
 test.describe('홈 감사 지표', () => {
@@ -234,39 +216,5 @@ test.describe('홈 감사 지표', () => {
       TARGET.formalSentences,
     )
     reportTarget('bffRequests', bffRequests, TARGET.bffRequests)
-  })
-
-  test('불변식 — 가로 넘침·h1·링크·콘솔 오류', async ({ page }, testInfo) => {
-    const session = await openHome(page)
-    const metrics = await measureHomeMetrics(page)
-
-    await testInfo.attach('home-invariants', {
-      body: JSON.stringify(
-        {
-          horizontalOverflow: metrics.horizontalOverflow,
-          h1Count: metrics.h1Count,
-          linkHrefs: metrics.linkHrefs,
-          consoleErrors: session.consoleErrors,
-          bffRequests: session.bffRequests,
-        },
-        null,
-        2,
-      ),
-      contentType: 'application/json',
-    })
-
-    expect(metrics.horizontalOverflow, '가로 스크롤이 생겼습니다.').toBe(false)
-    expect(metrics.h1Count, 'h1 은 정확히 1개여야 합니다.').toBe(1)
-
-    const disallowed = metrics.linkHrefs.filter(href => !isAllowedLink(href))
-    expect(
-      disallowed,
-      `허용 목록 밖 링크가 있습니다: ${disallowed.join(', ')}`,
-    ).toEqual([])
-
-    expect(
-      session.consoleErrors,
-      `콘솔 오류가 있습니다: ${session.consoleErrors.join(' / ')}`,
-    ).toEqual([])
   })
 })

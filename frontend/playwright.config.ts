@@ -18,6 +18,13 @@ import { defineConfig, devices } from '@playwright/test'
  */
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173'
 
+/**
+ * 서버가 없을 때 `webServer` 가 띄우는 dev 서버 포트는 baseURL 에서 읽는다. 5173 을 다른 작업이
+ * 쓰고 있으면 `PLAYWRIGHT_BASE_URL=http://localhost:5197` 처럼 오리진만 바꿔 다른 포트로 돈다 —
+ * baseURL 과 띄우는 포트가 어긋나면 엉뚱한 서버를 재거나 준비를 기다리다 시간이 끝난다.
+ */
+const webServerPort = new URL(baseURL).port || '5173'
+
 export default defineConfig({
   testDir: 'e2e',
   outputDir: 'test-results',
@@ -52,7 +59,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev -p 5173',
+    command: `pnpm dev -p ${webServerPort}`,
     url: baseURL,
     reuseExistingServer: true,
     timeout: 180_000,
