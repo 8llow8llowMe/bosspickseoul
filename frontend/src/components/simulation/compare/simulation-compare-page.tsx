@@ -47,6 +47,10 @@ import {
   simulationReportQueryKey,
 } from '@/lib/simulation/report-query'
 import {
+  readSimulationAnalysisContextParams,
+  withSimulationAnalysisContext,
+} from '@/lib/simulation/analysis-context'
+import {
   readSimulationReportPeriod,
   simulationBuilderHref,
   type SimulationReportVariant,
@@ -283,6 +287,18 @@ export default function SimulationComparePage({
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
 
+  /*
+    분석 경유 비교는 분석 컨텍스트(`ctx` 키)를 읽지 않고 옮기기만 한다(#635). 비교를 다시 눌러 주소를 바꿀 때도,
+    「조건 하나만 계산하기」·열별 리포트 링크로 나갈 때도 덧붙인다. 계산(요청·캐시 키)에는 쓰지 않는다.
+  */
+  const contextParams = useMemo(
+    () =>
+      variant === 'analysis'
+        ? readSimulationAnalysisContextParams(searchParams)
+        : null,
+    [variant, searchParams],
+  )
+
   // 초기값은 마운트 시 한 번만 읽는다 — `useSimulationConditions` 가 그렇게 동작한다.
   // URL 은 "들어올 때의 조건"이고, 그 뒤로는 편집기가 정본이다.
   const initial = parseSimulationCompareConditionPair(searchParams)
@@ -386,8 +402,8 @@ export default function SimulationComparePage({
    * `비교하기` 는 계산을 직접 명령하지 않는다. **URL 을 편집기 상태와 맞추고**, 그 URL 이
    * 쿼리를 트리거한다.
    *
-   * 조건을 고치지 않고 눌렀다면 URL 은 이미 맞으므로 재탐색할 것이 없다. 그때는
-   * `refetch()` 로 같은 조건을 다시 계산한다. 아무것도 하지 않으면 활성인 버튼이 눌러도
+   * 조건을 고치지 않고 눌렀다면 쿼리 키가 그대로라 새 계산이 나가지 않는다(주소는 표시용 키만큼 바뀔 수
+   * 있다). 그때는 `refetch()` 로 같은 조건을 다시 계산한다. 아무것도 하지 않으면 활성인 버튼이 눌러도
    * 반응하지 않는 상태가 되는데, 재시도 버튼이 없는 오류(404 는 `isRetryable` 이 false 라
    * 안내에 버튼이 붙지 않는다)에서는 화면 어디에도 응답이 없어 사용자가 다음에 무엇을
    * 해야 하는지 알 수 없다. 라벨이 `비교하기` 인 이상 누르면 비교해야 한다.
@@ -400,36 +416,58 @@ export default function SimulationComparePage({
   const onCompare = useCallback(() => {
     if (!leftRequest || !rightRequest) return
 
-    const href = buildSimulationCompareHref(
-      { left: leftRequest, right: rightRequest },
-      variant,
-      // 표시용 브랜드명을 싣는다. 다시 들어와도 접힌 브랜드 줄에 이름이 남는다(C1).
-      { left: leftBrandName, right: rightBrandName },
+    const href = withSimulationAnalysisContext(
+      buildSimulationCompareHref(
+        { left: leftRequest, right: rightRequest },
+        variant,
+        // 표시용 브랜드명을 싣는다. 다시 들어와도 접힌 브랜드 줄에 이름이 남는다(C1).
+        { left: leftBrandName, right: rightBrandName },
+      ),
+      contextParams,
     )
 
     moveToResultRef.current = true
     setExpanded(false)
 
-    // 같은 계산인지는 요청으로 가른다(href 는 표시용 brandName 까지 담는다). 같으면 URL 만 맞추고
-    // 다시 계산한다 — 캐시를 집으면 눌러도 아무 일도 없는 버튼이 된다.
-    const sameAsResult = isSameSimulationComparePair(
-      { left: leftRequest, right: rightRequest },
-      urlPair,
-    )
-    // URL 이 바뀌면 새 키로 계산이 나간다 — 같은 계산이어도 여기서 또 부르면 두 번 계산한다(분기가 처음
-    // 실리는 옛 링크가 그렇다). URL 이 그대로일 때만 다시 계산한다.
+    /*
+      주소를 맞추는 일과 다시 계산하는 일을 따로 판정한다.
+
+      쿼리 키는 주소 문자열이 아니라 **주소에서 파싱한 요청**으로 만든다(`simulationComparePairQueryKey`). 그래서
+      주소가 바뀌어도 키가 같을 수 있다 — 표시용 `brandName`, 분석 컨텍스트 `ctx` 키(#635), 키 순서만 다른 경우다.
+      #635 이전에 공유한 분석 경유 비교 링크는 표식 `ctx=1` 만큼 주소가 달라 `replace` 는 나가지만 키가 그대로라,
+      주소만 보고 판정하면 눌러도 반응 없는 버튼이 됐다.
+
+      거꾸로 키가 바뀌면 `replace` 뒤 새 키로 계산이 저절로 나간다. 여기서 또 `refetch` 하면 두 번 계산한다.
+      분기 없는 옛 링크가 그렇다 — 편집기 요청은 카탈로그 분기를 싣고(`useSimulationConditions`) 주소 요청은
+      분기가 없어 키가 다르다. `isSameSimulationComparePair` 는 분기 생략을 같은 것으로 보므로 이 판정에 쓰지
+      않는다.
+    */
+    const nextKey = simulationComparePairQueryKey(leftRequest, rightRequest)
+    const currentKey =
+      urlComparable && urlLeft && urlRight
+        ? simulationComparePairQueryKey(urlLeft, urlRight)
+        : null
+    const sameKey =
+      currentKey !== null &&
+      currentKey.length === nextKey.length &&
+      currentKey.every((part, index) => part === nextKey[index])
+
     if (href !== `${pathname}?${searchParams}`) router.replace(href)
-    else if (sameAsResult) void refetch()
+    // 같은 계산이면 다시 계산한다 — 캐시를 집으면 눌러도 아무 일도 없는 버튼이 된다.
+    if (sameKey) void refetch()
   }, [
     leftRequest,
     rightRequest,
     leftBrandName,
     rightBrandName,
-    urlPair,
+    urlComparable,
+    urlLeft,
+    urlRight,
     pathname,
     searchParams,
     router,
     variant,
+    contextParams,
     refetch,
   ])
 
@@ -546,7 +584,10 @@ export default function SimulationComparePage({
           {/* A 조건을 실어 보낸다(C7) — 비교하다 하나만 자세히 보려는 사람이 다시 고르지 않게. */}
           <ButtonLink
             variant="ghost"
-            href={simulationBuilderHref(variant, left.state)}
+            href={withSimulationAnalysisContext(
+              simulationBuilderHref(variant, left.state),
+              contextParams,
+            )}
             leftIcon={<ArrowLeft />}
           >
             조건 하나만 계산하기
@@ -675,6 +716,7 @@ export default function SimulationComparePage({
               left={leftReport}
               right={rightReport}
               variant={variant}
+              contextParams={contextParams}
             />
           ) : null}
         </ResultArea>

@@ -913,25 +913,156 @@ describe('SimulationBuilderPage — 계산 상태 낭독 (#604 리뷰)', () => {
   })
 })
 
-describe('SimulationBuilderPage — 분석 경유 화면의 URL 거울 (리뷰)', () => {
-  it('자치구를 바꿔도 분석 컨텍스트 키는 진입 값 그대로 둔다', () => {
-    const entry =
-      '?districtCode=11440&administrationCode=11440660&commercialCode=3110567&serviceCode=CS100001'
-    navigation.search = entry.slice(1)
-    window.history.replaceState(null, '', `/analysis/simulation${entry}`)
-    renderPage('analysis')
+/*
+  #635 — 분석 경유 화면도 바꾼 자치구·업종을 주소에 남긴다. 컨텍스트는 `ctx` 키에 따로 있어, 새로고침 뒤에도
+  카드는 분석 조건을 말하고 입력 화면은 바꾼 조건으로 열린다.
+*/
+describe('SimulationBuilderPage — 분석 경유 화면의 URL 거울 (#635)', () => {
+  const ENTRY =
+    '?ctxDistrictCode=11440&ctxAdministrationCode=11440660&ctxCommercialCode=3110567&ctxServiceCode=CS100001'
+  const LEGACY_ENTRY =
+    '?districtCode=11440&administrationCode=11440660&commercialCode=3110567&serviceCode=CS100001'
 
+  const enter = (search: string) => {
+    navigation.search = search.replace(/^\?/, '')
+    window.history.replaceState(null, '', `/analysis/simulation${search}`)
+    renderPage('analysis')
+  }
+
+  const contextCard = () => screen.getByLabelText('분석에서 가져온 조건')
+
+  const changeDistrictToGangnam = () => {
     fireEvent.click(chip('개인 창업'))
     fireEvent.click(header('district'))
     fireEvent.click(chip('강남구'))
+  }
 
+  it('분석 조건으로 채운 채 열고, 그 조건을 주소의 조건 키에도 적는다', () => {
+    enter(ENTRY)
+
+    expect(header('district').textContent).toContain('마포구')
+    expect(contextCard().textContent).toContain(
+      '분석 조건을 그대로 채워 뒀어요',
+    )
     const params = new URLSearchParams(window.location.search)
     expect(params.get('districtCode')).toBe('11440')
     expect(params.get('serviceCode')).toBe('CS100001')
-    expect(params.get('administrationCode')).toBe('11440660')
-    expect(params.get('commercialCode')).toBe('3110567')
+    expect(params.get('ctxDistrictCode')).toBe('11440')
+  })
+
+  it('자치구를 바꾸면 조건 키는 바꾼 값, ctx 키는 진입 값이다', () => {
+    enter(ENTRY)
+    changeDistrictToGangnam()
+
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('districtCode')).toBe('11680')
     expect(params.get('franchisee')).toBe('false')
+    expect(params.get('ctxDistrictCode')).toBe('11440')
+    expect(params.get('ctxServiceCode')).toBe('CS100001')
+    expect(params.get('ctxAdministrationCode')).toBe('11440660')
+    expect(params.get('ctxCommercialCode')).toBe('3110567')
+    expect(contextCard().textContent).toContain('조건을 직접 바꿨어요')
+  })
+
+  it('바꾼 뒤 새로고침해도 바꾼 자치구가 남고 카드는 분석 조건으로 되돌리기를 제안한다', () => {
+    enter(ENTRY)
+    changeDistrictToGangnam()
+    const written = window.location.search
+    cleanup()
+
+    // 새로고침: 주소창의 쿼리가 진입 쿼리가 된다.
+    enter(written)
+
     expect(header('district').textContent).toContain('강남구')
+    expect(contextCard().textContent).toContain('조건을 직접 바꿨어요')
+    expect(contextCard().textContent).toContain('분석 조건 · 마포구')
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '분석 조건으로 되돌리기' }),
+    )
+
+    expect(header('district').textContent).toContain('마포구')
+    expect(contextCard().textContent).toContain(
+      '분석 조건을 그대로 채워 뒀어요',
+    )
+    expect(
+      new URLSearchParams(window.location.search).get('districtCode'),
+    ).toBe('11440')
+  })
+
+  it('옛 형식 링크도 카드와 함께 열리고, 컨텍스트를 ctx 키로 옮겨 적는다', () => {
+    enter(LEGACY_ENTRY)
+
+    expect(header('district').textContent).toContain('마포구')
+    expect(contextCard().textContent).toContain(
+      '분석 조건을 그대로 채워 뒀어요',
+    )
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('ctxDistrictCode')).toBe('11440')
+    expect(params.get('ctxCommercialCode')).toBe('3110567')
+    expect(params.has('commercialCode')).toBe(false)
+    expect(params.has('administrationCode')).toBe(false)
+  })
+
+  it('옛 형식 링크에서 바꾼 자치구도 새로고침 뒤 남고 카드는 분석 조건을 말한다', () => {
+    enter(LEGACY_ENTRY)
+    changeDistrictToGangnam()
+    const written = window.location.search
+    cleanup()
+
+    enter(written)
+
+    expect(header('district').textContent).toContain('강남구')
+    expect(contextCard().textContent).toContain('분석 조건 · 마포구')
+  })
+
+  it('컨텍스트 없이 연 화면은 조건을 여러 번 바꾸고 새로고침해도 카드가 없다 (#635 리뷰)', () => {
+    enter('')
+    expect(screen.queryByLabelText('분석에서 가져온 조건')).toBeNull()
+
+    fireEvent.click(chip('개인 창업'))
+    fireEvent.click(chip('강남구'))
+    fireEvent.click(chip('한식음식점'))
+    const written = window.location.search
+    const params = new URLSearchParams(written)
+    expect(params.get('ctx')).toBe('1')
+    expect(params.has('ctxDistrictCode')).toBe(false)
+    cleanup()
+
+    enter(written)
+
+    expect(header('district').textContent).toContain('강남구')
+    expect(screen.queryByLabelText('분석에서 가져온 조건')).toBeNull()
+  })
+
+  it('계산 결과의 리포트·비교 링크에 분석 컨텍스트를 덧붙인다 (#635 리뷰)', async () => {
+    vi.mocked(api.createSimulationReport).mockResolvedValue(ok23450() as never)
+    enter(ENTRY)
+    changeDistrictToGangnam()
+    fireEvent.change(screen.getByLabelText('면적 직접 입력 (제곱미터)'), {
+      target: { value: '66' },
+    })
+    fireEvent.click(chip('1층'))
+
+    const reportLink = await waitFor(() => {
+      const node = document.querySelector<HTMLAnchorElement>(
+        'a[href^="/analysis/simulation/report?"]',
+      )
+      if (!node) throw new Error('리포트 링크가 아직 없다')
+      return node
+    })
+    const reportParams = new URL(reportLink.href).searchParams
+    expect(reportParams.get('districtCode')).toBe('11680')
+    expect(reportParams.get('ctx')).toBe('1')
+    expect(reportParams.get('ctxDistrictCode')).toBe('11440')
+
+    const compareLink = document.querySelector<HTMLAnchorElement>(
+      'a[href^="/analysis/simulation/compare?"]',
+    )
+    expect(
+      compareLink &&
+        new URL(compareLink.href).searchParams.get('ctxDistrictCode'),
+    ).toBe('11440')
   })
 })
 

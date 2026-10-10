@@ -25,6 +25,8 @@ import { getResponseBody } from '@/lib/api/response'
 import {
   isSimulationContextApplied,
   parseSimulationAnalysisContext,
+  toSimulationAnalysisContextSearchParams,
+  withSimulationAnalysisContext,
 } from '@/lib/simulation/analysis-context'
 import { useSimulationConditions } from '@/lib/simulation/use-simulation-conditions'
 import {
@@ -229,13 +231,26 @@ export default function SimulationBuilderPage({
   variant = 'standalone',
 }: SimulationBuilderPageProps) {
   const searchParams = useSearchParams()
-  const context =
-    variant === 'analysis' ? parseSimulationAnalysisContext(searchParams) : null
+  /*
+    분석 컨텍스트는 **마운트 때 한 번** 읽어 고정한다(#635). 거울이 이 값을 주소에 다시 쓰고, 리포트·비교 링크에도
+    덧붙인다. 지금 주소에서 다시 읽지 않는 이유는 거울이 쓴 조건 키(`districtCode`)가 옛 형식의 컨텍스트로
+    읽힐 수 있어서다(`builder-url.ts`).
+  */
+  const [context] = useState(() =>
+    variant === 'analysis'
+      ? parseSimulationAnalysisContext(searchParams)
+      : null,
+  )
+  const contextParams =
+    variant === 'analysis'
+      ? toSimulationAnalysisContextSearchParams(context)
+      : null
 
   // 리포트에서 되돌아왔다면 쿼리스트링에 조건이 실려 있다. 그걸 초기값으로 삼고,
   // 분석 컨텍스트는 **비어 있는 칸만** 메운다 — 조건이 실려 있는데 컨텍스트가 덮으면
   // 사용자가 방금 바꾼 값이 되돌아온 자리에서 다시 뒤집힌다.
-  // (컨텍스트의 레거시 `gugun`(구 이름)은 조건 코덱이 모르므로 이 합성이 여전히 필요하다.)
+  // 분석 화면은 컨텍스트를 `ctx` 키로만 싣는다(#635). 첫 진입에는 조건 키가 없으므로 이 합성이 자치구·업종을
+  // 채우고, 거울이 그 값을 조건 키로 적은 뒤로는 새로고침해도 바꾼 값이 조건 키에서 돌아온다.
   const restored = parseSimulationConditionState(searchParams)
 
   const conditions = useSimulationConditions({
@@ -364,22 +379,30 @@ export default function SimulationBuilderPage({
   const calculateLabel = describeSimulationCalculateLabel(isCurrent)
   const currentError = isCurrent ? error : null
   const currentReport = isCurrent && !error ? report : null
+  // 분석 경유 화면이면 컨텍스트를 덧붙인다(#635). 리포트·비교에서 「조건 다시 고르기」로 돌아와도 카드가
+  // 원래 분석 조건을 말한다. 캐시 키는 요청에서 만들므로 이 키는 계산에 섞이지 않는다.
   const reportHref =
     currentReport && reportMutation.variables
-      ? buildSimulationReportHref(
-          reportMutation.variables,
-          variant,
-          // 브랜드명은 요청 본문에 없다. 리포트에서 되돌아올 때 복원하려면 URL 이 들고 있어야 한다.
-          conditions.state.brandName,
+      ? withSimulationAnalysisContext(
+          buildSimulationReportHref(
+            reportMutation.variables,
+            variant,
+            // 브랜드명은 요청 본문에 없다. 리포트에서 되돌아올 때 복원하려면 URL 이 들고 있어야 한다.
+            conditions.state.brandName,
+          ),
+          contextParams,
         )
       : null
   // 리포트 화면의 「다른 조건과 비교」와 같은 링크다 — 이 조건을 A 에, 그 복사본을 B 에(#567).
   const compareHref =
     currentReport && reportMutation.variables
-      ? buildSimulationCompareHrefFromReport(
-          reportMutation.variables,
-          variant,
-          conditions.state.brandName,
+      ? withSimulationAnalysisContext(
+          buildSimulationCompareHrefFromReport(
+            reportMutation.variables,
+            variant,
+            conditions.state.brandName,
+          ),
+          contextParams,
         )
       : null
 
@@ -436,11 +459,13 @@ export default function SimulationBuilderPage({
   /*
     입력 중인 조건을 주소창에 보존한다(#568). 새로고침하거나 「저장한 결과」를 보고 돌아와도, 계산 전
     조건을 링크로 보내도 같은 조건으로 열린다. `replaceState` 라 히스토리가 쌓이지 않는다.
-    분석 경유 화면은 분석 컨텍스트 키(자치구·업종·행정동·상권)를 진입 값 그대로 둔다 — 컨텍스트 카드의 정본이다.
+    분석 경유 화면도 자치구·업종까지 싣는다. 컨텍스트 카드의 정본은 따로 둔 `ctx` 키라 겹치지 않는다(#635).
+    거울은 마운트 때 고정한 컨텍스트를 새 형식(표식 `ctx=1` + `ctx` 키)으로 함께 쓴다. 옛 형식 링크도 첫 쓰기에서
+    새 형식으로 바뀐다.
   */
   useEffect(() => {
-    mirrorSimulationConditionsToUrl(conditionState, variant)
-  }, [conditionState, variant])
+    mirrorSimulationConditionsToUrl(conditionState, variant, context)
+  }, [conditionState, variant, context])
 
   const scrollToResult = useCallback(() => {
     resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })

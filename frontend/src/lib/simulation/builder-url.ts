@@ -6,12 +6,21 @@
  * (`toSimulationConditionSearchParams`) 형식으로 맞춘다. 읽는 쪽은 그대로 `parseSimulationConditionState`
  * 다 — 리포트의 「조건 다시 고르기」 링크와 같은 키라 쓰는 쪽·읽는 쪽 규칙이 한 벌이다.
  *
- * - **조건 키만 바꾼다.** 분석 컨텍스트의 `gugun`·`commercialCode` 처럼 이 코덱이 모르는 키와 해시
- *   (`#simulation-section-…`)는 그대로 둔다. 지우면 분석에서 넘어온 컨텍스트 카드가 새로고침에 사라진다.
+ * - **조건 키만 바꾼다.** 이 코덱이 모르는 키와 해시(`#simulation-section-…`)는 그대로 둔다.
+ * - **분석 경유 화면은 컨텍스트도 쓴다(#635).** 마운트 때 고정한 컨텍스트를 새 형식(표식 `ctx=1` + `ctx` 키)으로
+ *   적고, 옛 형식의 컨텍스트 키는 지운다. 지금 주소에서 컨텍스트를 다시 읽지 않는다 — 거울이 쓴 조건 키를
+ *   컨텍스트로 오독하지 않게.
  * - **히스토리를 쌓지 않는다**(`replaceState`). 조건 하나마다 항목이 생기면 뒤로가기가 이 화면 안에서
  *   조건을 하나씩 되감는다.
  */
 
+import {
+  LEGACY_SIMULATION_ANALYSIS_ONLY_PARAM_NAMES,
+  SIMULATION_ANALYSIS_CONTEXT_MARKER,
+  SIMULATION_ANALYSIS_CONTEXT_PARAMS,
+  toSimulationAnalysisContextSearchParams,
+  type SimulationAnalysisContext,
+} from '@/lib/simulation/analysis-context'
 import type { SimulationConditionState } from '@/lib/simulation/conditions'
 import {
   toSimulationConditionSearchParams,
@@ -33,25 +42,32 @@ export const SIMULATION_CONDITION_PARAM_NAMES = [
 ] as const
 
 /**
- * 분석 경유 화면(`/analysis/simulation`)에서 **거울이 건드리지 않는 키** — 분석 컨텍스트 카드의 정본이다.
+ * 분석 경유 화면(`/analysis/simulation`)의 컨텍스트를 **새 형식으로 다시 쓴다**(#635).
  *
- * 분석 화면은 `?districtCode=…&administrationCode=…&commercialCode=…&serviceCode=…` 로 넘어오고, 컨텍스트
- * 카드(`parseSimulationAnalysisContext`)가 이 키를 읽어 「분석 조건을 그대로 채워 뒀어요」를 말한다. 그런데
- * `districtCode`·`serviceCode` 는 조건 코덱과 키가 같다. 거울이 덮어쓰면 자치구·업종을 바꾼 뒤 새로고침했을 때
- * 바뀐 값이 「분석 조건」으로 읽혀 카드가 사실과 다른 말을 한다. 그래서 이 변형에서는 이 키들을 진입 값
- * 그대로 두고 나머지 조건 키(창업 형태·브랜드·면적·층)만 거울에 싣는다. 대가로 새로고침하면 자치구·업종은
- * 분석에서 가져온 값으로 돌아오고, 카드의 「분석 조건으로 되돌리기」와 같은 상태가 된다.
+ * 컨텍스트는 이제 `ctx` 키(`SIMULATION_ANALYSIS_CONTEXT_PARAMS`)에 있어 조건 키와 겹치지 않는다. 그래서 거울은
+ * 이 화면에서도 자치구·업종을 포함한 조건 키를 모두 싣는다.
+ *
+ * 무엇을 쓸지는 **화면이 마운트 때 읽어 고정한 컨텍스트**가 정한다. 지금 주소에서 다시 읽으면, 컨텍스트 없이 연
+ * 화면에서 거울이 앞서 쓴 `districtCode` 가 옛 형식의 컨텍스트로 읽혀 `ctxDistrictCode` 로 굳는다. 옛 형식 링크
+ * (`?districtCode=…&administrationCode=…&commercialCode=…&serviceCode=…`, 더 옛날의 `gugun`)도 마운트 때 읽은
+ * 컨텍스트가 그대로 `ctx` 키로 옮겨지고, 조건이 아닌 옛 키(`gugun`·`administrationCode`·`commercialCode`)는 지운다.
+ * 컨텍스트가 없어도 표식(`ctx=1`)은 쓴다. 새로고침 뒤 옛 형식으로 읽히지 않게 하는 것이 표식의 일이다.
  */
-export const SIMULATION_ANALYSIS_CONTEXT_PARAM_NAMES = [
-  'districtCode',
-  'serviceCode',
-  'administrationCode',
-  'commercialCode',
-] as const
-
-const isMirrored = (name: string, variant: SimulationReportVariant): boolean =>
-  variant !== 'analysis' ||
-  !(SIMULATION_ANALYSIS_CONTEXT_PARAM_NAMES as readonly string[]).includes(name)
+const writeAnalysisContext = (
+  params: URLSearchParams,
+  context: SimulationAnalysisContext | null,
+): void => {
+  for (const name of LEGACY_SIMULATION_ANALYSIS_ONLY_PARAM_NAMES) {
+    params.delete(name)
+  }
+  params.delete(SIMULATION_ANALYSIS_CONTEXT_MARKER.name)
+  for (const name of Object.values(SIMULATION_ANALYSIS_CONTEXT_PARAMS)) {
+    params.delete(name)
+  }
+  toSimulationAnalysisContextSearchParams(context).forEach((value, name) => {
+    params.set(name, value)
+  })
+}
 
 export type SimulationBuilderLocation = {
   pathname: string
@@ -63,20 +79,22 @@ export type SimulationBuilderLocation = {
 
 /**
  * 지금 주소에서 조건 키만 지금 조건으로 바꾼 경로(`pathname?query#hash`). 조건 밖의 키와 해시는 남긴다.
- * `analysis` 변형은 분석 컨텍스트 키(`SIMULATION_ANALYSIS_CONTEXT_PARAM_NAMES`)도 남긴다.
+ * `analysis` 변형은 `analysisContext`(마운트 때 고정한 값)를 새 형식으로 함께 쓴다.
  * 쓸 쿼리가 하나도 없으면 `?` 없이 경로만 돌려준다.
  */
 export const buildSimulationBuilderMirrorHref = (
   location: SimulationBuilderLocation,
   state: SimulationConditionState,
   variant: SimulationReportVariant = 'standalone',
+  analysisContext: SimulationAnalysisContext | null = null,
 ): string => {
   const params = new URLSearchParams(location.search)
+  if (variant === 'analysis') writeAnalysisContext(params, analysisContext)
   for (const name of SIMULATION_CONDITION_PARAM_NAMES) {
-    if (isMirrored(name, variant)) params.delete(name)
+    params.delete(name)
   }
   toSimulationConditionSearchParams(state).forEach((value, name) => {
-    if (isMirrored(name, variant)) params.set(name, value)
+    params.set(name, value)
   })
 
   const query = params.toString()
@@ -94,6 +112,7 @@ export const buildSimulationBuilderMirrorHref = (
 export const mirrorSimulationConditionsToUrl = (
   state: SimulationConditionState,
   variant: SimulationReportVariant = 'standalone',
+  analysisContext: SimulationAnalysisContext | null = null,
 ): void => {
   if (typeof window === 'undefined') return
 
@@ -102,6 +121,7 @@ export const mirrorSimulationConditionsToUrl = (
     { pathname, search, hash },
     state,
     variant,
+    analysisContext,
   )
   if (href === `${pathname}${search}${hash}`) return
 
