@@ -112,7 +112,9 @@ const ChipButton = styled.button<{ $selected: boolean }>`
   background: ${props =>
     props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+    props.$selected
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-800)'};
   padding: 8px 22px;
   font-size: 14px;
   font-weight: ${props => (props.$selected ? 700 : 600)};
@@ -150,7 +152,7 @@ const ChipCheck = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
 
   svg {
     width: 14px;
@@ -234,7 +236,7 @@ const CandidateIcon = styled.span`
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
 
   svg {
     width: 18px;
@@ -264,7 +266,9 @@ const WideButton = styled.button<{ $selected: boolean }>`
   background: ${props =>
     props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+    props.$selected
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-800)'};
   /* 우측 여백은 선택 표시(ChipCheck)가 앉을 자리다. 선택될 때만 아이콘을
      끼워 넣으면 글자가 밀려 흔들린다. */
   padding: 10px 26px 10px 12px;
@@ -325,7 +329,9 @@ const FeaturedButton = styled.button<{ $selected: boolean }>`
   background: ${props =>
     props.$selected ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$selected ? 'var(--color-primary-700)' : 'var(--color-text-800)'};
+    props.$selected
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-800)'};
   padding: 10px 8px;
   font-size: 13px;
   font-weight: ${props => (props.$selected ? 700 : 600)};
@@ -362,7 +368,7 @@ const FeaturedIcon = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
 
   svg {
     width: 20px;

@@ -60,7 +60,7 @@ const Icon = styled.span`
   place-items: center;
   border-radius: var(--radius-control);
   background: var(--color-primary-100);
-  color: var(--color-primary-700);
+  color: var(--color-text-primary-on-light);
 
   svg {
     width: 18px;
@@ -112,7 +112,7 @@ const BackLink = styled(Link)`
 
   &:hover {
     background: var(--color-surface-muted);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   &:focus-visible {

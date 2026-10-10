@@ -34,7 +34,9 @@ const ToggleButton = styled.button<{ $active: boolean }>`
   background: ${props =>
     props.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${props =>
-    props.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+    props.$active
+      ? 'var(--color-text-primary-on-light)'
+      : 'var(--color-text-700)'};
   font-size: 13px;
   font-weight: ${props => (props.$active ? 700 : 600)};
   cursor: pointer;
@@ -45,7 +47,7 @@ const ToggleButton = styled.button<{ $active: boolean }>`
 
   &:hover {
     border-color: var(--color-primary-600);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   &:focus-visible {

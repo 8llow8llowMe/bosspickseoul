@@ -106,7 +106,7 @@ const Chip = styled.button<{ $active: boolean }>`
   background: ${p =>
     p.$active ? 'var(--color-primary-100)' : 'var(--color-surface)'};
   color: ${p =>
-    p.$active ? 'var(--color-primary-700)' : 'var(--color-text-700)'};
+    p.$active ? 'var(--color-text-primary-on-light)' : 'var(--color-text-700)'};
   font-size: 13px;
   font-weight: ${p => (p.$active ? 700 : 600)};
   cursor: pointer;
@@ -117,7 +117,7 @@ const Chip = styled.button<{ $active: boolean }>`
 
   &:hover {
     border-color: var(--color-primary-600);
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   &:focus-visible {
@@ -221,7 +221,7 @@ const Insight = styled.p`
     width: 18px;
     height: 18px;
     margin-top: 2px;
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
   }
 
   strong {

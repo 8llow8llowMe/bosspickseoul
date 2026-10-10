@@ -137,7 +137,7 @@ function CategoryTick({ hrefByLabel, x, y, payload }: CategoryTickProps) {
       y={y}
       dy={4}
       textAnchor="end"
-      fill={href ? 'var(--color-primary-700)' : CHART_COLORS.axis}
+      fill={href ? 'var(--color-text-primary-on-light)' : CHART_COLORS.axis}
       fontSize={12}
     >
       {label}

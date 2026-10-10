@@ -121,7 +121,7 @@ const BrandButton = styled.button<{ $selected: boolean }>`
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
-    color: var(--color-primary-700);
+    color: var(--color-text-primary-on-light);
     stroke: currentColor;
   }
 `
