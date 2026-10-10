@@ -21,6 +21,7 @@ import type { AiReportState } from '@/hooks/use-ai-report'
 import { useProgressRotation } from '@/hooks/use-progress-rotation'
 import type { ReportBlockList } from '@/lib/analysis/ai-report-presentation'
 import type { InsightMode } from '@/lib/analysis/report-section-state'
+import type { AiReportLevel } from '@/types/ai-report'
 
 const spin = keyframes`
   to {
@@ -351,15 +352,23 @@ export default function ReportInsightSection({
   loginHref,
   onRetry,
   variant = 'full',
+  level = 'commercial',
 }: {
   mode: InsightMode
   state: AiReportState
   loginHref: string
   onRetry: () => void
   variant?: 'full' | 'compact'
+  /**
+   * 리포트 레벨. 게스트 잠금 카드의 흐린 샘플을 레벨에 맞춘다 — 자치구·행정동은 지역 샘플,
+   * 상권은 상권 샘플. 지도 셸의 AI 패널·모바일 시트가 자치구·행정동에서도 이 칸을 연다(#586).
+   */
+  level?: AiReportLevel | null
 }) {
   if (mode === 'locked') {
-    return <AiReportLockCard level="commercial" loginHref={loginHref} />
+    return (
+      <AiReportLockCard level={level ?? 'commercial'} loginHref={loginHref} />
+    )
   }
   if (mode === 'empty') {
     return <StatusText>표시할 내용이 없어요.</StatusText>
