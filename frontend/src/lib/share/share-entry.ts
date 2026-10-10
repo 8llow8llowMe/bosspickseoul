@@ -33,6 +33,17 @@ const DESCRIPTIONS: Partial<Record<ShareEntryFailureKind, string>> = {
 }
 
 /**
+ * 형식이 아닌 공유 코드(`isShareCodeFormat`). 백엔드를 부르지 않고 미존재로 안내한다 —
+ * 그런 코드는 발급된 적이 없으므로 404 와 같은 사건이다.
+ */
+export const INVALID_SHARE_CODE_FAILURE: ShareEntryFailure = {
+  kind: 'not-found',
+  title: TITLES['not-found'],
+  description: DESCRIPTIONS['not-found'] as string,
+  retryable: false,
+}
+
+/**
  * 해석 실패를 화면 문구로 환산한다.
  *
  * 만료 판정은 **HTTP 410** 을 우선 본다. `resultCode`(`SHARE_LINK_002`)는 보조 근거로만 쓴다

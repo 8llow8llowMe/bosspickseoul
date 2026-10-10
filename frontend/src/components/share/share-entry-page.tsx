@@ -13,7 +13,11 @@ import {
   buildShareRoute,
   getShareRouteFailureMessage,
 } from '@/lib/share/routes'
-import { classifyShareEntryError } from '@/lib/share/share-entry'
+import { isShareCodeFormat } from '@/lib/share/share-code'
+import {
+  classifyShareEntryError,
+  INVALID_SHARE_CODE_FAILURE,
+} from '@/lib/share/share-entry'
 
 const Root = styled.main`
   display: grid;
@@ -39,10 +43,13 @@ const Actions = styled.div`
 
 export default function ShareEntryPage({ shareCode }: { shareCode: string }) {
   const router = useRouter()
+  const isValidCode = isShareCodeFormat(shareCode)
 
   const query = useQuery({
     queryKey: ['share-link', shareCode],
     queryFn: () => resolveShareLink(shareCode),
+    // 형식이 아닌 코드는 부르지 않는다(share-code.ts). 아래에서 미존재로 안내한다.
+    enabled: isValidCode,
     // 만료(410)·미존재(404)는 재시도해도 같다. 통신/서버 장애만 한 번 더 시도한다.
     retry: (failureCount, error) =>
       classifyShareEntryError(error).retryable && failureCount < 1,
@@ -57,6 +64,20 @@ export default function ShareEntryPage({ shareCode }: { shareCode: string }) {
   useEffect(() => {
     if (href) router.replace(href)
   }, [href, router])
+
+  if (!isValidCode) {
+    return (
+      <Root>
+        <EmptyState
+          title={INVALID_SHARE_CODE_FAILURE.title}
+          description={INVALID_SHARE_CODE_FAILURE.description}
+          action={
+            <Button onClick={() => router.replace('/')}>홈으로 이동</Button>
+          }
+        />
+      </Root>
+    )
+  }
 
   if (query.isPending) {
     return (
