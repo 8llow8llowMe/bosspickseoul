@@ -5,11 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ProfileChangePasswordPage, {
   canSubmitNewPassword,
-  describeNewPasswordIssue,
+  describeNewPasswordFieldErrors,
+  NEW_PASSWORD_MISMATCH_ERROR,
+  NEW_PASSWORD_RULE_ERROR,
   PASSWORD_CHANGE_NOTICE,
   PASSWORD_SETUP_NOTICE,
   SOCIAL_ONLY_CONSEQUENCES,
+  visibleNewPasswordFieldErrors,
 } from '@/components/profile/profile-change-password-page'
+import { PASSWORD_REVEAL_LABEL } from '@/components/ui/text-field'
 import { PASSWORD_RULE_TEXT } from '@/lib/auth/password-rules'
 
 type TestMemberInfo = {
@@ -55,27 +59,77 @@ beforeEach(() => {
   }
 })
 
-describe('describeNewPasswordIssue', () => {
+describe('describeNewPasswordFieldErrors', () => {
   /*
-   * 버튼만 비활성으로 두면 사용자는 **왜** 안 눌리는지 모른 채 같은 값을 다시 넣는다.
-   * 비활성과 이유를 한 함수에서 낸다.
+   * 오류를 틀린 칸에 붙인다(#583). 예전에는 규칙 문구 자리를 오류가 갈아 치워, 틀린 순간 요구사항이 사라지고
+   * 어느 칸이 틀렸는지도 보이지 않았다.
    */
   it('아직 아무것도 입력하지 않았으면 나무라지 않는다', () => {
-    expect(describeNewPasswordIssue('', '')).toBeNull()
+    expect(describeNewPasswordFieldErrors('', '')).toEqual({
+      newPassword: null,
+      confirmation: null,
+    })
   })
 
-  it('규칙을 어기면 규칙을 알려 준다', () => {
-    expect(describeNewPasswordIssue('short', '')).toBe(PASSWORD_RULE_TEXT)
+  it('규칙을 어기면 새 비밀번호 칸에 오류를 붙인다', () => {
+    expect(describeNewPasswordFieldErrors('short', '')).toEqual({
+      newPassword: NEW_PASSWORD_RULE_ERROR,
+      confirmation: null,
+    })
   })
 
-  it('확인이 다르면 그 사실을 알려 준다', () => {
-    expect(describeNewPasswordIssue('password123!', 'password124!')).toBe(
-      '새 비밀번호가 서로 달라요.',
-    )
+  it('확인이 다르면 확인 칸에 오류를 붙인다', () => {
+    expect(
+      describeNewPasswordFieldErrors('password123!', 'password124!'),
+    ).toEqual({ newPassword: null, confirmation: NEW_PASSWORD_MISMATCH_ERROR })
   })
 
   it('둘 다 맞으면 할 말이 없다', () => {
-    expect(describeNewPasswordIssue('password123!', 'password123!')).toBeNull()
+    expect(
+      describeNewPasswordFieldErrors('password123!', 'password123!'),
+    ).toEqual({ newPassword: null, confirmation: null })
+  })
+})
+
+describe('visibleNewPasswordFieldErrors', () => {
+  const errors = {
+    newPassword: NEW_PASSWORD_RULE_ERROR,
+    confirmation: NEW_PASSWORD_MISMATCH_ERROR,
+  }
+
+  /* 첫 글자부터 빨갛게 칠하면 쓰는 중인 사람을 나무라게 된다. */
+  it('칸을 떠나기 전에는 새 비밀번호 오류를 감춘다', () => {
+    expect(
+      visibleNewPasswordFieldErrors(errors, {
+        newPasswordTouched: false,
+        confirmationTouched: false,
+        newPasswordLength: 12,
+        confirmationLength: 3,
+      }),
+    ).toEqual({ newPassword: null, confirmation: null })
+  })
+
+  it('칸을 떠나면 보인다', () => {
+    expect(
+      visibleNewPasswordFieldErrors(errors, {
+        newPasswordTouched: true,
+        confirmationTouched: true,
+        newPasswordLength: 12,
+        confirmationLength: 3,
+      }),
+    ).toEqual(errors)
+  })
+
+  /* 다 쳤는데 버튼이 안 눌리면 이유가 바로 보여야 한다. */
+  it('확인을 새 비밀번호만큼 다 쳤으면 칸을 떠나기 전에도 다르다고 알린다', () => {
+    expect(
+      visibleNewPasswordFieldErrors(errors, {
+        newPasswordTouched: false,
+        confirmationTouched: false,
+        newPasswordLength: 12,
+        confirmationLength: 12,
+      }).confirmation,
+    ).toBe(NEW_PASSWORD_MISMATCH_ERROR)
   })
 })
 
@@ -192,6 +246,25 @@ describe('ProfileChangePasswordPage — 처음엔 아무 버튼도 눌리지 않
 
   it('규칙 문구를 늘 보여 준다', () => {
     expect(render()).toContain(PASSWORD_RULE_TEXT)
+  })
+
+  /* #583 — 가입 폼에만 있던 표시 토글을 공용 TextField 로 올려 세 칸 모두에 둔다. */
+  it('비밀번호 칸마다 표시 토글이 있다', () => {
+    const markup = render()
+
+    expect(
+      markup.match(new RegExp(`aria-label="${PASSWORD_REVEAL_LABEL}"`, 'g')),
+    ).toHaveLength(3)
+  })
+
+  it('규칙 문구를 새 비밀번호 칸에 aria-describedby 로 잇는다', () => {
+    const markup = render()
+    const ruleId = new RegExp(`id="([^"]+)"[^>]*>${PASSWORD_RULE_TEXT}`).exec(
+      markup,
+    )?.[1]
+
+    expect(ruleId).toBeTruthy()
+    expect(markup).toContain(`aria-describedby="${ruleId}"`)
   })
 
   /* 전환은 체크박스를 켜야 열린다(되돌릴 수 있는 동작이라 타이핑까지는 요구하지 않는다). */

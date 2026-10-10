@@ -1,9 +1,11 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { Eye, EyeOff, X } from 'lucide-react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
-import { forwardRef } from 'react'
+import { forwardRef, useId, useState } from 'react'
 import styled, { css } from 'styled-components'
+
+import { touchHitArea } from '@/styles/touch-target'
 
 export type TextFieldSize = 'medium' | 'large'
 
@@ -32,7 +34,29 @@ export type TextFieldProps = Omit<
    * 버튼을 그 안에 넣으면 **포커스는 받는데 스크린리더에는 없는** 컨트롤이 된다.
    */
   onClear?: () => void
+  /**
+   * 비밀번호 표시 토글(#583). `type="password"` 와 함께 넘기면 칸 오른쪽에 눈 모양 버튼이 생겨
+   * 누를 때마다 글자를 보이고 가린다. 버튼 이름은 「비밀번호 표시」로 고정하고 상태는
+   * `aria-pressed` 로 알린다 — 이름을 「표시/숨기기」로 바꾸면 스크린리더가 상태와 동작을 헷갈린다.
+   *
+   * 기본값 false — 기존 사용처는 그대로다. password 가 아닌 칸에서는 무시한다.
+   */
+  revealable?: boolean
   rightSlot?: ReactNode
+}
+
+/** 비밀번호 표시 토글의 접근 이름. 상태는 `aria-pressed` 가 말한다. */
+export const PASSWORD_REVEAL_LABEL = '비밀번호 표시'
+
+/**
+ * 입력칸이 가리킬 설명 id 들. 도움말과 오류를 **둘 다** 잇는다 — 오류가 생겨도 규칙 문구가
+ * 사라지지 않으므로(#583) 보조기술도 둘을 함께 읽어야 한다. 호출부가 넘긴 id 는 앞에 둔다.
+ */
+export const joinDescribedBy = (
+  ...ids: readonly (string | null | undefined | false)[]
+): string | undefined => {
+  const joined = ids.filter(Boolean).join(' ')
+  return joined || undefined
 }
 
 const sizeStyles = {
@@ -199,6 +223,33 @@ const ClearButton = styled.button`
   }
 `
 
+/* 지우기 버튼과 같은 자리·크기. 보이는 크기는 24px, 모바일 히트 영역만 44px 로 넓힌다. */
+const RevealButton = styled.button`
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-caption);
+  cursor: pointer;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    color: var(--color-text-800);
+  }
+
+  ${touchHitArea()}
+`
+
 const HelperText = styled.span<{ $hasError: boolean }>`
   color: ${props =>
     props.$hasError ? 'var(--color-danger)' : 'var(--color-text-caption)'};
@@ -217,18 +268,39 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
       label,
       leftSlot,
       onClear,
+      revealable = false,
       rightSlot,
+      type,
+      'aria-describedby': describedBy,
       ...props
     },
     ref,
   ) => {
+    const baseId = useId()
+    const [revealed, setRevealed] = useState(false)
     const hasError = Boolean(errorText)
     // 빈 칸에 ✕ 를 두면 누를 것이 없는 버튼이 포커스 순서에 남는다.
     const showClear = Boolean(onClear) && Boolean(props.value)
+    const canReveal = revealable && type === 'password'
+    /*
+      오류가 있어도 도움말(규칙 문구)을 지우지 않는다(#583) — 틀린 순간에 요구사항이 사라지면
+      무엇을 고쳐야 하는지 읽을 곳이 없다. 둘이 함께면 도움말 아래에 오류 줄을 따로 둔다.
+      오류만 있는 기존 사용처는 예전처럼 한 줄이다.
+    */
+    const helperId = helperText ? `${baseId}-helper` : null
+    const errorId = hasError ? `${baseId}-error` : null
+    /*
+      토글 버튼이 `<label>` 안에 있어 그 이름(「비밀번호 표시」)이 입력칸 이름에 섞여 든다. 라벨 글자만
+      이름이 되도록 aria-labelledby 로 고정한다. 호출부가 이름을 직접 줬으면 그쪽이 이긴다.
+    */
+    const labelId =
+      canReveal && label && !props['aria-label'] && !props['aria-labelledby']
+        ? `${baseId}-label`
+        : undefined
 
     return (
       <Field $fullWidth={fullWidth}>
-        {label ? <FieldLabel>{label}</FieldLabel> : null}
+        {label ? <FieldLabel id={labelId}>{label}</FieldLabel> : null}
         <InputShell
           $emphasized={emphasized}
           $hasError={hasError}
@@ -239,9 +311,33 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             ref={ref}
             $hasClear={Boolean(onClear)}
             aria-invalid={hasError || undefined}
+            aria-describedby={joinDescribedBy(describedBy, helperId, errorId)}
+            aria-labelledby={labelId}
+            type={canReveal && revealed ? 'text' : type}
             {...props}
           />
           {rightSlot ? <Slot aria-hidden="true">{rightSlot}</Slot> : null}
+          {canReveal ? (
+            <RevealButton
+              type="button"
+              aria-label={PASSWORD_REVEAL_LABEL}
+              aria-pressed={revealed}
+              /*
+                누를 때 포커스가 버튼으로 옮겨 가지 않게 한다. 옮겨 가면 입력칸이 blur 돼, 쓰는 중인 칸에 「칸을 떠나면
+                보이는」 오류가 뜨고 캐럿도 사라진다. 터치는 pointerdown 에서 막아야 뒤따르는 호환 mousedown 까지 막힌다.
+                클릭(토글)은 그대로 온다. 키보드로 Tab 해 들어온 경우는 이미 칸을 떠난 것이라 그대로 둔다.
+              */
+              onPointerDown={event => event.preventDefault()}
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => setRevealed(current => !current)}
+            >
+              {revealed ? (
+                <EyeOff aria-hidden="true" />
+              ) : (
+                <Eye aria-hidden="true" />
+              )}
+            </RevealButton>
+          ) : null}
           {showClear ? (
             <ClearButton
               type="button"
@@ -252,9 +348,14 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             </ClearButton>
           ) : null}
         </InputShell>
-        {errorText || helperText ? (
-          <HelperText $hasError={hasError}>
-            {errorText || helperText}
+        {helperText ? (
+          <HelperText id={helperId ?? undefined} $hasError={false}>
+            {helperText}
+          </HelperText>
+        ) : null}
+        {hasError ? (
+          <HelperText id={errorId ?? undefined} $hasError>
+            {errorText}
           </HelperText>
         ) : null}
       </Field>
