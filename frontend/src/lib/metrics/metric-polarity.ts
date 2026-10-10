@@ -1,3 +1,4 @@
+import type { CommercialTrendMetric } from '@/types/commercial-analysis'
 import type { StatusMetric } from '@/types/status'
 
 /**
@@ -53,6 +54,39 @@ export const STATUS_METRIC_POLARITY: Readonly<
   sales: 'higher-is-better',
   opened: 'higher-is-better',
   closed: 'lower-is-better',
+}
+
+/**
+ * 상권분석(결과 화면·AI 리포트) 지표의 극성. 구별현황과 다른 표를 두는 이유는 **읽는 사람의 자리가
+ * 다르기 때문이다** — 상권분석은 「이 상권에서 이 업종으로 창업할 사람」이 읽는다.
+ *
+ * - 매출·유동인구는 높을수록 좋다.
+ * - 폐업은 낮을수록 좋다(구별현황과 같다).
+ * - **점포 수·개업은 중립이다.** 같은 업종 점포가 늘면 상권이 살아 있다는 뜻이기도 하고 경쟁이
+ *   늘었다는 뜻이기도 하다. 창업하려는 사람에게 어느 쪽인지 화면이 정할 수 없으므로 색으로
+ *   판단하지 않는다(D-1 「판단이 애매하면 중립」). 구별현황이 개업을 높을수록 좋다로 두는 것은
+ *   구 단위 현황이라 경쟁을 따로 말하지 않기 때문이다.
+ */
+export type AnalysisMetric =
+  'sales' | 'footTraffic' | 'storeCount' | 'opened' | 'closed'
+
+export const ANALYSIS_METRIC_POLARITY: Readonly<
+  Record<AnalysisMetric, MetricPolarity>
+> = {
+  sales: 'higher-is-better',
+  footTraffic: 'higher-is-better',
+  storeCount: 'neutral',
+  opened: 'neutral',
+  closed: 'lower-is-better',
+}
+
+/** 상권분석 「분기별 변화」(`/trends?metric=`) 세 지표의 극성. 위 표에서 가져온다. */
+export const ANALYSIS_TREND_POLARITY: Readonly<
+  Record<CommercialTrendMetric, MetricPolarity>
+> = {
+  SALES: ANALYSIS_METRIC_POLARITY.sales,
+  FOOT_TRAFFIC: ANALYSIS_METRIC_POLARITY.footTraffic,
+  STORE: ANALYSIS_METRIC_POLARITY.storeCount,
 }
 
 /** DESIGN.md §Score Scale — HIGH ≥ 70 / MEDIUM 40~70 / LOW < 40. */
@@ -190,3 +224,18 @@ const CHANGE_TONE_LABELS: Readonly<Record<ChangeTone, string>> = {
  */
 export const describeChangeTone = (tone: ChangeTone): string =>
   CHANGE_TONE_LABELS[tone]
+
+/**
+ * 서버·화면이 이미 판정한 **방향**(`INCREASE`·`DECREASE`·`STAGNANT`)에서 좋고 나쁨을 낸다.
+ * 상권분석은 보합 경계(±1%)를 방향 판정에서 이미 적용하므로 변화율을 다시 보지 않는다 —
+ * 0.4% 변화를 문장은 「거의 같아요」라 하는데 색은 「개선」이라 하면 서로 다르게 말한다.
+ * 방향이 없거나(null) 보합이면 `neutral` 이다.
+ */
+export const resolveDirectionChangeTone = (
+  direction: 'INCREASE' | 'DECREASE' | 'STAGNANT' | null | undefined,
+  polarity: MetricPolarity | null,
+): ChangeTone =>
+  resolveChangeTone(
+    direction === 'INCREASE' ? 1 : direction === 'DECREASE' ? -1 : 0,
+    polarity,
+  )

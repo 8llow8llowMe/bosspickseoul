@@ -16,7 +16,18 @@ import {
 import { Button } from '@/components/ui/button'
 import { isRetryable, type NormalizedApiError } from '@/lib/api/api-error'
 import type { TrendPoint } from '@/lib/analysis/chart-data'
-import { describeLatestChange } from '@/lib/analysis/chart-insights'
+import {
+  describeLatestChange,
+  type TrendDirection,
+} from '@/lib/analysis/chart-insights'
+import {
+  CHANGE_TONE_TEXT_COLOR,
+  describeChangeTone,
+  resolveDirectionChangeTone,
+  type ChangeTone,
+  type MetricPolarity,
+} from '@/lib/metrics/metric-polarity'
+import TermHelp from '@/components/analysis/term-help'
 
 /*
   트렌드 그룹을 **카드 하나**로 묶는다. 예전에는 매출·유동인구·점포 변화가 축 달린 꺾은선
@@ -67,7 +78,11 @@ const Metric = styled.div`
     grid-area: metric;
   }
 
-  span {
+  > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 4px;
     color: var(--color-text-600);
     font-size: 13px;
     line-height: 20px;
@@ -101,7 +116,8 @@ const Change = styled.div`
     line-height: 21px;
   }
 
-  p span {
+  /* 방향 기호(▲▼–). 색은 좋고 나쁨을 따른다(D-1) — 판단하지 않으면 무채색이다. */
+  p > span[aria-hidden='true'] {
     font-size: 11px;
   }
 
@@ -111,6 +127,32 @@ const Change = styled.div`
     line-height: 18px;
     font-variant-numeric: tabular-nums;
   }
+`
+
+/** 기호와 「개선/악화」 글자에만 색을 싣는다. 문장은 본문 색이라 길어도 읽기 쉽다. */
+const Toned = styled.span<{ $tone: ChangeTone }>`
+  color: ${props => CHANGE_TONE_TEXT_COLOR[props.$tone]};
+`
+
+/** 화면에는 안 보이고 스크린리더만 읽는 구분. 문장과 「개선/악화」가 이어 붙어 읽히지 않게 한다. */
+const ReaderPause = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+`
+
+const ToneLabel = styled.em<{ $tone: ChangeTone }>`
+  flex: none;
+  color: ${props => CHANGE_TONE_TEXT_COLOR[props.$tone]};
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
 `
 
 const Spark = styled.div`
@@ -126,6 +168,18 @@ const Muted = styled.p`
 
 const SYMBOL = { INCREASE: '▲', DECREASE: '▼', STAGNANT: '–' } as const
 
+/**
+ * 직전 분기 대비 방향 → 색과 판단 글자. 보합 판정(±1%)은 `describeLatestChange` 가 이미 했으므로
+ * 방향만 본다 — 문장이 「거의 같아요」인데 색이 「개선」이면 서로 다르게 말한다.
+ */
+export const resolveTrendChangeTone = (
+  direction: TrendDirection | null,
+  polarity: MetricPolarity | null | undefined,
+): { tone: ChangeTone; label: string } => {
+  const tone = resolveDirectionChangeTone(direction, polarity ?? null)
+  return { tone, label: describeChangeTone(tone) }
+}
+
 export type TrendSummaryItem = {
   key: string
   /** 지표 이름(「매출」). */
@@ -134,6 +188,13 @@ export type TrendSummaryItem = {
   subject: string
   unit: string
   points: TrendPoint[]
+  /**
+   * 지표 극성(`ANALYSIS_TREND_POLARITY`). 직전 분기 대비 방향을 **좋고 나쁨으로** 칠하는 데 쓴다
+   * (DESIGN.md §Charts, D-1). 없거나 중립이면 기호·문장 모두 무채색이고 「개선/악화」를 적지 않는다.
+   */
+  polarity?: MetricPolarity | null
+  /** 지표 이름 옆 용어 도움말(#564). 없으면 버튼을 두지 않는다. */
+  definition?: string
   /**
    * 이 지표 조회의 오류. 카드 하나로 합쳤으므로 오류도 **행 단위**로 보여 준다 — 하나만 실패한
    * 지표를 「값 없음」으로 그리면 일시 오류가 「이 상권엔 데이터가 없다」로 읽힌다.
@@ -301,7 +362,7 @@ export default function AnalysisTrendSummary({
           return (
             <Row key={item.key}>
               <Metric>
-                <span>{item.label}</span>
+                <div>{item.label}</div>
                 <strong>-</strong>
               </Metric>
               <Change>
@@ -329,7 +390,7 @@ export default function AnalysisTrendSummary({
           return (
             <Row key={item.key}>
               <Metric>
-                <span>{item.label}</span>
+                <div>{item.label}</div>
                 <strong>데이터 없음</strong>
               </Metric>
               <Change>
@@ -342,13 +403,22 @@ export default function AnalysisTrendSummary({
         const change = flat
           ? null
           : describeLatestChange(item.points, item.subject)
+        const changeTone = resolveTrendChangeTone(
+          change?.direction ?? null,
+          item.polarity,
+        )
         return (
           <Row key={item.key}>
             <Metric>
-              <span>
-                {item.label}
-                {latest ? ` · ${shortPeriod(latest.periodLabel)}` : ''}
-              </span>
+              <div>
+                <span>
+                  {item.label}
+                  {latest ? ` · ${shortPeriod(latest.periodLabel)}` : ''}
+                </span>
+                {item.definition ? (
+                  <TermHelp label={item.label} definition={item.definition} />
+                ) : null}
+              </div>
               <strong>
                 {formatChartValue(latest?.value ?? null, item.unit)}
               </strong>
@@ -357,13 +427,23 @@ export default function AnalysisTrendSummary({
               <p>
                 {flat ? (
                   <>
-                    <span aria-hidden>{SYMBOL.STAGNANT}</span>
+                    <span aria-hidden="true">{SYMBOL.STAGNANT}</span>
                     {flat}
                   </>
                 ) : change ? (
                   <>
-                    <span aria-hidden>{SYMBOL[change.direction]}</span>
-                    {change.sentence}
+                    <Toned $tone={changeTone.tone} aria-hidden="true">
+                      {SYMBOL[change.direction]}
+                    </Toned>
+                    <span>
+                      {change.sentence}
+                      {changeTone.label ? <ReaderPause>, </ReaderPause> : null}
+                    </span>
+                    {changeTone.label ? (
+                      <ToneLabel $tone={changeTone.tone}>
+                        {changeTone.label}
+                      </ToneLabel>
+                    ) : null}
                   </>
                 ) : (
                   '직전 분기와 비교할 값이 없어요'

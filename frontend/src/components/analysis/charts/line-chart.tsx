@@ -26,7 +26,7 @@ import {
 
 /*
   방향 배지는 두지 않는다. 결과 화면 트렌드는 `AnalysisTrendSummary` 가 직전 분기 대비 문장
-  (`describeLatestChange`)으로 말하고, 증감에 빨강·초록을 싣지 않는다(DESIGN.md Charts).
+  (`describeLatestChange`)으로 말하고, 증감 색은 지표 극성으로 판정한 좋고 나쁨이다(DESIGN.md Charts, D-1).
 */
 const Wrap = styled.div`
   width: 100%;

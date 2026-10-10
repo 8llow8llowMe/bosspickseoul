@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  ANALYSIS_METRIC_POLARITY,
+  ANALYSIS_TREND_POLARITY,
   CHANGE_TONE_AREA_COLOR,
   CHANGE_TONE_TEXT_COLOR,
   COMPOSITE_SCORE_POLARITY,
@@ -10,6 +12,7 @@ import {
   getScoreQualityLabel,
   resolveMetricPolarity,
   resolveChangeTone,
+  resolveDirectionChangeTone,
   resolveScoreQuality,
   STATUS_METRIC_POLARITY,
 } from './metric-polarity'
@@ -175,5 +178,44 @@ describe('resolveChangeTone', () => {
     expect(describeChangeTone('positive')).toBe('개선')
     expect(describeChangeTone('negative')).toBe('악화')
     expect(describeChangeTone('neutral')).toBe('')
+  })
+})
+
+describe('상권분석 지표 극성', () => {
+  it('매출·유동인구는 높을수록, 폐업은 낮을수록 좋고 점포 수·개업은 판단하지 않는다', () => {
+    expect(ANALYSIS_METRIC_POLARITY).toEqual({
+      sales: 'higher-is-better',
+      footTraffic: 'higher-is-better',
+      storeCount: 'neutral',
+      opened: 'neutral',
+      closed: 'lower-is-better',
+    })
+  })
+
+  it('분기별 변화 세 지표는 위 표를 따른다', () => {
+    expect(ANALYSIS_TREND_POLARITY).toEqual({
+      SALES: 'higher-is-better',
+      FOOT_TRAFFIC: 'higher-is-better',
+      STORE: 'neutral',
+    })
+  })
+})
+
+describe('resolveDirectionChangeTone', () => {
+  it.each([
+    ['INCREASE', 'higher-is-better', 'positive'],
+    ['DECREASE', 'higher-is-better', 'negative'],
+    ['INCREASE', 'lower-is-better', 'negative'],
+    ['DECREASE', 'lower-is-better', 'positive'],
+  ] as const)('%s on %s → %s', (direction, polarity, tone) => {
+    expect(resolveDirectionChangeTone(direction, polarity)).toBe(tone)
+  })
+
+  it('보합·방향 없음·중립 지표는 무채색이다', () => {
+    expect(resolveDirectionChangeTone('STAGNANT', 'higher-is-better')).toBe(
+      'neutral',
+    )
+    expect(resolveDirectionChangeTone(null, 'higher-is-better')).toBe('neutral')
+    expect(resolveDirectionChangeTone('INCREASE', 'neutral')).toBe('neutral')
   })
 })

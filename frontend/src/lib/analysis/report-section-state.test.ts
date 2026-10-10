@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatGrowth,
   resolveChartSlot,
   resolveInsightMode,
   resolveMetricCards,
@@ -114,6 +115,35 @@ describe('resolveMetricCards', () => {
     })
     expect(cards[3].display).toBe('데이터 없음')
     expect(cards[3].tone).toBe('neutral')
+    expect(cards[3].toneLabel).toBe('')
+    expect(cards[3].arrow).toBeNull()
+  })
+})
+
+/* D-1 — 증감은 방향이 아니라 좋고 나쁨으로 칠하고, 색 옆에 「개선/악화」를 늘 적는다. */
+describe('formatGrowth', () => {
+  it('매출이 늘면 개선, 줄면 악화다 — 부호·화살표를 함께 낸다', () => {
+    expect(formatGrowth({ direction: 'INCREASE', changeRate: 0.182 })).toEqual({
+      display: '+18.2%',
+      tone: 'positive',
+      arrow: '▲',
+      toneLabel: '개선',
+    })
+    expect(formatGrowth({ direction: 'DECREASE', changeRate: -0.05 })).toEqual({
+      display: '-5.0%',
+      tone: 'negative',
+      arrow: '▼',
+      toneLabel: '악화',
+    })
+  })
+
+  it('보합(±1% 안)은 무채색이고 판단 글자를 붙이지 않는다', () => {
+    expect(formatGrowth({ direction: 'STAGNANT', changeRate: 0.004 })).toEqual({
+      display: '+0.4%',
+      tone: 'neutral',
+      arrow: '–',
+      toneLabel: '',
+    })
   })
 })
 
