@@ -7,11 +7,13 @@ import {
   STATUS_SHEET_EXPANDED_RATIO,
   STATUS_SHEET_FULL_TOP_GAP,
   STATUS_SHEET_MINIMUM_MAP_HEIGHT,
+  createStatusListQuery,
   createStatusQuery,
   getStatusSheetHeightBounds,
   getNextSheetSnap,
   getToggledSheetSnap,
   normalizeStatusSelection,
+  parseStatusListExpanded,
   parseStatusMetric,
   parseStatusPeriod,
   resolveSheetSnapFromDrag,
@@ -397,5 +399,96 @@ describe('applyStatusSheetContentTransition', () => {
 
     expect(body.scrollTop).toBe(0)
     expect(events).toEqual(['scroll:0', 'handle-focus:true'])
+  })
+
+  // #565 리뷰 — 펼친 목록의 20위를 보다 돌아왔는데 맨 위로 튀면 보던 자리를 잃는다.
+  it('brings the row the user came from back into view and focuses it', () => {
+    const events: string[] = []
+    const body = createBody(events, 880)
+
+    applyStatusSheetContentTransition({
+      body,
+      backButton: null,
+      handle: {
+        focus: options =>
+          events.push(`handle-focus:${String(options?.preventScroll)}`),
+      },
+      isShowingDetail: false,
+      returnRow: {
+        scrollIntoView: options => events.push(`row-scroll:${options?.block}`),
+        focus: options =>
+          events.push(`row-focus:${String(options?.preventScroll)}`),
+      },
+    })
+
+    expect(events).toEqual(['scroll:0', 'row-scroll:nearest', 'row-focus:true'])
+  })
+
+  it('ignores the return row when opening the detail', () => {
+    const events: string[] = []
+
+    applyStatusSheetContentTransition({
+      body: createBody(events, 640),
+      backButton: {
+        focus: options =>
+          events.push(`back-focus:${String(options?.preventScroll)}`),
+      },
+      handle: null,
+      isShowingDetail: true,
+      returnRow: {
+        scrollIntoView: () => events.push('row-scroll'),
+        focus: () => events.push('row-focus'),
+      },
+    })
+
+    expect(events).toEqual(['scroll:0', 'back-focus:true'])
+  })
+})
+
+// #565 — 목록 펼침은 `?list=all` 이 정본이다.
+describe('status list expansion', () => {
+  it('reads only `all` as expanded', () => {
+    expect(parseStatusListExpanded('all')).toBe(true)
+    expect(parseStatusListExpanded(null)).toBe(false)
+    expect(parseStatusListExpanded('top')).toBe(false)
+    expect(parseStatusListExpanded('ALL')).toBe(false)
+  })
+
+  it('toggles only the list param and keeps metric, district and period', () => {
+    const current = new URLSearchParams(
+      'metric=sales&district=11680&periodCode=20254',
+    )
+
+    expect(createStatusListQuery(current, true).toString()).toBe(
+      'metric=sales&district=11680&periodCode=20254&list=all',
+    )
+    expect(
+      createStatusListQuery(
+        new URLSearchParams('metric=sales&list=all'),
+        false,
+      ).toString(),
+    ).toBe('metric=sales')
+  })
+
+  it('keeps the expanded list across selection changes', () => {
+    expect(
+      createStatusQuery(
+        new URLSearchParams('metric=sales&list=all'),
+        'sales',
+        '11680',
+        null,
+      ).toString(),
+    ).toBe('metric=sales&list=all&district=11680')
+  })
+
+  it('drops a hand-edited list value', () => {
+    expect(
+      createStatusQuery(
+        new URLSearchParams('metric=sales&list=whatever'),
+        'sales',
+        null,
+        null,
+      ).toString(),
+    ).toBe('metric=sales')
   })
 })

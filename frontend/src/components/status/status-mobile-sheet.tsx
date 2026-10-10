@@ -42,7 +42,10 @@ type StatusMobileSheetProps = {
    * 목록은 본문째 흐리게 두고, 상세는 머리의 값·순위만 흐린다(본문은 자기 스켈레톤이 있다).
    */
   isPeriodPending?: boolean
+  /** 현재 지표의 전체 순위. 목록이 접혀 있으면 앞 10개만 그린다(#565). */
   items: StatusRankedItem[]
+  isListExpanded?: boolean
+  onListExpandedChange?: (isExpanded: boolean) => void
   selectedDistrict: StatusSelectedDistrict | null
   detail: DistrictDetail | null
   isDetailLoading: boolean
@@ -186,6 +189,8 @@ export default function StatusMobileSheet({
   periodCode,
   isPeriodPending = false,
   items,
+  isListExpanded = false,
+  onListExpandedChange,
   selectedDistrict,
   detail,
   isDetailLoading,
@@ -213,6 +218,8 @@ export default function StatusMobileSheet({
   const backButtonRef = useRef<HTMLButtonElement>(null)
   const previousDetailStateRef = useRef<boolean | null>(null)
   const isShowingDetail = selectedDistrict !== null
+  const selectedDistrictCode = selectedDistrict?.districtCode ?? null
+  const previousDistrictCodeRef = useRef(selectedDistrictCode)
 
   useLayoutEffect(() => {
     const previousDetailState = previousDetailStateRef.current
@@ -226,11 +233,21 @@ export default function StatusMobileSheet({
       return
     }
 
+    // 아래 구 추적 effect 보다 먼저 돌아 previousDistrictCodeRef 에는 아직 방금 보던 구가 있다.
+    const returnDistrictCode = previousDistrictCodeRef.current
+    const returnRow =
+      !isShowingDetail && returnDistrictCode
+        ? (sheetBodyRef.current?.querySelector<HTMLButtonElement>(
+            `[data-district-code="${returnDistrictCode}"]`,
+          ) ?? null)
+        : null
+
     applyStatusSheetContentTransition({
       body: sheetBodyRef.current,
       backButton: backButtonRef.current,
       handle: handleRef.current,
       isShowingDetail,
+      returnRow,
     })
 
     previousDetailStateRef.current = isShowingDetail
@@ -241,9 +258,6 @@ export default function StatusMobileSheet({
    * 이전 구의 깊이에 남는다. 25개 폴리곤이 모두 눌리게 된 뒤로 흔한 경로라, 구가
    * 바뀌면 본문을 맨 위로 되돌려 새 구의 머리부터 보이게 한다. 포커스는 건드리지 않는다.
    */
-  const selectedDistrictCode = selectedDistrict?.districtCode ?? null
-  const previousDistrictCodeRef = useRef(selectedDistrictCode)
-
   useLayoutEffect(() => {
     const previousDistrictCode = previousDistrictCodeRef.current
     previousDistrictCodeRef.current = selectedDistrictCode
@@ -470,8 +484,10 @@ export default function StatusMobileSheet({
           />
         ) : (
           <StatusTopTen
+            isExpanded={isListExpanded}
             items={items}
             metric={metric}
+            onExpandedChange={onListExpandedChange}
             selectedDistrictCode={null}
             onSelect={onSelect}
           />

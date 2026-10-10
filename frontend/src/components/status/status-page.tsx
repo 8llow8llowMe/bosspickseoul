@@ -18,13 +18,14 @@ import { isApiSuccess } from '@/lib/api/response'
 import {
   isStatusTopTenAllEmpty,
   normalizeStatusRankings,
-  selectStatusTopTen,
 } from '@/lib/status/status-adapter'
 import {
   createStatusHref,
+  createStatusListQuery,
   createStatusQuery,
   getToggledSheetSnap,
   normalizeStatusSelection,
+  parseStatusListExpanded,
   parseStatusMetric,
   parseStatusPeriod,
   resolveStatusSelectedDistrict,
@@ -477,6 +478,8 @@ function StatusPageContent() {
       ? null
       : resolveAnalysisPeriod(urlPeriodCode, periodCatalog.range)
   const requestedDistrictCode = searchParams.get('district')
+  // 순위 목록 펼침(#565). URL 이 정본이라 상세에서 돌아오거나 뒤로가기를 해도 유지된다.
+  const isListExpanded = parseStatusListExpanded(searchParams.get('list'))
   // 시트는 기본 '펼침'으로 하단을 Top10 리스트가 채우고, 지도는 시트 위에 남는 자리에
   // 맞춰 가운데 놓인다(지도 몫 MINIMUM_MAP_HEIGHT 보장).
   const [sheetState, setSheetState] = useState<StatusSheetState>({
@@ -536,7 +539,6 @@ function StatusPageContent() {
     (requestedPeriodCode === null ? rankingsPeriodCode : null)
 
   const currentItems = rankings?.[metric] ?? []
-  const topTenItems = selectStatusTopTen(currentItems)
   const selectedDistrictCode = rankings
     ? normalizeStatusSelection(requestedDistrictCode, SELECTABLE_DISTRICT_CODES)
     : null
@@ -624,6 +626,22 @@ function StatusPageContent() {
     const side = desktopSideRef.current
     if (!side || side.offsetParent === null) return
 
+    // 상세에서 목록으로 돌아올 때 방금 보던 구의 목록 행. 순위 밖 구(지도에서 고른 구, 접힌 목록의 11위 이하,
+    // 지표를 바꿔 목록에서 빠진 구)는 행이 없다.
+    const listRow =
+      !selectedDistrict && previous
+        ? side.querySelector<HTMLButtonElement>(
+            `[data-status-top-ten-panel] [data-district-code="${previous}"]`,
+          )
+        : null
+
+    /*
+      목록은 상세에 덮인 동안 display:none 이라 스크롤 위치를 잃고 맨 위로 돌아온다. 25개로 펼친 목록의 20위를
+      보다 돌아오면 그 행이 화면 밖이라, 포커스와 상관없이 **그 행이 보이게** 스크롤한다(#565 리뷰).
+      `nearest` 라 이미 보이는 행(Top10 위쪽)이면 움직이지 않는다.
+    */
+    listRow?.scrollIntoView?.({ block: 'nearest' })
+
     // 막 숨겨진 목록 버튼은 브라우저가 blur 하기 전까지 activeElement 로 남아 있다.
     const active = document.activeElement
     const hasLostFocus =
@@ -639,12 +657,8 @@ function StatusPageContent() {
       return
     }
 
-    // 순위 밖 구(지도에서 고른 구, 또는 지표를 바꿔 목록에서 빠진 구)는 목록 행이 없다.
-    // 그때는 그 구의 지도 폴리곤으로 돌려준다.
+    // 목록 행이 없으면 그 구의 지도 폴리곤으로 돌려준다. 행은 위에서 이미 보이게 스크롤했다.
     if (previous) {
-      const listRow = side.querySelector<HTMLButtonElement>(
-        `[data-status-top-ten-panel] [data-district-code="${previous}"]`,
-      )
       const mapPolygon = desktopMapPanelRef.current?.querySelector<SVGElement>(
         `[data-status-district-path="${previous}"]`,
       )
@@ -704,6 +718,22 @@ function StatusPageContent() {
       onChange={handlePeriodChange}
     />
   )
+
+  /*
+    목록 펼침은 화면 이동이 아니라 같은 화면의 보기 방식이라 `replace` 다 — 뒤로가기가 펼침·접힘을
+    하나씩 되감지 않는다. 지금 기록을 고쳐 두므로 상세(`push`)에서 뒤로가기로 돌아와도 펼친 채다.
+  */
+  const handleListExpandedChange = (nextIsExpanded: boolean) => {
+    const nextQuery = createStatusListQuery(
+      new URLSearchParams(rawSearchParams),
+      nextIsExpanded,
+    )
+
+    router.replace(
+      createStatusHref(pathname, nextQuery, window.location.hash),
+      { scroll: false },
+    )
+  }
 
   const handleDistrictSelect = (districtCode: string) => {
     // 접혀 있으면 펼치고, 그 밖에는 지금 단계를 유지한다(전체 펼침에서 고르면 그대로).
@@ -808,9 +838,11 @@ function StatusPageContent() {
                 >
                   <HighlightedTopTen
                     highlightStore={highlightStore}
-                    items={topTenItems}
+                    isExpanded={isListExpanded}
+                    items={currentItems}
                     metric={metric}
                     selectedDistrictCode={selectedDistrictCode}
+                    onExpandedChange={handleListExpandedChange}
                     onSelect={handleDistrictSelect}
                   />
                 </TopTenPanel>
@@ -877,12 +909,14 @@ function StatusPageContent() {
                   detailError={detailError}
                   isDetailLoading={isDetailLoading}
                   isPeriodPending={isPeriodPending}
-                  items={topTenItems}
+                  isListExpanded={isListExpanded}
+                  items={currentItems}
                   metric={metric}
                   periodCode={periodCode}
                   selectedDistrict={selectedDistrict}
                   snap={sheetSnap}
                   onBackToTopTen={handleClearDistrict}
+                  onListExpandedChange={handleListExpandedChange}
                   onRetryDetail={() => void detailQuery.refetch()}
                   onSelect={handleDistrictSelect}
                   onSnapChange={snap =>

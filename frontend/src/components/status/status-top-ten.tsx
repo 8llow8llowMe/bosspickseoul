@@ -1,11 +1,16 @@
 'use client'
 
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useId } from 'react'
 import styled from 'styled-components'
 import {
-  formatStatusChange,
+  selectStatusTopTen,
+  STATUS_TOP_TEN_SIZE,
+} from '@/lib/status/status-adapter'
+import {
   formatStatusValue,
-  getStatusChangeTone,
+  presentStatusChange,
+  STATUS_CHANGE_BASIS,
   STATUS_CHANGE_TONE_COLOR,
   STATUS_METRIC_LABELS,
   type StatusChangeTone,
@@ -14,7 +19,14 @@ import type { StatusMetric, StatusRankedItem } from '@/types/status'
 
 type StatusTopTenProps = {
   metric: StatusMetric
+  /**
+   * 현재 지표의 전체 순위(25개 구). 접힌 상태에서는 앞 10개만 그린다(#565). 펼침 버튼은
+   * 10개보다 많고 `onExpandedChange` 가 있을 때만 둔다.
+   */
   items: StatusRankedItem[]
+  /** 25개 구를 모두 펼쳤는지. 페이지가 URL(`?list=all`)에 들고 있다 — 상세에서 돌아와도 유지된다. */
+  isExpanded?: boolean
+  onExpandedChange?: (isExpanded: boolean) => void
   selectedDistrictCode: string | null
   onSelect: (districtCode: string) => void
   /** 지도와 함께 강조할 구. 목록 ↔ 지도 hover 연동용이며 없으면 연동하지 않는다. */
@@ -23,32 +35,24 @@ type StatusTopTenProps = {
   onHighlightLeave?: (districtCode: string) => void
 }
 
-const getChangeCue = (
-  metric: StatusMetric,
-  changeRate: number | null,
-): string => {
-  if (changeRate === null || !Number.isFinite(changeRate)) return '변화율'
-  if (changeRate === 0) return '변동 없음'
-  if (metric === 'closed') return changeRate > 0 ? '주의' : '개선'
-  return changeRate > 0 ? '증가' : '감소'
-}
-
-const getChangeArrow = (changeRate: number | null): string => {
-  if (changeRate === null || !Number.isFinite(changeRate) || changeRate === 0)
-    return '–'
-  return changeRate > 0 ? '▲' : '▼'
-}
-
 const Section = styled.section`
   min-width: 0;
 `
 
 const Heading = styled.h2`
-  margin: 0 4px 6px;
+  margin: 0 4px;
   color: var(--color-text-600);
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;
+`
+
+// 변화율의 비교 기준(#560). 행마다 적으면 숫자 열이 넓어져 제목 아래 한 번만 적는다.
+const BasisCaption = styled.p`
+  margin: 2px 4px 6px;
+  color: var(--color-text-600);
+  font-size: 12px;
+  line-height: 16px;
 `
 
 /*
@@ -140,7 +144,11 @@ const DistrictValue = styled.span`
   white-space: nowrap;
 `
 
-// 증감은 알약 배경 없이 글자색과 ▲▼ 만 쓴다. 한 행에 굵은 숫자는 값 하나다.
+/*
+ * 증감은 알약 배경 없이 글자색·▲▼·「개선/악화」로 쓴다. 한 행에 굵은 숫자는 값 하나다.
+ * 색은 좋고 나쁨을 따르고(폐업은 반대, DESIGN.md §Charts), 같은 뜻을 글자로도 적는다 — 색만으로
+ * 좋고 나쁨을 전하지 않는다(WCAG 1.4.1).
+ */
 const Change = styled.span<{ $tone: StatusChangeTone }>`
   color: ${props => STATUS_CHANGE_TONE_COLOR[props.$tone]};
   font-size: 12px;
@@ -159,6 +167,41 @@ const VisuallyHidden = styled.span`
   white-space: nowrap;
 `
 
+const ExpandButton = styled.button`
+  width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--color-border-200);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-primary-on-light);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--color-surface-muted);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: -2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`
+
 const EmptyMessage = styled.p`
   padding: 24px 16px;
   border: 1px solid var(--color-border-200);
@@ -171,6 +214,8 @@ const EmptyMessage = styled.p`
 export default function StatusTopTen({
   metric,
   items,
+  isExpanded = false,
+  onExpandedChange,
   selectedDistrictCode,
   onSelect,
   highlightedDistrictCode = null,
@@ -178,56 +223,88 @@ export default function StatusTopTen({
   onHighlightLeave,
 }: StatusTopTenProps) {
   const headingId = useId()
-  const topTenItems = items.slice(0, 10)
+  const listId = useId()
+  const canExpand =
+    onExpandedChange !== undefined && items.length > STATUS_TOP_TEN_SIZE
+  const isShowingAll = canExpand && isExpanded
+  const visibleItems = isShowingAll ? items : selectStatusTopTen(items)
+  const metricLabel = STATUS_METRIC_LABELS[metric]
 
   return (
     <Section aria-labelledby={headingId}>
       <Heading id={headingId}>
-        {STATUS_METRIC_LABELS[metric]} 상위 10개 구
+        {isShowingAll
+          ? `${metricLabel} 전체 ${items.length}개 구`
+          : `${metricLabel} 상위 10개 구`}
       </Heading>
-      {topTenItems.length > 0 ? (
-        <RankingList>
-          {topTenItems.map(item => {
-            const isSelected = item.districtCode === selectedDistrictCode
+      {visibleItems.length > 0 ? (
+        <>
+          <BasisCaption>증감은 {STATUS_CHANGE_BASIS}예요.</BasisCaption>
+          <RankingList id={listId}>
+            {visibleItems.map(item => {
+              const isSelected = item.districtCode === selectedDistrictCode
+              const change = presentStatusChange(metric, item.changeRate)
 
-            return (
-              <RankingItem key={item.districtCode}>
-                <RankingButton
-                  $highlighted={item.districtCode === highlightedDistrictCode}
-                  $selected={isSelected}
-                  aria-pressed={isSelected}
-                  data-district-code={item.districtCode}
-                  type="button"
-                  onClick={() => onSelect(item.districtCode)}
-                  onPointerEnter={event => {
-                    if (event.pointerType === 'touch') return
-                    onHighlightEnter?.(item.districtCode)
-                  }}
-                  onPointerLeave={() => onHighlightLeave?.(item.districtCode)}
-                >
-                  <RankNumber $selected={isSelected}>{item.rank}</RankNumber>
-                  <DistrictName>{item.districtName}</DistrictName>
-                  <Figures>
-                    <DistrictValue>
-                      {formatStatusValue(metric, item.value)}
-                    </DistrictValue>
-                    <Change
-                      $tone={getStatusChangeTone(metric, item.changeRate)}
-                    >
-                      <span aria-hidden="true">
-                        {getChangeArrow(item.changeRate)}{' '}
-                      </span>
-                      <VisuallyHidden>
-                        {getChangeCue(metric, item.changeRate)}{' '}
-                      </VisuallyHidden>
-                      {formatStatusChange(item.changeRate)}
-                    </Change>
-                  </Figures>
-                </RankingButton>
-              </RankingItem>
-            )
-          })}
-        </RankingList>
+              return (
+                <RankingItem key={item.districtCode}>
+                  <RankingButton
+                    $highlighted={item.districtCode === highlightedDistrictCode}
+                    $selected={isSelected}
+                    aria-pressed={isSelected}
+                    data-district-code={item.districtCode}
+                    type="button"
+                    onClick={() => onSelect(item.districtCode)}
+                    onPointerEnter={event => {
+                      if (event.pointerType === 'touch') return
+                      onHighlightEnter?.(item.districtCode)
+                    }}
+                    onPointerLeave={() => onHighlightLeave?.(item.districtCode)}
+                  >
+                    <RankNumber $selected={isSelected}>{item.rank}</RankNumber>
+                    <DistrictName>{item.districtName}</DistrictName>
+                    <Figures>
+                      <DistrictValue>
+                        {formatStatusValue(metric, item.value)}
+                      </DistrictValue>
+                      <Change $tone={change.tone}>
+                        {change.arrow ? (
+                          <span aria-hidden="true">{change.arrow} </span>
+                        ) : null}
+                        {/* ▲▼ 는 읽지 않는다. 기준과 방향은 숨긴 글자로 읽힌다(#560). 값이 없으면
+                          보이는 글자 「변화율 데이터 없음」이 그대로 읽힌다. */}
+                        <VisuallyHidden>
+                          {STATUS_CHANGE_BASIS}{' '}
+                          {change.directionLabel
+                            ? `${change.directionLabel} `
+                            : null}
+                        </VisuallyHidden>
+                        {change.rateText}
+                        {change.qualityLabel ? ` ${change.qualityLabel}` : null}
+                      </Change>
+                    </Figures>
+                  </RankingButton>
+                </RankingItem>
+              )
+            })}
+          </RankingList>
+          {canExpand ? (
+            <ExpandButton
+              aria-controls={listId}
+              aria-expanded={isShowingAll}
+              type="button"
+              onClick={() => onExpandedChange?.(!isShowingAll)}
+            >
+              {isShowingAll
+                ? '상위 10개 구만 보기'
+                : `전체 ${items.length}개 구 보기`}
+              {isShowingAll ? (
+                <ChevronUp aria-hidden="true" size={16} strokeWidth={2} />
+              ) : (
+                <ChevronDown aria-hidden="true" size={16} strokeWidth={2} />
+              )}
+            </ExpandButton>
+          ) : null}
+        </>
       ) : (
         <EmptyMessage>
           선택한 지표의 상위 자치구 데이터가 아직 없어요.
