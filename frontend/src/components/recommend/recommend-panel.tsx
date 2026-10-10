@@ -103,7 +103,18 @@ export const getRecommendPanelTransitionKey = (
   view: RecommendationView,
 ): RecommendationView => view
 
+/*
+ * `Content` 의 여백. 시트는 DESIGN.md 모바일 거터(16px) 하나만 쓴다 — 시트 본문이 따로
+ * 들여쓰지 않으므로 이중 들여쓰기가 없다(#647). 시트 아래쪽은 화면 맨 아래라 홈
+ * 인디케이터를 피한다(예전에는 시트 본문이 맡던 여백이다). `CompareBar` 가 같은 값으로
+ * 여백을 덮는다.
+ */
 const desktopSurface = css`
+  --recommend-panel-top: 22px;
+  --recommend-panel-gutter: 22px;
+  --recommend-panel-bottom: 22px;
+  --recommend-compare-bar-bottom: calc(8px + var(--recommend-panel-bottom));
+
   width: min(390px, calc(100vw - 32px));
   max-height: calc(100dvh - 112px);
   border: 1px solid var(--color-border-200);
@@ -112,6 +123,15 @@ const desktopSurface = css`
 `
 
 const sheetSurface = css`
+  /* 위는 손잡이 줄(72px)이 이미 여백을 품고 있어 8px 만 둔다. 16px 이면 손잡이 줄과
+     첫 줄(「← 30개」·결과 제목) 사이가 벌어져 다른 덩어리처럼 보였다. */
+  --recommend-panel-top: 8px;
+  --recommend-panel-gutter: 16px;
+  --recommend-panel-bottom: calc(16px + env(safe-area-inset-bottom));
+  /* 비교 바는 시트 바닥에 붙는다. 그 아래 거터 16px 까지 두면 바가 77px 이 되어 작은 시트를
+     더 먹는다 — 홈 인디케이터만 피한다(약 61px). */
+  --recommend-compare-bar-bottom: calc(8px + env(safe-area-inset-bottom));
+
   width: 100%;
   max-height: none;
   border: 0;
@@ -141,9 +161,17 @@ const contentEnter = keyframes`
   }
 `
 
-/** `CompareBar` 가 스크롤 영역의 아래 여백을 덮어야 해서 값을 공유한다. */
-const CONTENT_PADDING = 22
-
+/*
+ * 스크롤 칸은 **단계마다 하나**다(#647). 조건·결과 뷰는 이 `Content` 가 스크롤하고, 선택 뷰는
+ * 피커의 `Body` 가 스크롤한다(「← 30개」 머리는 고정, `Content` 는 넘치지 않는다). 시트 본문은
+ * 스크롤하지 않는다 — 높이만 정하고 이 칸이 그 높이를 다 채운다. 데스크톱은 `max-height` 로
+ * 높이가 정해진다.
+ *
+ * `overscroll-behavior: contain` 은 **의도된 체이닝 차단**이다. 피커 목록 끝에서 더 굴려도
+ * 스크롤이 이 칸에서 멈춰 지도·페이지로 새지 않는다. 그래서 이 칸 **바깥**에 실제로 넘치는
+ * 스크롤 칸을 두면 안 된다 — 예전 시트 본문이 그랬고, 바깥으로 넘어가야 할 스크롤을 이 칸이
+ * 삼켜 목록 아래쪽에 닿을 수 없었다.
+ */
 const Content = styled.div`
   min-height: 0;
   display: grid;
@@ -151,7 +179,8 @@ const Content = styled.div`
   gap: 20px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: ${CONTENT_PADDING}px;
+  padding: var(--recommend-panel-top) var(--recommend-panel-gutter)
+    var(--recommend-panel-bottom);
   animation: ${contentEnter} var(--motion-standard) var(--ease-standard);
   -webkit-overflow-scrolling: touch;
 
@@ -375,9 +404,12 @@ const COMPARE_GAP_ID = 'recommend-compare-gap'
 
 /*
  * sticky 는 스크롤 컨테이너의 padding 안쪽에 붙는다. `bottom: 0` 이면 바 아래로
- * Content 의 아래 여백(22px)이 남아 그 틈으로 목록이 비쳐 보였다. 여백만큼 아래로
- * 내려 붙이고(bottom·margin 음수) 그만큼 안쪽 여백으로 되돌려 바가 패널 바닥까지 덮게 한다.
- * 좌우도 같은 이유로 여백까지 넓혀 목록이 바 옆으로 새지 않게 한다.
+ * Content 의 아래 여백이 남아 그 틈으로 목록이 비쳐 보였다. 여백만큼 아래로
+ * 내려 붙이고(bottom·margin 음수) 바가 패널 바닥까지 덮게 한다. 좌우도 같은 이유로 여백까지
+ * 넓혀 목록이 바 옆으로 새지 않게 한다. 여백 값은 `Content` 와 같은 변수
+ * (`--recommend-panel-gutter`·`--recommend-panel-bottom`)를 읽는다. 바 안쪽 아래 여백은
+ * `--recommend-compare-bar-bottom` 이다 — 데스크톱은 덮은 여백만큼 되돌리고(8 + 22px), 시트는
+ * 홈 인디케이터만 피한다(8px + safe area, #647).
  */
 /*
  * 한 줄 바(#569). 선택이 0개면 그리지 않는다 — 고르기 전부터 떠 있던 두 줄짜리 바가
@@ -385,13 +417,13 @@ const COMPARE_GAP_ID = 'recommend-compare-gap'
  */
 const CompareBar = styled.div`
   position: sticky;
-  bottom: ${-CONTENT_PADDING}px;
+  bottom: calc(-1 * var(--recommend-panel-bottom));
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0 ${-CONTENT_PADDING}px ${-CONTENT_PADDING}px;
-  padding: 8px ${CONTENT_PADDING}px
-    calc(max(8px, env(safe-area-inset-bottom)) + ${CONTENT_PADDING}px);
+  margin: 0 calc(-1 * var(--recommend-panel-gutter))
+    calc(-1 * var(--recommend-panel-bottom));
+  padding: 8px var(--recommend-panel-gutter) var(--recommend-compare-bar-bottom);
   background: var(--color-surface);
   border-top: 1px solid var(--color-border-200);
 `

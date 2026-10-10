@@ -46,6 +46,7 @@ const Root = styled.section`
 `
 
 const Header = styled.div`
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -75,17 +76,35 @@ const BackButton = styled.button`
   }
 `
 
-const Heading = styled.h2`
+/*
+ * 시트에서는 손잡이 줄이 이미 「업종 선택 / 중랑구 · 중화1동」을 말한다. 바로 아래에 같은
+ * 제목을 한 번 더 그리면 중복이라(#647) 화면에서는 감추고 스크린리더 헤딩·포커스 자리로만
+ * 남긴다. 뒤로 가기와 개수는 그대로 보인다. 데스크톱 패널에는 손잡이가 없어 그대로 그린다.
+ */
+const Heading = styled.h2<{ $isVisuallyHidden: boolean }>`
   flex: 1;
   min-width: 0;
   color: var(--color-text-900);
   font-size: 17px;
   font-weight: 700;
   outline: none;
+
+  ${props =>
+    props.$isVisuallyHidden &&
+    `
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    `}
 `
 
 const Count = styled.span`
   flex: 0 0 auto;
+  margin-left: auto;
   color: var(--color-text-caption);
   font-size: 12px;
 `
@@ -147,7 +166,11 @@ export default function RecommendConditionPicker({
         >
           <ArrowLeft />
         </BackButton>
-        <Heading ref={headingRef} tabIndex={-1}>
+        <Heading
+          ref={headingRef}
+          $isVisuallyHidden={variant === 'sheet'}
+          tabIndex={-1}
+        >
           {label} 선택
         </Heading>
         <Count>{totalCount}개</Count>

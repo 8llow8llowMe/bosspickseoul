@@ -373,6 +373,61 @@ describe('RecommendPanel', () => {
     expect(markup).toContain('조건으로 돌아가기')
   })
 
+  // #647 — 시트에서는 패널 `Content` 가 유일한 스크롤 칸이고 여백도 혼자 맡는다.
+  it('시트 변형은 모바일 거터 16px·위 8px·홈 인디케이터 여백을 쓰고, 데스크톱은 22px 을 유지한다', () => {
+    const sheetStyles = renderStyles(
+      createElement(RecommendPanel, {
+        ...baseProps,
+        variant: 'sheet',
+        view: 'criteria',
+      }),
+    )
+    const desktopStyles = renderStyles(
+      createElement(RecommendPanel, { ...baseProps, view: 'criteria' }),
+    )
+
+    expect(sheetStyles).toContain('--recommend-panel-gutter:16px')
+    // 위는 손잡이 줄이 여백을 품고 있어 8px 만 둔다.
+    expect(sheetStyles).toContain('--recommend-panel-top:8px')
+    expect(sheetStyles).toContain(
+      '--recommend-panel-bottom:calc(16px + env(safe-area-inset-bottom))',
+    )
+    // 시트의 비교 바는 바닥에 붙어 홈 인디케이터만 피한다 — 거터 16px 을 아래에 또 두지 않는다.
+    expect(sheetStyles).toContain(
+      '--recommend-compare-bar-bottom:calc(8px + env(safe-area-inset-bottom))',
+    )
+    expect(desktopStyles).toContain('--recommend-panel-gutter:22px')
+    expect(desktopStyles).toContain('--recommend-panel-top:22px')
+    // 스크롤하는 칸이 overscroll 을 막아 지도·페이지로 스크롤이 새지 않는다.
+    expect(sheetStyles).toMatch(/overflow-y:auto;overscroll-behavior:contain/)
+  })
+
+  it('시트의 선택 뷰는 손잡이 줄과 겹치는 제목을 화면에서 감추고 뒤로 가기·개수는 남긴다', () => {
+    const pickerProps = {
+      ...baseProps,
+      pickerStep: 'district' as const,
+      pickerItems: [
+        { code: '11680', name: '강남구' },
+        { code: '11110', name: '종로구' },
+      ],
+      view: 'picker' as const,
+    }
+    const sheetStyles = renderStyles(
+      createElement(RecommendPanel, { ...pickerProps, variant: 'sheet' }),
+    )
+    const desktopStyles = renderStyles(
+      createElement(RecommendPanel, pickerProps),
+    )
+    const sheetMarkup = renderPanel({ ...pickerProps, variant: 'sheet' })
+
+    // 헤딩은 스크린리더·포커스 자리로 남는다.
+    expect(sheetMarkup).toMatch(/<h2[^>]*tabindex="-1"[^>]*>자치구 선택<\/h2>/)
+    expect(sheetMarkup).toContain('조건으로 돌아가기')
+    expect(sheetMarkup).toContain('2개')
+    expect(sheetStyles).toContain('clip-path:inset(50%)')
+    expect(desktopStyles).not.toContain('clip-path:inset(50%)')
+  })
+
   it.each([
     {
       name: 'missing district',
