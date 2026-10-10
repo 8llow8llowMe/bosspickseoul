@@ -8,9 +8,10 @@
  *
  * ## 한쪽만 있어도 오류가 아니다
  *
- * 리포트 화면의 `비교에 추가` 는 왼쪽만 채운 링크(`a.*` 만 있는 URL)를 만든다. 그래서 파서는
- * 없는 쪽을 빈 조건 상태로 돌려주고, 화면은 그 자리에 **빈 편집기**를 연다. 여기서 "쌍이
- * 완전하지 않으면 오류"로 판정하면 그 흐름이 성립하지 않는다.
+ * 입력 화면·리포트의 `다른 조건과 비교` 는 B 에 A 를 복사한 링크(`right: left`)를 만든다(#567, 결정 D-3).
+ * 그래도 파서는 없는 쪽을 빈 조건 상태로 돌려준다 — 「조건 B 비우기」 뒤의 URL, 옛 `a.*` 만 있는 링크가
+ * 그 모양이고, 화면은 그 자리에 빈 편집기를 연다. 여기서 "쌍이 완전하지 않으면 오류"로 판정하면 그 흐름이
+ * 성립하지 않는다. 양쪽이 같은 계산인 쌍(복사 직후)은 비교 화면이 조회하지 않는다.
  */
 
 import {
@@ -85,6 +86,23 @@ export const buildSimulationCompareHref = (
   const query = params.toString()
   return query ? `${COMPARE_PATH[variant]}?${query}` : COMPARE_PATH[variant]
 }
+
+/**
+ * 조건 하나에서 비교로 넘어가는 링크 — 입력 화면 결과 카드와 리포트의 `다른 조건과 비교`(#567).
+ *
+ * **B 는 A 의 복사본으로 시작한다**(결정 D-3). 비교는 보통 한 가지만 바꿔 본다(1층 → 1층 외, 강남 →
+ * 마포). B 를 비워 두면 창업 형태·자치구·업종·(브랜드)·면적·층을 전부 다시 골라야 했다. 두 화면이 같은
+ * 함수를 써서 한쪽만 빈 B 로 여는 일이 없게 한다.
+ */
+export const buildSimulationCompareHrefFromReport = (
+  request: SimulationReportRequest,
+  variant: SimulationReportVariant = 'standalone',
+  brandName?: string | null,
+): string =>
+  buildSimulationCompareHref({ left: request, right: request }, variant, {
+    left: brandName,
+    right: brandName,
+  })
 
 /**
  * 쿼리스트링 → 조건 상태 쌍. **읽을 수 있는 만큼만 읽는다.**

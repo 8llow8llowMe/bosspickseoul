@@ -23,7 +23,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { resolveApiError, retryUnlessClientError } from '@/lib/api/api-error'
 import { createSimulationReport } from '@/lib/api/simulation'
-import { buildSimulationCompareHref } from '@/lib/simulation/compare-route'
+import { buildSimulationCompareHrefFromReport } from '@/lib/simulation/compare-route'
 import { getResponseBody } from '@/lib/api/response'
 import {
   simulationSectionDomId,
@@ -60,11 +60,11 @@ const Page = styled.main`
   background: var(--color-background-muted);
 
   /*
-    ≤1023 은 하단 고정 바에 가리지 않게 여백을 둔다. 바는 71px(저장 결과 한 줄이 붙으면 99px, 두 줄
-    오류면 약 119px)이고, iPhone 처럼 하단 safe-area 가 있으면 그만큼(최대 34px) 더 커진다.
+    하단 고정 바(71~119px + safe-area)의 자리는 문서 끝(푸터 뒤)에 바를 재서 따로 둔다
+    (SimulationBottomBarSpacer, #605). 본문에만 여백을 주면 그 뒤의 푸터가 바 뒤에 깔린다.
   */
   @media ${SIMULATION_MEDIA.belowDesktop} {
-    padding: 24px 0 calc(120px + env(safe-area-inset-bottom));
+    padding: 24px 0 48px;
   }
 `
 
@@ -343,10 +343,11 @@ export default function SimulationReportPage({
             report={report}
             request={request}
             currentHref={currentHref}
-            compareHref={buildSimulationCompareHref(
-              { left: request, right: null },
+            // B 는 A 의 복사본으로 연다(#567, 결정 D-3) — 비교는 보통 한 가지만 바꿔 본다.
+            compareHref={buildSimulationCompareHrefFromReport(
+              request,
               variant,
-              { left: conditionState.brandName },
+              conditionState.brandName,
             )}
           />
         ) : null}
@@ -380,8 +381,8 @@ export function SimulationReportReady({
                 currentHref={currentHref}
                 size="large"
               />
-              {/* 이 조건을 왼쪽에 채운 비교 화면을 연다. 오른쪽은 비어 있는 채로
-                편집기가 열린다 — 한쪽만 있는 URL 은 오류가 아니다. */}
+              {/* 이 조건을 A 에, 그 복사본을 B 에 채운 비교 화면을 연다(#567). 같은 계산이라
+                비교 화면은 B 를 고칠 때까지 조회하지 않는다. */}
               <ButtonLink
                 size="large"
                 variant="secondary"
