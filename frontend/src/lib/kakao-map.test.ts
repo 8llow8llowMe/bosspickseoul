@@ -5,7 +5,7 @@ import { createKakaoMapScriptUrl, loadKakaoMapSdk } from './kakao-map'
 describe('createKakaoMapScriptUrl', () => {
   it('creates the Kakao Maps SDK URL after trimming and encoding the key', () => {
     expect(createKakaoMapScriptUrl('  key +/한글  ')).toBe(
-      'https://dapi.kakao.com/v2/maps/sdk.js?appkey=key%20%2B%2F%ED%95%9C%EA%B8%80&autoload=false',
+      'https://dapi.kakao.com/v2/maps/sdk.js?appkey=key%20%2B%2F%ED%95%9C%EA%B8%80&autoload=false&libraries=services',
     )
   })
 

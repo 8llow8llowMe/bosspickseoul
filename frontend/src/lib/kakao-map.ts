@@ -11,9 +11,11 @@ export const createKakaoMapScriptUrl = (key: string): string => {
     throw new Error('Kakao Map API key가 설정되지 않았습니다.')
   }
 
+  // `libraries=services` 는 상권분석 이름 검색의 장소 검색(Places)용이다(#596). 지도와 같은
+  // 스크립트 한 벌로 받으므로 키·로더는 그대로다.
   return `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(
     normalizedKey,
-  )}&autoload=false`
+  )}&autoload=false&libraries=services`
 }
 
 export const loadKakaoMapSdk = (key: string): Promise<KakaoMapsNamespace> => {
