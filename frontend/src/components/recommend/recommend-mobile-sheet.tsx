@@ -310,19 +310,27 @@ const HandleCopy = styled.span`
   }
 `
 
+/*
+ * 본문은 **스크롤하지 않는다.** 높이만 정하고 패널(`RecommendPanel`)이 그 높이를 다 채운다.
+ * 스크롤은 단계마다 한 칸이 맡는다 — 조건·결과는 패널 `Content`, 선택 뷰는 피커 `Body`.
+ * 분석 시트의 `Layer > section { height: 100% }` 와 같은 구조다.
+ *
+ * 예전에는 여기와 패널 `Content` 가 둘 다 스크롤 칸이었다(#647). 패널은 내용 높이만큼
+ * 늘어나 스스로는 스크롤할 거리가 없는데 `overscroll-behavior: contain` 을 들고 있어,
+ * 휠·터치 스크롤이 그 칸에서 멈추고 바깥(이 본문)으로 넘어오지 않았다. 목록 아래쪽을
+ * 누를 수 없었던 이유다. 좌우 여백도 여기 16px + 패널 22px 로 두 번 들어가 있었다.
+ */
 const SheetBody = styled.div<{ $isExpanded: boolean }>`
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0 16px calc(20px + env(safe-area-inset-bottom));
-  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
 
   ${props =>
     !props.$isExpanded &&
     `
       visibility: hidden;
       pointer-events: none;
-      overflow: hidden;
     `}
 `
 

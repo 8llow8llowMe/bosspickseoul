@@ -350,7 +350,7 @@ describe('RecommendMobileSheet', () => {
     expect(markup).toContain('inert=""')
   })
 
-  it('expanded 상태에서 children을 활성화된 스크롤 본문에 렌더한다', () => {
+  it('expanded 상태에서 children을 활성화된 본문에 렌더한다', () => {
     const { markup } = renderSheet('expanded')
     const bodyTag = getBodyTag(markup)
 
@@ -372,7 +372,7 @@ describe('RecommendMobileSheet', () => {
     expect(markup).not.toContain('추천 상권 5곳')
   })
 
-  it('높이·safe area·overscroll·reduced motion 규칙을 스타일에 반영한다', () => {
+  it('높이·safe area·reduced motion 규칙을 스타일에 반영하고 본문은 스크롤하지 않는다', () => {
     const expanded = renderSheet('expanded')
     const collapsed = renderSheet('collapsed')
     const expandedHandleTag = expanded.markup.match(
@@ -404,8 +404,12 @@ describe('RecommendMobileSheet', () => {
     expect(expanded.styles).toMatch(/min\(\s*72%,\s*calc\(100% - 180px\)\s*\)/)
     expect(peekHandleStyles).toContain('env(safe-area-inset-bottom)')
     expect(expandedHandleStyles).not.toContain('env(safe-area-inset-bottom)')
-    expect(bodyStyles).toContain('env(safe-area-inset-bottom)')
-    expect(expanded.styles).toContain('overscroll-behavior:contain')
+    // 스크롤 칸은 패널 `Content` 하나다(#647). 본문이 함께 스크롤 칸이면 스크롤 거리가 없는
+    // 안쪽 칸의 `overscroll-behavior: contain` 이 휠·터치 스크롤을 삼킨다. 여백·safe area 도
+    // 패널이 맡는다 — 본문이 따로 들여쓰면 좌우 여백이 두 번 들어간다.
+    expect(bodyStyles).toContain('overflow:hidden')
+    expect(bodyStyles).not.toContain('overflow-y:auto')
+    expect(bodyStyles).not.toContain('padding')
     expect(expanded.styles).toMatch(/prefers-reduced-motion:\s*reduce/)
   })
 })
