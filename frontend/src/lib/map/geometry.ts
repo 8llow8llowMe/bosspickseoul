@@ -115,6 +115,46 @@ export const findContainingArea = (
   return nearest
 }
 
+/**
+ * 점을 **실제로 품은** 영역만 돌려준다. 없으면 null.
+ *
+ * `findContainingArea` 는 못 찾으면 중심점이 가장 가까운 영역으로 물러난다 — 지도에서 이미 고른
+ * 상권의 상위 행정동을 찾을 때는 맞지만, 검색한 장소 좌표를 분석 대상으로 바꿀 때는 서울 밖이나
+ * 상권 경계 밖 좌표가 엉뚱한 상권으로 붙는다(#596). 그 경우에는 이 함수를 쓴다.
+ */
+export const findAreaContainingPoint = (
+  point: MapPoint,
+  areas: readonly AreaBoundaryItem[],
+): AreaBoundaryItem | null => {
+  for (const area of areas) {
+    const ring = normalizeBoundary(area.boundaryCoords)
+    if (ring.length >= 3 && isPointInPolygon(point, ring)) return area
+  }
+  return null
+}
+
+/** 점을 품은 영역을 **모두** 돌려준다. 상권처럼 경계가 겹칠 수 있는 영역에서 하나를 고를 때 쓴다. */
+export const findAreasContainingPoint = (
+  point: MapPoint,
+  areas: readonly AreaBoundaryItem[],
+): AreaBoundaryItem[] =>
+  areas.filter(area => {
+    const ring = normalizeBoundary(area.boundaryCoords)
+    return ring.length >= 3 && isPointInPolygon(point, ring)
+  })
+
+/**
+ * 다각형 면적(신발끈 공식, 경위도 제곱 단위). 서울 범위에서는 위도에 따른 왜곡이 영역 사이에 거의
+ * 같으므로 **크기 비교**에만 쓴다. 실제 ㎡ 가 아니다.
+ */
+export const computeRingArea = (ring: readonly MapPoint[]): number => {
+  let doubled = 0
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    doubled += (ring[j].lng + ring[i].lng) * (ring[j].lat - ring[i].lat)
+  }
+  return Math.abs(doubled) / 2
+}
+
 export const resolveDistrictCodeFromAdministration = (
   administrationCode: string,
 ): string => administrationCode.slice(0, 5)

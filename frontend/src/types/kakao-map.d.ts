@@ -63,8 +63,47 @@ declare global {
   type KakaoMapEventType =
     'click' | 'idle' | 'mouseover' | 'mouseout' | 'zoom_changed'
 
+  /** 장소 검색 결과 한 건. 좌표는 문자열이다(x = 경도, y = 위도). */
+  type KakaoPlaceDocument = {
+    id: string
+    place_name: string
+    category_name?: string
+    category_group_code?: string
+    address_name?: string
+    road_address_name?: string
+    x: string
+    y: string
+  }
+
+  type KakaoServicesStatus = 'OK' | 'ZERO_RESULT' | 'ERROR'
+
+  /**
+   * `libraries=services` 로 실은 장소 검색(#596). 로더가 그 파라미터를 붙이므로 지도와 같은
+   * 스크립트 한 벌에 들어 있다.
+   */
+  type KakaoMapServices = {
+    Status: Record<KakaoServicesStatus, KakaoServicesStatus>
+    Places: new () => {
+      keywordSearch(
+        keyword: string,
+        callback: (
+          data: KakaoPlaceDocument[],
+          status: KakaoServicesStatus,
+        ) => void,
+        options?: {
+          /** 「왼쪽 경도,아래 위도,오른쪽 경도,위 위도」 */
+          rect?: string
+          size?: number
+          page?: number
+        },
+      ): void
+    }
+  }
+
   type KakaoMapsNamespace = {
     load(callback: () => void): void
+    /** `libraries=services` 가 실려야 생긴다. 없으면 장소 검색을 건너뛴다. */
+    services?: KakaoMapServices
     Map: new (
       container: HTMLElement,
       options: {

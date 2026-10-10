@@ -6,6 +6,9 @@ import {
   normalizeBoundary,
   normalizeViewportBounds,
   isPointInPolygon,
+  computeRingArea,
+  findAreaContainingPoint,
+  findAreasContainingPoint,
   findContainingArea,
   resolveDistrictCodeFromAdministration,
 } from '@/lib/map/geometry'
@@ -108,6 +111,74 @@ describe('findContainingArea', () => {
   })
   it('빈 배열이면 null', () => {
     expect(findContainingArea({ lng: 5, lat: 5 }, [])).toBeNull()
+  })
+})
+
+describe('findAreaContainingPoint', () => {
+  const areas: AreaBoundaryItem[] = [
+    {
+      areaCode: 'a',
+      areaName: '안쪽',
+      centerLng: 5,
+      centerLat: 5,
+      boundaryCoords: [
+        [0, 0],
+        [0, 10],
+        [10, 10],
+        [10, 0],
+      ],
+    },
+    {
+      areaCode: 'broken',
+      areaName: '경계 없음',
+      centerLng: 100,
+      centerLat: 50,
+      boundaryCoords: [],
+    },
+  ]
+  it('점을 품은 area 를 반환한다', () => {
+    expect(findAreaContainingPoint({ lng: 5, lat: 5 }, areas)?.areaCode).toBe(
+      'a',
+    )
+  })
+  it('어디에도 없으면 최근접으로 물러나지 않고 null 이다(#596)', () => {
+    expect(findAreaContainingPoint({ lng: 100, lat: 50 }, areas)).toBeNull()
+  })
+})
+
+describe('findAreasContainingPoint · computeRingArea', () => {
+  const box = (areaCode: string, size: number): AreaBoundaryItem => ({
+    areaCode,
+    areaName: areaCode,
+    centerLng: size / 2,
+    centerLat: size / 2,
+    boundaryCoords: [
+      [0, 0],
+      [size, 0],
+      [size, size],
+      [0, size],
+    ],
+  })
+
+  it('점을 품은 영역을 모두 돌려준다', () => {
+    expect(
+      findAreasContainingPoint({ lng: 1, lat: 1 }, [
+        box('big', 10),
+        box('small', 2),
+        box('tiny', 0.5),
+      ]).map(area => area.areaCode),
+    ).toEqual(['big', 'small'])
+  })
+
+  it('다각형 면적을 감는 방향과 상관없이 양수로 낸다', () => {
+    const square = [
+      { lng: 0, lat: 0 },
+      { lng: 2, lat: 0 },
+      { lng: 2, lat: 2 },
+      { lng: 0, lat: 2 },
+    ]
+    expect(computeRingArea(square)).toBe(4)
+    expect(computeRingArea([...square].reverse())).toBe(4)
   })
 })
 
