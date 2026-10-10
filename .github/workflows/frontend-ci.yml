@@ -7,9 +7,9 @@ name: frontend-ci
 # `frontend-web` 라벨이 붙어야 생기고(`Github label filter`), 결과가 Jenkins 화면에 있다.
 # 이쪽은 라벨과 무관하게 돌고 결과를 PR 에서 바로 보여 준다.
 #
-# `e2e` 는 커뮤니티 Playwright 슈트를 프로덕션 빌드로 돈다(#477). Jenkins 빌드 에이전트에는
-# Chromium 과 시스템 의존성이 없어서, Jenkins 대신 이 워크플로에 붙였다. Actions 러너는
-# `playwright install --with-deps` 가 바로 된다(`frontend/docs/runbook/qa.md` §2).
+# `e2e` 는 백엔드 없이 도는 Playwright 슈트(커뮤니티·인증·레이아웃·홈 불변식)를 프로덕션 빌드로
+# 돈다(#477, #632). Jenkins 빌드 에이전트에는 Chromium 과 시스템 의존성이 없어서, Jenkins 대신
+# 이 워크플로에 붙였다. Actions 러너는 `playwright install --with-deps` 가 바로 된다(`frontend/docs/runbook/qa.md` §2).
 
 on:
   pull_request:
@@ -111,19 +111,26 @@ jobs:
           AUTH_SESSION_SECRET: ci-placeholder-secret-at-least-32-characters
           NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ci-placeholder
 
-  # 커뮤니티 e2e — 레이아웃·불변식·지역 시트·글쓰기를 실제 브라우저로 잰다 (#477).
+  # e2e — 화면을 실제 브라우저로 잰다 (#477, #632). 도는 슈트:
+  # - `e2e/community` — 레이아웃·불변식·지역 시트·글쓰기·터치 타깃
+  # - `e2e/auth` — 가입 → 로그인, 카카오 버튼 위치, 세션 확인 전 폼·헤더 자리
+  # - `e2e/layout` — 없는 주소의 404·셸 하나·h1, 기능 루트 redirect(응답만 본다)
+  # - `e2e/home/invariants.spec.ts` — 홈 가로 넘침·h1·링크·콘솔 오류·합니다체 0·첫 페인트 BFF 호출 ≤3
   #
-  # **백엔드 없이 돈다.** BFF 호출은 브라우저에서 `e2e/fixtures/community.ts` 가 고정 응답으로
-  # 가로채고, 가로채지 못한 호출은 501 로 막아 테스트를 실패시킨다(`e2e/community/test.ts`).
-  # 그래서 서버에는 자리표시자 env 만 준다.
+  # **백엔드 없이 돈다.** 브라우저가 내보내는 BFF·`/api/auth/*` 호출은 슈트마다 고정 응답으로
+  # 가로채고(`e2e/fixtures/community.ts`·`e2e/fixtures/home.ts`·`e2e/auth/signup-to-login.spec.ts`),
+  # 가로채지 못한 `/api/bff/*` 호출은 501 로 막아 테스트를 실패시킨다. 레이아웃 슈트는 BFF 를 부르지
+  # 않는다(세션 쿠키가 없으면 `/api/auth/me` 는 백엔드에 가지 않는다). 그래서 서버에는 자리표시자 env 만 준다.
   #
   # **프로덕션 빌드(`pnpm start`)로 돈다.** dev 서버보다 배포물에 가깝다. 포트는 5173 이다 —
   # `playwright.config.ts` 의 기본 baseURL 이고, 백엔드 CORS 허용 포트와도 맞춘다.
   # 서버를 먼저 띄우고 기다린다. 서버가 없으면 playwright 의 `webServer` 가 `pnpm dev` 를 띄워
   # 프로덕션 빌드가 아닌 것을 재게 된다.
   #
-  # **홈 지표 슈트(`e2e/home/*`)는 넣지 않는다.** 기준선이 dev 서버 기준이고
-  # `districts/top-ten` 실응답에 기댄다(`frontend/docs/runbook/qa.md` §2).
+  # **홈은 불변식만 넣는다.** 래칫(`home-metrics.spec.ts`)은 기준선이 dev 서버 + 실응답 기준이라
+  # 프로덕션 빌드·고정 응답에서는 수치가 어긋난다. 히어로·미니 지도(`hero.spec.ts`·`ranking-mini-map.spec.ts`)는
+  # 고정하지 않은 실응답(자치구 상세 등)에 기댄다. 셋 다 로컬 전용이다(`frontend/docs/runbook/qa.md` §2).
+  # 슈트를 더할 때는 아래 실행 줄에 경로를 더한다 — 디렉터리 단위가 아니라 백엔드 없이 도는 것만 고른다.
   #
   # **관찰 기간이다 — 처음에는 `continue-on-error` 로 둔다.**
   # - 효과: 이 잡이 깨져도 워크플로 실행 결론은 성공이다. 잡 자체의 실패는 그대로 보인다.
@@ -222,7 +229,7 @@ jobs:
           exit 1
 
       # `--fail-on-flaky-tests` 는 관찰 기간용이다(위 잡 주석). 걷을 때 같이 정한다.
-      - run: pnpm test:e2e e2e/community --fail-on-flaky-tests
+      - run: pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts --fail-on-flaky-tests
 
       # **실패했을 때만 올린다.** trace(`test-results/`)로 어느 단언에서 무엇이 그려졌는지 본다.
       # 세션 쿠키는 테스트가 만든 가짜 값이라 실데이터가 담기지 않는다.
@@ -230,7 +237,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: community-e2e
+          name: frontend-e2e
           path: |
             frontend/playwright-report/
             frontend/test-results/
