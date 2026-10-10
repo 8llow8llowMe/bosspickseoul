@@ -106,30 +106,26 @@ PLAYWRIGHT_BASE_URL=http://localhost:5197 pnpm test:e2e
 500 → 콘솔 오류·폴백 화면). **슈트를 더할 때는 `frontend-ci.yml` 의 실행 줄에 경로를 더한다.** 백엔드 없이 도는지는
 아래 「CI 와 같은 조건」 으로 먼저 확인한다.
 
-- 언제: `frontend/` 코드를 바꾼 PR 과 develop push. 문서만 바뀐 PR 은 건너뛴다(`verify` 와 같은 판정).
+- 언제: `frontend/` 코드를 바꾼 PR 과 develop push. 문서만 바뀐 PR 과 프론트와 무관한 PR 은 잡이 skipped 로
+  끝난다(`verify` 와 같은 판정, `scripts/classify-frontend-changes.sh`).
 - 어떻게: 자리표시자 env 로 `pnpm build` → `pnpm start -p 5173` → 응답을 기다린 뒤
   `PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts --fail-on-flaky-tests`.
   백엔드는 없다. BFF 는 위 표의 고정 응답이 받는다.
 - 실행 시간(로컬 M 시리즈, 프로덕션 빌드, 백엔드 없음, 2026-10-10 develop `a2ef930f` 기준 실측): 커뮤니티만
   46건(32 통과·14 스킵) 약 15~19초 → 지금 72건(57 통과·15 스킵) 약 25초. 잡 시간은 빌드·브라우저 설치가 대부분이라 `timeout-minutes: 25` 로 충분하다.
-- **지금은 관찰 기간이다(`continue-on-error`).** 이 잡이 깨져도 워크플로 실행 결론은 성공이고, 잡의
-  실패는 그대로 보인다.
-  - **머지 규칙의 예외다.** 다른 Actions 체크는 빨간불이면 머지하지 않는다
-    (`backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2). 이 잡은 빨간불이어도 머지할 수 있다. 대신 원인을
-    PR 본문 「검증 내역」에 적는다.
+- **`verify` 와 함께 develop 의 필수 체크로 지정한다**(develop branch protection, 저장소 소유자가 적용).
+  관찰 기간(`continue-on-error`)은 끝났다. 이 잡이 깨지면 머지가 막힌다. 예외로 두던 「빨간불이어도 머지」
+  규칙도 없어졌다.
+  - **적용 순서: 이 워크플로 변경(`pull_request` 의 `paths` 제거)이 develop 에 들어간 뒤에 protection 을 건다.**
+    순서가 반대면 develop 의 옛 워크플로가 BE 전용 PR 에서 돌지 않아 두 체크가 Expected 로 남고 머지가 막힌다.
+  - 필수 체크가 걸린 뒤에는 `gh pr merge --auto` 가 체크를 기다린다(동작 설명). 이 저장소는 체크 초록을
+    확인하고 수동으로 rebase merge 한다.
+  - FE 코드 변경이 없는 PR(문서만·BE 전용·다른 워크플로)에서는 skipped 로 끝나고, 필수 체크는 이것을 통과로 친다.
+    그래서 워크플로는 `pull_request` 에 `paths` 를 두지 않는다 — 워크플로가 안 돌면 체크가 생기지 않아 PR 이
+    영원히 대기한다.
   - flaky 도 실패로 센다(`--fail-on-flaky-tests`). CI 는 `retries: 1` 이라 재시도에서 통과한 테스트도
-    통과로 끝나기 때문이다.
+    통과로 끝나기 때문이다. 고정 응답으로 도는 슈트라 flaky 는 테스트 결함이다 — 재실행으로 넘기지 말고 고친다.
   - 실패하면 `frontend-e2e` 아티팩트(리포트·trace·서버 로그)가 7일 남는다.
-- **관찰 기간을 끝내는 기준: develop push 실행에서 이 잡이 연속 20회 성공.** 워크플로 실행 목록은
-  `continue-on-error` 때문에 늘 초록이라, 잡 결론을 따로 센다.
-
-  ```bash
-  gh run list -w frontend-ci -b develop -e push -L 30 --json databaseId --jq '.[].databaseId' |
-    while read id; do gh run view "$id" --json jobs --jq '.jobs[] | select(.name == "e2e") | .conclusion'; done
-  ```
-
-  끝나면 `continue-on-error` 와 `--fail-on-flaky-tests` 를 정리하고 위 예외를 없앤다. 이 절,
-  `frontend-ci.yml` 의 잡 주석, 가이드 §1-2 표를 같이 고친다.
 
 로컬에서 재현할 때는 아래 둘 중 하나를 돌린다.
 
