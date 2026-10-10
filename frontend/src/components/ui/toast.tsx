@@ -133,7 +133,7 @@ const Card = styled.div<{ $tone: ToastTone }>`
         ? 'var(--color-danger)'
         : props.$tone === 'success'
           ? 'var(--color-success)'
-          : 'var(--color-primary-700)'};
+          : 'var(--color-text-primary-on-light)'};
   }
 `
 

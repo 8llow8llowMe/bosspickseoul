@@ -613,15 +613,10 @@ describe('글자색에 primary-700 을 쓰지 않는다', () => {
   )
 
   /**
-   * 파일 → 글자색 primary-700 선언 수(상한). #634 에서 글자·아이콘을 모두 옮기고 하나만 남았다.
-   *
-   * - `toast.tsx` 1: 카드 왼쪽 상태 아이콘(`> svg { color }`)이다. 글자는 아니지만 info 톤을 나타내는
-   *   의미 있는 아이콘이라 비텍스트 3:1 이 걸리고, 흰 바탕 2.77:1 로 못 넘는다. 토스트 다른 부분을
-   *   고치는 작업(#631)과 겹치지 않게 #634 에서는 동작 버튼 글자색만 옮겼다.
+   * 파일 → 글자색 primary-700 선언 수(상한). #634 에서 글자·아이콘을 옮겼고, 마지막 남은 토스트 info
+   * 상태 아이콘은 #631 에서 옮겨 부채가 0 이다. 새로 걸리면 이 목록에 넣지 말고 고친다.
    */
-  const KNOWN_DEBT = new Map<string, number>([
-    ['src/components/ui/toast.tsx', 1],
-  ])
+  const KNOWN_DEBT = new Map<string, number>()
 
   const blankComments = (source: string): string =>
     source.replace(/\/\*[\s\S]*?\*\/|(?<!:)\/\/[^\n]*/g, match =>
