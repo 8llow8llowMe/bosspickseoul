@@ -7,6 +7,10 @@ import styled, { css, keyframes } from 'styled-components'
 import type { NormalizedApiError } from '@/lib/api/api-error'
 import { createAnalysisResultHref } from '@/lib/analysis/selection'
 import {
+  createSimulationHrefFromCodes,
+  describeSimulationLink,
+} from '@/lib/simulation/report-route'
+import {
   COMPARE_MAX_COMMERCIALS,
   COMPARE_MIN_COMMERCIALS,
   createCompareHref,
@@ -670,6 +674,19 @@ export default function RecommendPanel({
       },
       'summary',
     )
+  // 추천 카드 → 창업 비용 계산(#566). 시뮬레이션 조건은 자치구·업종까지라 카드마다 같은 링크다.
+  const simulationLink = {
+    href: createSimulationHrefFromCodes({
+      districtCode: submitted.district.code,
+      serviceCode: submitted.service.code,
+    }),
+    label: describeSimulationLink({
+      districtCode: submitted.district.code,
+      districtName: submitted.district.name,
+      serviceCode: submitted.service.code,
+      serviceName: submitted.service.name,
+    }),
+  }
 
   // `compareSelection` 이 아예 없을 수도 있다 — 비교 기능을 켜지 않은 호출부다.
   // 없거나 비었으면 고정 바 자체를 그리지 않는다(아래 렌더 분기, #569). 이 값은 계산용 안전망일 뿐이다.
@@ -757,6 +774,7 @@ export default function RecommendPanel({
           selectedCommercialCode={selectedCommercialCode}
           selectedServiceCode={submitted.service.code}
           buildAnalysisHref={buildAnalysisHref}
+          simulationLink={simulationLink}
           compareSelection={compareSelection}
           onPreviewChange={onResultPreviewChange}
           onBookmarkToggle={onBookmarkToggle}

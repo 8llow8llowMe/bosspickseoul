@@ -66,6 +66,13 @@ export type RecommendResultListProps = {
    * 생략하면 링크를 그리지 않는다 — 조건이 덜 찬 화면에서도 이 목록을 쓴다.
    */
   buildAnalysisHref?: (commercialCode: string) => string | null
+  /**
+   * 「창업 비용 계산」 링크(#566). 시뮬레이션 조건은 자치구·업종까지라 **모든 카드가 같은 링크**를
+   * 쓴다 — 상권별로 만들 값이 없어 함수가 아니라 값으로 받는다. 생략하면 링크를 그리지 않는다.
+   * `label` 은 링크가 실제로 채우는 조건(「강남구 커피-음료 창업 비용 계산」)이다 — 상권명을 붙이면
+   * 상권별 계산처럼 들린다(`describeSimulationLink`).
+   */
+  simulationLink?: { href: string; label: string } | null
   onRetry: () => void
   /** 비교 담기 선택. 카드 본문 클릭(지도 포커스)과 **다른 행동**이다. */
   compareSelection?: readonly string[]
@@ -452,8 +459,10 @@ const QualityDot = styled.span`
   background: currentColor;
 `
 
+/* 링크 둘 + 비교 + 북마크가 360 폭 카드 한 줄에 다 들어가지 않는다. 넘치면 오른쪽 정렬로 줄을 바꾼다. */
 const SecondaryActions = styled.div`
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding: 0 14px 14px;
@@ -782,6 +791,7 @@ export default function RecommendResultList({
   isBookmarkLoginRequired = false,
   onBookmarkToggle,
   buildAnalysisHref,
+  simulationLink = null,
   onRetry,
   compareSelection = [],
   onCompareToggle,
@@ -1063,6 +1073,16 @@ export default function RecommendResultList({
                     href={analysisHref}
                   >
                     상권 분석 보기
+                    <ArrowUpRight aria-hidden="true" />
+                  </AnalysisLink>
+                ) : null}
+                {simulationLink ? (
+                  <AnalysisLink
+                    aria-label={simulationLink.label}
+                    data-simulation-link="true"
+                    href={simulationLink.href}
+                  >
+                    창업 비용 계산
                     <ArrowUpRight aria-hidden="true" />
                   </AnalysisLink>
                 ) : null}

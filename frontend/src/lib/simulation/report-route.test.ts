@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildSimulationReportHref,
+  createSimulationHrefFromCodes,
+  describeSimulationLink,
   parseSimulationConditionState,
   parseSimulationReportRequest,
   simulationBuilderHref,
@@ -221,6 +223,60 @@ describe('href 빌더', () => {
         new URLSearchParams(href.slice(href.indexOf('?') + 1)),
       ),
     ).toEqual(state)
+  })
+
+  it('추천에서 넘어가는 링크는 자치구·업종을 입력 화면이 읽는 형태로 채운다 (#566)', () => {
+    const href = createSimulationHrefFromCodes({
+      districtCode: '11440',
+      serviceCode: 'CS100010',
+    })
+
+    expect(href).toBe('/simulation?districtCode=11440&serviceCode=CS100010')
+    // 입력 화면(`SimulationBuilderPage`)이 그대로 복원하는 값이다.
+    expect(
+      parseSimulationConditionState(
+        new URLSearchParams(href.slice(href.indexOf('?') + 1)),
+      ),
+    ).toMatchObject({
+      districtCode: '11440',
+      serviceCode: 'CS100010',
+      franchisee: null,
+      storeSize: null,
+      floorType: null,
+    })
+  })
+
+  it('시뮬레이션이 모르는 업종·자치구는 버리고 남은 조건만 싣는다', () => {
+    expect(
+      createSimulationHrefFromCodes({
+        districtCode: '11440',
+        serviceCode: 'CS999999',
+      }),
+    ).toBe('/simulation?districtCode=11440')
+    expect(
+      createSimulationHrefFromCodes({
+        districtCode: '99999',
+        serviceCode: null,
+      }),
+    ).toBe('/simulation')
+  })
+
+  it('링크 이름은 실제로 채우는 조건만 말한다', () => {
+    const base = {
+      districtCode: '11440',
+      districtName: '마포구',
+      serviceCode: 'CS100010',
+      serviceName: '커피-음료',
+    }
+
+    expect(describeSimulationLink(base)).toBe('마포구 커피-음료 창업 비용 계산')
+    expect(
+      describeSimulationLink({
+        ...base,
+        serviceCode: 'CS999999',
+        serviceName: '없는 업종',
+      }),
+    ).toBe('마포구 창업 비용 계산')
   })
 
   it('실을 조건이 하나도 없으면 쿼리 없는 경로다', () => {

@@ -192,3 +192,60 @@ export const buildSimulationReportHref = (
 
   return `${REPORT_PATH[variant]}?${params}`
 }
+
+/**
+ * 다른 화면(추천 카드·추천 비교)에서 **창업 비용 계산**으로 넘어가는 링크(#566).
+ *
+ * 자치구·업종 두 칸만 채운 입력 화면을 연다. 나머지(창업 방식·면적·층)는 사용자의 결정이라
+ * 추천이 대신 정할 수 없다. 「조건 다시 고르기」와 같은 `simulationBuilderHref` 를 써서
+ * 입력 화면의 `parseSimulationConditionState` 가 그대로 읽는다 — 키 이름을 따로 두지 않는다.
+ *
+ * 시뮬레이션이 다루지 않는 업종 코드는 `createSimulationConditionState` 가 버린다.
+ * 그래도 자치구는 살아 있으므로 링크는 늘 쓸모가 있다.
+ *
+ * `standalone`(`/simulation`)으로 보낸다. `/analysis/simulation` 은 「분석 조건을 그대로 채워 뒀어요」
+ * 카드를 띄우는데, 추천에서 온 사람에게는 사실과 다른 문장이다.
+ */
+export const createSimulationHrefFromCodes = ({
+  districtCode,
+  serviceCode,
+}: {
+  districtCode?: string | null
+  serviceCode?: string | null
+}): string =>
+  simulationBuilderHref(
+    'standalone',
+    createSimulationConditionState({
+      districtCode: districtCode ?? null,
+      serviceCode: serviceCode ?? null,
+    }),
+  )
+
+/**
+ * 링크가 **실제로 채우는 조건**으로 접근성 이름을 만든다(예: 「강남구 커피-음료 창업 비용 계산」).
+ * 카드마다 같은 링크라 상권명을 붙이면 상권별 계산처럼 들린다. 시뮬레이션이 모르는 업종은
+ * 링크에서 빠지므로 이름에서도 뺀다. 변수 뒤에 조사를 붙이지 않는다.
+ */
+export const describeSimulationLink = ({
+  districtCode,
+  districtName,
+  serviceCode,
+  serviceName,
+}: {
+  districtCode?: string | null
+  districtName?: string | null
+  serviceCode?: string | null
+  serviceName?: string | null
+}): string => {
+  const state = createSimulationConditionState({
+    districtCode: districtCode ?? null,
+    serviceCode: serviceCode ?? null,
+  })
+  return [
+    state.districtCode ? districtName : null,
+    state.serviceCode ? serviceName : null,
+    '창업 비용 계산',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
