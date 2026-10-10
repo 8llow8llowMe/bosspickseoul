@@ -221,3 +221,60 @@ describe('ToastProvider — 붙잡은 카드가 사라지면 남은 토스트는
     expect(politeRegion()?.textContent).toBe('')
   })
 })
+
+/*
+  묶음 되돌리기 토스트(#631)는 기한이 지난 항목을 뺄 때 문구만 고친다. 그때 수명을 새로 주면 마지막 항목의 기한이
+  지난 뒤에도 토스트가 남는다 — updateToast 는 남은 수명을 이어서 재고, 닫힌 토스트는 되살리지 않는다.
+*/
+describe('ToastProvider — updateToast', () => {
+  let update: (
+    dedupeKey: string,
+    input: Pick<ShowToastInput, 'message' | 'action'>,
+  ) => void = () => undefined
+
+  function Updater() {
+    const { updateToast } = useToast()
+    useEffect(() => {
+      update = updateToast
+    }, [updateToast])
+    return null
+  }
+
+  const mountWithUpdater = () =>
+    render(
+      createElement(
+        ToastProvider,
+        null,
+        createElement(Trigger),
+        createElement(Updater),
+      ),
+    )
+
+  it('카드 문구만 바꾸고 다시 낭독하지 않으며, 수명은 처음부터 다시 재지 않는다', () => {
+    mountWithUpdater()
+    act(() => show({ message: '항목 2개를 삭제했어요.', dedupeKey: 'batch' }))
+
+    act(() => {
+      vi.advanceTimersByTime(TOAST_DURATION_MS.success - 1_000)
+    })
+    act(() => update('batch', { message: '항목 1개는 아직 되돌릴 수 있어요.' }))
+    expect(cardOf('항목 1개는 아직 되돌릴 수 있어요.')).not.toBeNull()
+    // live region 의 문단은 처음 읽은 문장 그대로다 — 텍스트가 바뀌면 새 알림처럼 다시 읽힌다.
+    expect(politeRegion()?.textContent).toBe('항목 2개를 삭제했어요.')
+
+    act(() => {
+      vi.advanceTimersByTime(1_000)
+    })
+    expect(cardOf('항목 1개는 아직 되돌릴 수 있어요.')).toBeNull()
+    expect(politeRegion()?.textContent).toBe('')
+  })
+
+  it('이미 닫힌 토스트는 되살리지 않는다', () => {
+    mountWithUpdater()
+    act(() => show({ message: '항목을 삭제했어요.', dedupeKey: 'batch' }))
+    act(() => dismissByKey('batch'))
+
+    act(() => update('batch', { message: '항목을 다시 보여 드려요.' }))
+    expect(politeRegion()?.textContent).toBe('')
+  })
+})

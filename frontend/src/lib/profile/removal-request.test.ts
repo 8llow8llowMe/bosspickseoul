@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  ARCHIVE_REMOVAL_BATCH_COPY,
+  BOOKMARK_REMOVAL_BATCH_COPY,
+  SESSION_REVOKE_BATCH_COPY,
+  SIMULATION_HISTORY_REMOVAL_BATCH_COPY,
+} from '@/lib/profile/removal-batch-copy'
+import {
+  createFailureTally,
   describeRemovalFailure,
   excludeHiddenItems,
   RemovalFailedError,
@@ -91,5 +98,62 @@ describe('excludeHiddenItems', () => {
 
   it('숨긴 것이 없으면 같은 배열을 돌려준다', () => {
     expect(excludeHiddenItems(items, new Set(), item => item.id)).toBe(items)
+  })
+})
+
+describe('createFailureTally — 실패 토스트 한 장이 말할 수', () => {
+  it('토스트가 떠 있는 동안 이어진 실패는 더하고, 닫힌 뒤의 실패는 1 부터 센다', () => {
+    let now = 0
+    const tally = createFailureTally(6000, () => now)
+
+    expect(tally.add()).toBe(1)
+    now = 2000
+    expect(tally.add()).toBe(2)
+    // 마지막 실패로 토스트가 다시 잡혔으므로 그 뒤 6초까지 이어진다.
+    now = 7999
+    expect(tally.add()).toBe(3)
+    now = 14000
+    expect(tally.add()).toBe(1)
+  })
+})
+
+describe('프로필 묶음 문구(#631) — 무엇을 몇 개 했는지 말하는 완결 문장', () => {
+  it('북마크', () => {
+    expect(BOOKMARK_REMOVAL_BATCH_COPY.removedMany(3)).toBe(
+      '북마크 3개를 해제했어요.',
+    )
+    expect(BOOKMARK_REMOVAL_BATCH_COPY.pendingMany(2)).toBe(
+      '북마크 2개는 아직 되돌릴 수 있어요.',
+    )
+    expect(BOOKMARK_REMOVAL_BATCH_COPY.restoredMany(2)).toBe(
+      '북마크 2개의 해제를 되돌렸어요.',
+    )
+    expect(BOOKMARK_REMOVAL_BATCH_COPY.alreadyDoneMany(1)).toBe(
+      '북마크 1개는 이미 해제됐어요.',
+    )
+    expect(BOOKMARK_REMOVAL_BATCH_COPY.restoredOnFailureMany(2)).toBe(
+      '북마크 2개를 해제하지 못해 다시 보여 드려요.',
+    )
+    expect(BOOKMARK_REMOVAL_BATCH_COPY.failedMany(2)).toBe(
+      '북마크 2개를 해제하지 못했어요.',
+    )
+  })
+
+  it('보관함·기록·기기', () => {
+    expect(ARCHIVE_REMOVAL_BATCH_COPY.removedMany(2)).toBe(
+      '보관한 화면 2개를 삭제했어요.',
+    )
+    expect(SIMULATION_HISTORY_REMOVAL_BATCH_COPY.pendingMany(2)).toBe(
+      '시뮬레이션 기록 2개는 아직 되돌릴 수 있어요.',
+    )
+    expect(SESSION_REVOKE_BATCH_COPY.removedMany(3)).toBe(
+      '기기 3대의 로그인을 해제했어요.',
+    )
+    expect(SESSION_REVOKE_BATCH_COPY.pendingMany(2)).toBe(
+      '기기 2대의 로그인 해제는 아직 되돌릴 수 있어요.',
+    )
+    expect(SESSION_REVOKE_BATCH_COPY.failedMany(2)).toBe(
+      '기기 2대의 로그인을 해제하지 못했어요.',
+    )
   })
 })

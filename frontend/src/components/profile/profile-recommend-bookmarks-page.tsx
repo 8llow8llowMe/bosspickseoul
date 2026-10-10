@@ -36,6 +36,7 @@ import {
   excludeHiddenItems,
   requestRemoval,
 } from '@/lib/profile/removal-request'
+import { BOOKMARK_REMOVAL_BATCH_COPY } from '@/lib/profile/removal-batch-copy'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { useAuthStore } from '@/stores/auth-store'
 import type { MemberBookmark } from '@/types/bookmark'
@@ -145,6 +146,7 @@ export default function ProfileRecommendBookmarksPage() {
 
   const removal = useUndoableRemoval({
     scope: 'profile-commercial-bookmark-remove',
+    batchCopy: BOOKMARK_REMOVAL_BATCH_COPY,
     commit: async bookmarkId => {
       await requestRemoval(
         () => removeMemberBookmark(bookmarkId),
@@ -246,6 +248,7 @@ export default function ProfileRecommendBookmarksPage() {
             removed: `${bookmark.targetName} 북마크를 해제했어요.`,
             restored: `${bookmark.targetName} 북마크를 해제하지 못해 다시 보여 드려요.`,
             failed: `${bookmark.targetName} 북마크를 해제하지 못했어요.`,
+            pending: `${bookmark.targetName} 북마크는 아직 되돌릴 수 있어요.`,
             alreadyDone: `${bookmark.targetName} 북마크는 이미 해제됐어요.`,
           })
         }

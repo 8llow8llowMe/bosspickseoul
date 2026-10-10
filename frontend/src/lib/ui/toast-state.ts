@@ -20,6 +20,11 @@ export type Toast = {
   /** 같은 동작을 반복해도 토스트가 쌓이지 않게 하는 키. 같은 키면 **교체**한다. */
   dedupeKey?: string
   action?: ToastAction
+  /**
+   * 스크린리더가 이미 읽은 문장. 있으면 live region 은 이 문장을 그대로 둔다 — `updateToastByKey` 로 문구만 고친 토스트가
+   * 새 알림처럼 다시 읽히지 않게 한다(#631). 보통은 비어 있고, 그때는 문구로 문장을 만든다(`announcementOf`).
+   */
+  announced?: string
 }
 
 /** 화면에 동시에 띄우는 최대 개수. 넘치면 **가장 오래된 것부터** 밀어낸다. */
@@ -79,3 +84,41 @@ export const dismissToastByKey = (
   toasts: readonly Toast[],
   dedupeKey: string,
 ): Toast[] => toasts.filter(toast => toast.dedupeKey !== dedupeKey)
+
+/**
+ * 스크린리더가 읽는 문장. 동작 버튼이 달렸으면 그 버튼이 있다는 것을 끝에 붙인다 — 문구만 읽으면 되돌릴 수 있다는
+ * 것을 모른 채 지나간다. 버튼 이름은 카드의 버튼과 같다. 이미 읽은 문장(`announced`)이 있으면 그것을 돌려준다.
+ */
+export const announcementOf = (toast: Toast): string =>
+  toast.announced ??
+  (toast.action
+    ? `${toast.message} 알림에 「${toast.action.label}」 버튼이 있어요.`
+    : toast.message)
+
+/**
+ * 같은 `dedupeKey` 의 토스트 **내용만** 바꾼다. id 는 그대로라 수명 타이머가 처음부터 다시 재지 않는다.
+ *
+ * `appendToast` 의 교체는 새 id 로 수명을 새로 주는데, 묶음 되돌리기 토스트(#631)는 항목 하나가 기한을 넘겨 빠질
+ * 때마다 문구를 고친다 — 그때마다 수명이 늘면 마지막 항목의 기한이 지난 뒤에도 토스트가 남는다. 이미 닫힌 토스트는
+ * 되살리지 않는다(사용자가 닫은 것을 다시 띄우지 않는다). 해당 토스트가 없으면 같은 배열을 돌려준다.
+ *
+ * live region 에는 **처음 읽은 문장을 그대로 둔다**(`announced`). 같은 문단의 텍스트가 바뀌면 스크린리더는 새 알림처럼
+ * 다시 읽는데, 기한이 지나 항목이 빠진 것은 사용자가 한 일이 아니다. 바뀐 문구는 보이는 카드에서 읽는다.
+ */
+export const updateToastByKey = (
+  toasts: readonly Toast[],
+  dedupeKey: string,
+  content: Pick<Toast, 'message' | 'action'>,
+): readonly Toast[] => {
+  const index = toasts.findIndex(toast => toast.dedupeKey === dedupeKey)
+  if (index < 0) return toasts
+
+  const next = [...toasts]
+  next[index] = {
+    ...toasts[index],
+    message: content.message,
+    action: content.action,
+    announced: announcementOf(toasts[index]),
+  }
+  return next
+}

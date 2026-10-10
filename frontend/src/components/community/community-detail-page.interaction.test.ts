@@ -284,6 +284,60 @@ describe('댓글 삭제 — 낙관적 숨김 + 되돌리기(#581)', () => {
     expect(deleteComment).not.toHaveBeenCalled()
   })
 
+  /* #631 — 댓글마다 토스트를 띄우면 상한(3)에 밀린 토스트의 댓글은 되돌릴 수 없었다. 이제 상세 하나에 토스트 하나다. */
+  it('연달아 지운 댓글은 토스트 하나로 묶고, 「모두 되돌리기」로 모두 되살린다', async () => {
+    const deleteComment = vi.spyOn(communityMockSource, 'deleteComment')
+    const realGetComments =
+      communityMockSource.getComments.bind(communityMockSource)
+    const OWN_ROOT_TEXT = '내가 쓴 두 번째 댓글이에요.'
+    vi.spyOn(communityMockSource, 'getComments').mockImplementation(
+      async postId => {
+        const response = await realGetComments(postId)
+        const comments = response.dataBody?.comments ?? []
+        return {
+          ...response,
+          dataBody: {
+            comments: [
+              ...comments,
+              {
+                commentId: '109',
+                postId: '1',
+                memberId: '9001',
+                writerNickname: '목 회원',
+                writerProfileImageUrl: null,
+                content: OWN_ROOT_TEXT,
+                likeCount: 0,
+                createdAt: '2026-07-27T09:00:00.000Z',
+                updatedAt: '2026-07-27T09:00:00.000Z',
+                replies: [],
+              },
+            ],
+          },
+        }
+      },
+    )
+    renderPage()
+    await waitForArticle()
+    await waitFor(() => {
+      expect(document.body.textContent).toContain(OWN_ROOT_TEXT)
+    })
+
+    await deleteOwnReply()
+    await deleteOwnReply()
+
+    expect(document.body.textContent).not.toContain('공사 가능 시간도 꼭')
+    expect(document.body.textContent).not.toContain(OWN_ROOT_TEXT)
+    expect(document.body.textContent).toContain('댓글 2개를 삭제했어요.')
+    expect(button('되돌리기')).toBeNull()
+
+    fireEvent.click(button('모두 되돌리기')!)
+
+    expect(document.body.textContent).toContain('공사 가능 시간도 꼭')
+    expect(document.body.textContent).toContain(OWN_ROOT_TEXT)
+    expect(button('모두 되돌리기')).toBeNull()
+    expect(deleteComment).not.toHaveBeenCalled()
+  })
+
   it('되돌리기 전에 페이지를 떠나면 기다리던 삭제를 바로 보내고, 남아 있던 되돌리기 토스트도 닫는다', async () => {
     const deleteComment = vi
       .spyOn(communityMockSource, 'deleteComment')

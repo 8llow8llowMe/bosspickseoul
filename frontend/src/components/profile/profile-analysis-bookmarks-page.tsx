@@ -54,6 +54,10 @@ import {
   excludeHiddenItems,
   requestRemoval,
 } from '@/lib/profile/removal-request'
+import {
+  ARCHIVE_REMOVAL_BATCH_COPY,
+  BOOKMARK_REMOVAL_BATCH_COPY,
+} from '@/lib/profile/removal-batch-copy'
 import { invalidateMemberBookmarksQuery } from '@/lib/recommend/recommend-bookmarks'
 import { SHARE_TYPE_LABELS, type ShareType } from '@/lib/share/payload'
 import {
@@ -373,6 +377,7 @@ function ProfileAnalysisArchiveTab() {
 
   const removal = useUndoableRemoval({
     scope: 'profile-archive-delete',
+    batchCopy: ARCHIVE_REMOVAL_BATCH_COPY,
     commit: async bookmarkId => {
       await requestRemoval(
         () => deleteAnalysisBookmark(bookmarkId),
@@ -460,6 +465,7 @@ function ProfileAnalysisArchiveTab() {
               removed: `「${title}」 보관을 삭제했어요.`,
               restored: `「${title}」 보관을 삭제하지 못해 다시 보여 드려요.`,
               failed: `「${title}」 보관을 삭제하지 못했어요.`,
+              pending: `「${title}」 보관은 아직 되돌릴 수 있어요.`,
               alreadyDone: `「${title}」 보관은 이미 삭제됐어요.`,
             })
           }}
@@ -527,6 +533,7 @@ function ProfileRegionBookmarkTab() {
   const query = useMemberBookmarks(memberId, true)
   const removal = useUndoableRemoval({
     scope: 'profile-region-bookmark-remove',
+    batchCopy: BOOKMARK_REMOVAL_BATCH_COPY,
     commit: async bookmarkId => {
       await requestRemoval(
         () => removeMemberBookmark(bookmarkId),
@@ -588,6 +595,7 @@ function ProfileRegionBookmarkTab() {
               removed: `${bookmark.targetName} 북마크를 해제했어요.`,
               restored: `${bookmark.targetName} 북마크를 해제하지 못해 다시 보여 드려요.`,
               failed: `${bookmark.targetName} 북마크를 해제하지 못했어요.`,
+              pending: `${bookmark.targetName} 북마크는 아직 되돌릴 수 있어요.`,
               alreadyDone: `${bookmark.targetName} 북마크는 이미 해제됐어요.`,
             })
           }
