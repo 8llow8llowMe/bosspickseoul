@@ -10,16 +10,25 @@ name: frontend-ci
 # `e2e` 는 백엔드 없이 도는 Playwright 슈트(커뮤니티·인증·레이아웃·홈 불변식)를 프로덕션 빌드로
 # 돈다(#477, #632). Jenkins 빌드 에이전트에는 Chromium 과 시스템 의존성이 없어서, Jenkins 대신
 # 이 워크플로에 붙였다. Actions 러너는 `playwright install --with-deps` 가 바로 된다(`frontend/docs/runbook/qa.md` §2).
+#
+# **`verify` · `e2e` 는 develop 의 필수 체크(required status check)다.** 그래서 두 체크는 **모든 PR 에서
+# 반드시 생겨야** 한다. 체크가 아예 안 생기면 PR 은 「Expected — Waiting for status」로 영원히 막힌다.
+# - `pull_request` 에 `paths` 를 두지 않는다. 워크플로 수준 `paths` 로 거르면 BE 전용·저장소 설정 PR 에서
+#   워크플로가 돌지 않아 체크가 생기지 않는다.
+# - 대신 `changes` 잡이 프론트 변경을 가르고, 변경이 없으면(`kind=none`) 두 잡을 **잡 수준 `if` 로 건너뛴다.**
+#   건너뛴 잡은 `skipped` 로 보고되고 필수 체크는 이것을 통과로 친다.
+# - 스텝 수준 `if` 로 걸러도 체크는 생긴다. 잡 수준으로 거르는 이유는 FE 와 무관한 PR 에서 러너를 잡고
+#   의존성을 설치하는 시간을 쓰지 않기 위해서다.
 
 on:
+  # 기본 `types`(opened · synchronize · reopened)로 둔다. 새 커밋마다 새 실행이 head SHA 에 체크를 남긴다.
+  # 브랜치를 거르지 않는다. 스택 PR(다른 기능 브랜치 대상)도 검사한다.
   pull_request:
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-ci.yml'
-      - 'scripts/classify-frontend-changes.sh'
-  # **develop 에서도 돈다 — 캐시 때문이다** (`backend-ci.yml` 의 같은 블록).
+  # **develop push 에서도 돈다 — 캐시 때문이다** (`backend-ci.yml` 의 같은 블록).
   # 기본 브랜치 스코프 캐시가 있어야 PR 마다 pnpm store 를 처음부터 받지 않는다.
   # 겸사겸사 머지된 develop 자체를 검사한다.
+  # push 는 필수 체크와 무관하다(필수 체크는 PR head 커밋에서 센다). 그래서 이쪽은 `paths` 로 거른다 —
+  # 프론트와 무관한 머지마다 빌드·e2e 를 돌 이유가 없다.
   push:
     branches:
       - develop
@@ -28,6 +37,10 @@ on:
       - '.github/workflows/frontend-ci.yml'
       - 'scripts/classify-frontend-changes.sh'
 
+# 같은 PR 에 새 커밋이 올라오면 이전 실행을 버린다. 취소된 실행의 체크는 **옛 head 커밋**에 남고,
+# 필수 체크는 PR 의 지금 head 커밋에서만 세므로 머지를 막지 않는다. 같은 커밋을 다시 돌린 경우
+# (reopen·재실행)에도 같은 이름의 가장 최근 체크가 이긴다.
+#
 # develop push 는 취소하지 않는다. 앞 실행이 취소되면 그 커밋은 검사되지 않고,
 # base 스코프 캐시도 저장되지 않는다(캐시는 성공한 잡의 post 단계에서만 저장된다).
 concurrency:
@@ -38,12 +51,17 @@ permissions:
   contents: read
 
 jobs:
-  # 무엇이 바뀌었는지 먼저 가른다. `frontend/` 에서 문서만 바뀐 PR 은 `verify` 가
-  # `format:check` 만 돈다.
+  # 무엇이 바뀌었는지 먼저 가른다.
+  # - `code` — `verify` 전부 + `e2e`
+  # - `docs` — `frontend/` 에서 문서만 바뀌었다. `verify` 는 `format:check` 만, `e2e` 는 skipped
+  # - `none` — 프론트와 무관하다(BE 전용·다른 워크플로·루트 문서). 두 잡 모두 skipped
   #
   # **판정 기준은 `scripts/classify-frontend-changes.sh` 한 곳에 있다.**
   # develop push 는 늘 `code` 다 — base 스코프 캐시를 만들고 머지된 develop 을 검사하는
   # 목적이라 건너뛰면 안 된다. 판정이 실패하면 `code` 로 본다. 모르는 것을 "안 바뀌었다" 로 읽지 않는다.
+  #
+  # **이 잡 자체가 실패해도 아래 두 잡은 건너뛰지 않고 전부 돈다.** `needs` 가 실패하면 기본으로 뒤
+  # 잡이 skipped 가 되는데, skipped 는 필수 체크에서 통과다. 판정 실패가 곧 검사 생략이 되면 안 된다.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -66,8 +84,11 @@ jobs:
           fi
           echo "kind=$kind" | tee -a "$GITHUB_OUTPUT"
 
+  # 잡 `if` 의 뜻: 판정이 성공했고 `none` 이면 건너뛴다. 판정이 실패했으면(출력이 비었으면) 돈다.
+  # `!cancelled()` 가 있어야 `needs` 실패에도 이 식을 평가한다(없으면 암묵적 `success()` 가 붙는다).
   verify:
     needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.kind != 'none') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -91,20 +112,21 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # 문서만 바뀐 PR 도 포맷 검사는 돈다 — `.md` 도 prettier 대상이다
+      # 문서만 바뀐 PR 도 포맷 검사는 돈다 — `.md` 도 prettier 대상이다.
+      # 아래 스텝은 `docs` 일 때만 건너뛴다(`== 'code'` 가 아니다). 판정이 실패해 kind 가 비면 전부 돈다.
       - run: pnpm format:check
       - run: pnpm lint
-        if: needs.changes.outputs.kind == 'code'
+        if: needs.changes.outputs.kind != 'docs'
       - run: pnpm typecheck
-        if: needs.changes.outputs.kind == 'code'
+        if: needs.changes.outputs.kind != 'docs'
       - run: pnpm test
-        if: needs.changes.outputs.kind == 'code'
+        if: needs.changes.outputs.kind != 'docs'
 
       # server/client 경계 오류는 빌드에서만 잡히는 것이 많다.
       # 값은 자리표시자다. 실제 값은 Jenkins 가 Vault 에서 넣는다.
       # 세션 키는 32자 이상이어야 한다(`src/lib/env.server.ts`).
       - run: pnpm build
-        if: needs.changes.outputs.kind == 'code'
+        if: needs.changes.outputs.kind != 'docs'
         env:
           NEXT_TELEMETRY_DISABLED: '1'
           BACKEND_API_URL: http://localhost:8080
@@ -132,24 +154,19 @@ jobs:
   # 고정하지 않은 실응답(자치구 상세 등)에 기댄다. 셋 다 로컬 전용이다(`frontend/docs/runbook/qa.md` §2).
   # 슈트를 더할 때는 아래 실행 줄에 경로를 더한다 — 디렉터리 단위가 아니라 백엔드 없이 도는 것만 고른다.
   #
-  # **관찰 기간이다 — 처음에는 `continue-on-error` 로 둔다.**
-  # - 효과: 이 잡이 깨져도 워크플로 실행 결론은 성공이다. 잡 자체의 실패는 그대로 보인다.
-  #   머지를 막지 않는 것은 required check 가 없어서다. "빨간불이면 머지하지 않는다" 규칙에서 이
-  #   잡만 예외로 둔다(빨간불이면 원인을 PR 에 적는다).
+  # **필수 체크다.** 관찰 기간(`continue-on-error`)은 끝났다. 이 잡이 깨지면 워크플로도 실패하고 머지가 막힌다.
   # - flaky 를 통과로 세지 않는다. CI 는 `retries: 1` 이라(`playwright.config.ts`) 재시도에서 통과한
-  #   테스트도 exit 0 이 된다. 관찰 기간에는 `--fail-on-flaky-tests` 로 실패와 아티팩트로 드러낸다.
-  # - 걷는 기준: develop push 실행의 이 잡이 연속 20회 성공. 세는 방법은 qa.md §2.
-  #   걷으면 e2e 실패가 워크플로 실패가 되고 위 예외도 없앤다. 그때 이 주석 · qa.md §2 ·
-  #   `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2 표를 같이 고친다.
+  #   테스트도 exit 0 이 된다. `--fail-on-flaky-tests` 로 실패와 아티팩트로 드러낸다. 백엔드 없이 고정 응답으로
+  #   도는 슈트라 flaky 는 테스트 결함이다 — 재실행으로 넘기지 말고 원인을 고친다.
+  # - FE 코드 변경이 없는 PR(`docs`·`none`)에서는 skipped 로 통과한다. 판정이 실패하면 돈다(`verify` 와 같다).
   #
   # `verify` 에 의존시키지 않는다. 둘은 서로 다른 것을 보고, 직렬로 묶으면 lint 한 줄 때문에
   # 화면 결과를 못 보게 된다.
   e2e:
     needs: changes
-    if: needs.changes.outputs.kind == 'code'
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.kind == 'code') }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    continue-on-error: true
     defaults:
       run:
         working-directory: frontend
@@ -177,9 +194,8 @@ jobs:
       # 브라우저는 node_modules 캐시에 들어가지 않아 따로 캐시한다. playwright 버전이 lockfile 에
       # 고정되므로 lockfile 해시를 키로 쓴다.
       #
-      # **복원과 저장을 나눈다.** `actions/cache` 는 잡이 성공해야 post 단계에서 저장하는데, 관찰
-      # 기간에는 이 잡이 깨질 수 있다. 그러면 깨지는 동안 매번 chromium 을 새로 받는다.
-      # 그래서 설치 직후에 따로 저장한다.
+      # **복원과 저장을 나눈다.** `actions/cache` 는 잡이 성공해야 post 단계에서 저장한다. 테스트가
+      # 깨지는 PR 에서도 다음 실행이 chromium 을 새로 받지 않도록 설치 직후에 따로 저장한다.
       - name: Restore Playwright browsers
         id: playwright-cache
         uses: actions/cache/restore@v4
@@ -228,7 +244,7 @@ jobs:
           cat next-server.log
           exit 1
 
-      # `--fail-on-flaky-tests` 는 관찰 기간용이다(위 잡 주석). 걷을 때 같이 정한다.
+      # `--fail-on-flaky-tests` — 재시도에서 통과한 테스트도 실패로 센다(위 잡 주석).
       - run: pnpm test:e2e e2e/community e2e/auth e2e/layout e2e/home/invariants.spec.ts --fail-on-flaky-tests
 
       # **실패했을 때만 올린다.** trace(`test-results/`)로 어느 단언에서 무엇이 그려졌는지 본다.

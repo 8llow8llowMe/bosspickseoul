@@ -45,6 +45,7 @@
 ### PR 체크 — GitHub Actions + Jenkins (#497)
 
 - `backend-ci / check`(전 모듈 테스트, env 없음) · `frontend-ci / verify` 가 빨간불이면 머지하지 않는다. 초록불이면 job summary 의 **실행 건수**도 본다.
+- **`frontend-ci / verify` · `frontend-ci / e2e` 를 develop 의 필수 체크로 지정한다**(develop branch protection, 저장소 소유자가 적용. 적용 순서는 `frontend/docs/runbook/qa.md` §2). FE 변경이 없는 PR 에서는 두 잡이 skipped 로 끝나 통과로 친다. 필수 체크가 걸린 뒤에는 `gh pr merge --auto` 가 체크를 기다린다(동작 설명). 이 저장소는 체크 초록을 확인하고 수동으로 rebase merge 한다. `backend-ci / check` 는 필수가 아니다 — 워크플로 수준 `paths` 로 걸러 FE 전용 PR 에서는 생기지 않기 때문이다.
 - 배포 라벨은 PR 을 만들 때 붙이는 규약을 유지한다. 빠뜨리면 `label` 워크플로가 경로를 보고 보정한다. `backend/core/**` 처럼 공용 경로만 바꾼 PR 에는 자동으로 붙지 않으므로, 배포할 서비스 라벨은 작성자가 더한다.
 - Jenkins 는 Vault env 를 넣고 라벨이 가리키는 모듈을 테스트·배포한다. 역할 분담 정본은 `backend/docs/jenkins-cicd-dev-deploy-guide.md` §1-2.
 
