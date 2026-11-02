@@ -27,14 +27,14 @@ dependencies {
     // Config Client
     implementation 'org.springframework.cloud:spring-cloud-starter-config'
     // SpringDoc (swagger - openapi 3.0)
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.9.1'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.10.0'
     // Map Struct
     implementation 'org.mapstruct:mapstruct:1.6.3'
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     // 안전한 QueryDSL 버전 (OpenFeign 포크 사용)
-    implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.6'
-    annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.6:jpa'
+    implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.7'
+    annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.7:jpa'
 
     // QueryDSL 커스텀 구현은 컴파일로 검증되지 않는다. 동적 조건 조립과 정렬은
     // 실제 스키마에 질의해야 확인되므로 @DataJpaTest 슬라이스용 임베디드 DB 를 둔다.

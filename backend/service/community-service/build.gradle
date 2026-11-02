@@ -16,7 +16,7 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
     // SpringDoc (swagger - openapi 3.0)
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.9.1'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.10.0'
     // Spring Security Resource Server
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
@@ -26,8 +26,8 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
     // QueryDSL
-    implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.6'
-    annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.6:jpa'
+    implementation 'io.github.openfeign.querydsl:querydsl-jpa:7.7'
+    annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:7.7:jpa'
 
     // MySQL JDBC
     runtimeOnly 'com.mysql:mysql-connector-j'
